@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    background-color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* =========================================================================
+   PRINT / PDF OFFICIAL SERVICE SLIP FORMATTING
+   ========================================================================= */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Itago ang sidebars, headers, floating menus, at action buttons */
+  header,
+  aside,
+  nav,
+  button,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Siguraduhing visible at malinis ang resibo */
+  .print-slip-modal {
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
