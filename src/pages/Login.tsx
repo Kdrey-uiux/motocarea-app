@@ -429,17 +429,6 @@ export default function Login() {
                 )}
               </div>
             )}
-
-            {/* Link to Workshop Staff & Operations Portal */}
-            <div className="mt-4 text-center border-t border-slate-100 pt-3">
-              <Link
-                to="/admin/login"
-                className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-blue-700 font-medium transition"
-              >
-                <Wrench className="w-3.5 h-3.5 text-blue-600" />
-                <span>Workshop Staff or Manager? Access Terminal ➡️</span>
-              </Link>
-            </div>
           </>
         )}
       </div>
