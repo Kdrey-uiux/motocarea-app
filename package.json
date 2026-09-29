@@ -5,12 +5,22 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:admin": "npm run dev --prefix admin",
+    "dev:superadmin": "npm run dev --prefix superadmin",
     "server": "npm run dev --prefix server",
     "build": "tsc -b && vite build",
+    "build:admin": "npm run build --prefix admin",
+    "build:superadmin": "npm run build --prefix superadmin",
     "build:server": "npm run build --prefix server",
+    "build:all": "npm run build && npm run build:admin && npm run build:superadmin && npm run build:server",
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "workspaces": [
+    "admin",
+    "superadmin",
+    "server"
+  ],
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "clsx": "^2.1.1",

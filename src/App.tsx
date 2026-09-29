@@ -2,12 +2,10 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import TrackStatus from './pages/TrackStatus';
 import Login from './pages/Login';
-import AdminLogin from './pages/AdminLogin';
+import AdminRedirect from './pages/AdminRedirect';
 import ResetPassword from './pages/ResetPassword';
 import CustomerDashboard from './customer/CustomerDashboard';
-import AdminDashboard from './admin/AdminDashboard';
 import ProtectedRoute from './components/auth/ProtectedRoute';
-import AdminProtectedRoute from './components/auth/AdminProtectedRoute';
 
 export default function App() {
   return (
@@ -18,7 +16,8 @@ export default function App() {
           <Route path="/track" element={<TrackStatus />} />
           <Route path="/track/:ticketCode" element={<TrackStatus />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<AdminRedirect />} />
+          <Route path="/admin" element={<AdminRedirect />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/dashboard"
@@ -26,14 +25,6 @@ export default function App() {
               <ProtectedRoute>
                 <CustomerDashboard />
               </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <AdminProtectedRoute>
-                <AdminDashboard />
-              </AdminProtectedRoute>
             }
           />
         </Routes>
