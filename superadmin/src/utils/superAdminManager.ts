@@ -49,7 +49,64 @@ const DEFAULT_ADMINS: WorkshopAdminAccount[] = [
     createdAt: '2026-02-15T09:30:00.000Z',
     createdBy: 'Don Enrico Gomez (Owner)',
   },
+  {
+    id: 'adm-juan',
+    fullName: 'Engr. Juan Dela Cruz',
+    email: 'manager.juan@motocare.com',
+    phone: '+63 917 123 4567',
+    role: 'admin',
+    position: 'Chief Workshop Manager',
+    status: 'active',
+    password: 'qwerty123',
+    createdAt: '2026-09-29T08:00:00.000Z',
+    createdBy: 'Don Enrico Gomez (Owner)',
+  },
 ];
+
+const SYNC_CHANNEL = 'motocare_admin_sync_bus';
+
+export function saveAccountsToSharedCookie(accounts: WorkshopAdminAccount[]): void {
+  try {
+    if (typeof document !== 'undefined') {
+      const json = JSON.stringify(accounts);
+      document.cookie = `motocare_shared_admins=${encodeURIComponent(json)}; path=/; max-age=31536000; SameSite=Lax`;
+    }
+  } catch (e) {
+    console.error('Failed to write shared admin cookie:', e);
+  }
+}
+
+export function getAccountsFromSharedCookie(): WorkshopAdminAccount[] {
+  try {
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie.split(';');
+      for (const c of cookies) {
+        const [key, val] = c.trim().split('=');
+        if (key === 'motocare_shared_admins' && val) {
+          const decoded = decodeURIComponent(val);
+          const parsed = JSON.parse(decoded);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      }
+    }
+    return [];
+  } catch (e) {
+    console.error('Failed to read shared admin cookie:', e);
+    return [];
+  }
+}
+
+export function broadcastAdminUpdate(accounts: WorkshopAdminAccount[]): void {
+  try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      const channel = new BroadcastChannel(SYNC_CHANNEL);
+      channel.postMessage({ type: 'ADMIN_UPDATE', data: accounts });
+      channel.close();
+    }
+  } catch (err) {
+    console.warn('BroadcastChannel error:', err);
+  }
+}
 
 const DEFAULT_SETTINGS: SystemSettings = {
   shopName: 'MotoCare Express & Performance Hub',
@@ -135,30 +192,56 @@ export function verifySuperAdmin(
 // ----------------- WORKSHOP ADMIN ACCOUNTS MANAGEMENT -----------------
 
 export function getAdminAccounts(): WorkshopAdminAccount[] {
+  let accounts: WorkshopAdminAccount[] = [];
+
   try {
     const raw = localStorage.getItem(ADMIN_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(DEFAULT_ADMINS));
-      return DEFAULT_ADMINS;
-    }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      if (parsed.length === 0) {
-        localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(DEFAULT_ADMINS));
-        return DEFAULT_ADMINS;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        accounts = parsed;
       }
-      return parsed;
     }
-    return DEFAULT_ADMINS;
   } catch (err) {
     console.error('Error fetching admin accounts:', err);
-    return DEFAULT_ADMINS;
   }
+
+  // Merge with shared cookie from other tabs / origins on localhost
+  const cookieAccounts = getAccountsFromSharedCookie();
+  if (cookieAccounts.length > 0) {
+    for (const ca of cookieAccounts) {
+      const idx = accounts.findIndex((a) => a.email.toLowerCase() === ca.email.toLowerCase());
+      if (idx >= 0) {
+        accounts[idx] = { ...accounts[idx], ...ca };
+      } else {
+        accounts.push(ca);
+      }
+    }
+  }
+
+  // Ensure default seed accounts exist
+  for (const seed of DEFAULT_ADMINS) {
+    const idx = accounts.findIndex((a) => a.email.toLowerCase() === seed.email.toLowerCase());
+    if (idx === -1) {
+      accounts.push(seed);
+    }
+  }
+
+  try {
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(accounts));
+    saveAccountsToSharedCookie(accounts);
+  } catch (err) {
+    console.error('Error persisting merged accounts:', err);
+  }
+
+  return accounts;
 }
 
 export function saveAdminAccounts(admins: WorkshopAdminAccount[]): void {
   try {
     localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(admins));
+    saveAccountsToSharedCookie(admins);
+    broadcastAdminUpdate(admins);
   } catch (err) {
     console.error('Error saving admin accounts:', err);
   }
@@ -198,6 +281,24 @@ export async function createAdminAccount(params: {
 
     const updated = [newAdmin, ...existing];
     saveAdminAccounts(updated);
+
+    // Try Supabase Auth SignUp if available
+    try {
+      await supabase.auth.signUp({
+        email: newAdmin.email,
+        password: newAdmin.password || 'admin123',
+        options: {
+          data: {
+            full_name: newAdmin.fullName,
+            phone_number: newAdmin.phone,
+            role: 'admin',
+            position: newAdmin.position,
+          },
+        },
+      });
+    } catch {
+      // Offline fallback
+    }
 
     try {
       await supabase.from('profiles').upsert(
