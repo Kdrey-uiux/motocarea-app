@@ -22,6 +22,7 @@ export default function CustomerDashboard() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // User States
   const [userId, setUserId] = useState<string | null>(null);
@@ -173,6 +174,8 @@ export default function CustomerDashboard() {
         onLogout={handleLogout}
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
+        isSidebarCollapsed={isSidebarCollapsed}
+        onToggleSidebarCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -181,6 +184,8 @@ export default function CustomerDashboard() {
           activeTickets={activeTickets}
           onBookClick={() => setActiveTab('book')}
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleSidebarCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         />
 
         <main className="p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto space-y-6">
