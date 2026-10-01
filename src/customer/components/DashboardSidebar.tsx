@@ -1,12 +1,13 @@
 import { TabType, UserProfile } from '../../types/dashboard';
 import {
-  Wrench,
-  LayoutDashboard,
-  History,
+  LayoutGrid,
   Calendar,
+  History,
   User,
   LogOut,
   X,
+  Wrench,
+  Settings,
 } from 'lucide-react';
 
 interface DashboardSidebarProps {
@@ -29,7 +30,7 @@ export default function DashboardSidebar({
   isSidebarCollapsed,
 }: DashboardSidebarProps) {
   const navItems = [
-    { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid },
     { id: 'book' as TabType, label: 'Book Service', icon: Calendar },
     { id: 'history' as TabType, label: 'Service Records', icon: History },
     { id: 'profile' as TabType, label: 'Account Profile', icon: User },
@@ -37,108 +38,118 @@ export default function DashboardSidebar({
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Mobile Drawer Backdrop */}
       {isMobileMenuOpen && (
         <div
           onClick={() => setIsMobileMenuOpen(false)}
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 md:hidden transition-opacity"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 md:hidden transition-opacity"
         />
       )}
 
-      {/* Sidebar Container */}
+      {/* Floating Slim Pill Sidebar (Matches reference Dribbble style) */}
       <aside
-        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 bg-white border-r border-slate-200 flex flex-col justify-between h-screen shadow-lg md:shadow-none transition-all duration-300 ease-in-out overflow-hidden ${
+        className={`fixed md:sticky top-0 inset-y-0 left-0 z-50 flex flex-col justify-between h-screen transition-all duration-300 ease-in-out ${
           isMobileMenuOpen
-            ? 'translate-x-0 w-64 p-4'
+            ? 'translate-x-0 w-64 p-4 bg-white shadow-xl'
             : '-translate-x-full md:translate-x-0'
         } ${
           isSidebarCollapsed
-            ? 'md:w-0 md:p-0 md:opacity-0 md:border-r-0 md:pointer-events-none'
-            : 'md:w-64 md:p-4 md:opacity-100'
+            ? 'md:w-0 md:p-0 md:opacity-0 md:pointer-events-none overflow-hidden'
+            : 'md:w-24 md:py-6 md:pl-5 md:pr-0 md:opacity-100'
         }`}
       >
-        <div className="space-y-6 w-56 min-w-[14rem]">
-          {/* Header & Logo */}
-          <div className="flex items-center justify-between px-1 py-1">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('overview');
-                setIsMobileMenuOpen(false);
-              }}
-              className="flex items-center gap-2.5 text-left focus:outline-none cursor-pointer"
-            >
-              <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs shrink-0">
-                <Wrench className="w-4 h-4" />
-              </div>
-              <div className="whitespace-nowrap">
-                <span className="text-base font-bold text-slate-900 leading-tight block">
-                  Moto<span className="text-blue-600">Care</span>
-                </span>
-                <span className="text-[10px] text-slate-500 font-medium">Customer Portal</span>
-              </div>
-            </button>
+        <div className="bg-white border border-slate-200/80 rounded-[2rem] shadow-xs flex flex-col justify-between items-center py-6 px-3 h-full w-full">
+          {/* Top Logo / Mobile Close */}
+          <div className="flex flex-col items-center gap-5 w-full">
+            <div className="flex items-center justify-between w-full px-2 md:justify-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('overview');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-11 h-11 rounded-2xl bg-orange-500 hover:bg-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/25 transition cursor-pointer shrink-0"
+                title="MotoCare Portal"
+              >
+                <Wrench className="w-5 h-5" />
+              </button>
 
-            {/* Mobile Close Button */}
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 md:hidden transition cursor-pointer"
-              title="Close navigation"
-            >
-              <X className="w-5 h-5" />
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 md:hidden transition cursor-pointer"
+                title="Close navigation"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Navigation Icons Column */}
+            <nav className="flex flex-col items-center gap-3 w-full mt-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveTab(item.id);
+                      setIsMobileMenuOpen(false);
+                    }}
+                    className={`relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-200 cursor-pointer group ${
+                      isActive
+                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 scale-105'
+                        : 'text-slate-400 hover:text-slate-800 hover:bg-slate-100'
+                    }`}
+                    title={item.label}
+                  >
+                    <Icon className="w-5 h-5" />
+                    
+                    {/* Desktop Tooltip */}
+                    <span className="hidden md:group-hover:block absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg whitespace-nowrap shadow-md z-50 pointer-events-none">
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
           </div>
 
-          {/* Navigation Items */}
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.id);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition cursor-pointer ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700 font-semibold'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-500'}`} />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* User Profile & Sign Out Footer */}
-        <div className="pt-4 border-t border-slate-200 w-56 min-w-[14rem]">
-          <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-200/80">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-xs flex-shrink-0">
-                {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
-              </div>
-              <div className="truncate">
-                <div className="text-xs font-bold text-slate-900 truncate">
-                  {userProfile?.full_name || 'Customer'}
-                </div>
-                <div className="text-[11px] text-slate-500 truncate font-mono">
-                  {userProfile?.phone_number || 'No phone set'}
-                </div>
-              </div>
+          {/* Bottom Actions: Profile, Settings & Logout */}
+          <div className="flex flex-col items-center gap-2.5 w-full pt-4 border-t border-slate-100">
+            <div
+              onClick={() => setActiveTab('profile')}
+              className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs cursor-pointer group relative"
+              title={userProfile?.full_name || 'Account Profile'}
+            >
+              {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'U'}
+              <span className="hidden md:group-hover:block absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg whitespace-nowrap shadow-md z-50 pointer-events-none">
+                {userProfile?.full_name || 'Account Profile'}
+              </span>
             </div>
 
             <button
+              type="button"
+              onClick={() => setActiveTab('profile')}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer group relative"
+              title="Account Settings"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden md:group-hover:block absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg whitespace-nowrap shadow-md z-50 pointer-events-none">
+                Settings
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={onLogout}
+              className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer group relative"
               title="Sign Out"
-              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
+              <span className="hidden md:group-hover:block absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg whitespace-nowrap shadow-md z-50 pointer-events-none">
+                Sign Out
+              </span>
             </button>
           </div>
         </div>

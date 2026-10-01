@@ -166,7 +166,7 @@ export default function CustomerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5] text-slate-800 flex font-sans antialiased selection:bg-blue-600 selection:text-white relative">
+    <div className="min-h-screen bg-[#f2f4f7] text-slate-800 flex font-sans antialiased selection:bg-orange-500 selection:text-white relative">
       <DashboardSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -180,16 +180,18 @@ export default function CustomerDashboard() {
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <DashboardHeader
           activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          userProfile={userProfile}
           activeTickets={activeTickets}
-          onBookClick={() => setActiveTab('book')}
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebarCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
         />
 
-        <main className="p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto space-y-6">
+        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           {activeTab === 'overview' && (
             <OverviewTab
+              userProfile={userProfile}
               activeTickets={activeTickets}
               motorcycles={motorcycles}
               serviceHistory={serviceHistory}
@@ -197,6 +199,7 @@ export default function CustomerDashboard() {
                 if (bikeId) setSelectedBikeId(bikeId);
                 setActiveTab('book');
               }}
+              onViewHistoryClick={() => setActiveTab('history')}
               onCancelTicket={handleCancelTicket}
             />
           )}
@@ -236,12 +239,12 @@ export default function CustomerDashboard() {
       <button
         type="button"
         onClick={() => setIsMessagesModalOpen(true)}
-        className="fixed bottom-6 right-6 z-40 bg-blue-600 hover:bg-blue-700 text-white p-3.5 sm:px-4 sm:py-3 rounded-full shadow-lg hover:shadow-xl flex items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/90 group"
+        className="fixed bottom-6 right-6 z-40 bg-orange-500 hover:bg-orange-600 text-white p-3.5 sm:px-4 sm:py-3 rounded-full shadow-lg shadow-orange-500/20 hover:shadow-xl flex items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/90 group"
         title="Open Workshop Helpdesk"
       >
         <div className="relative">
           <MessageSquare className="w-5 h-5 text-white" />
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-blue-600 animate-pulse" />
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full border-2 border-orange-500 animate-pulse" />
         </div>
         <span className="hidden sm:inline text-xs font-bold tracking-wide">
           Workshop Chat
