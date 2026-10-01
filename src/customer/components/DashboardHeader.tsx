@@ -22,7 +22,7 @@ interface DashboardHeaderProps {
   onToggleMobileMenu: () => void;
   isSidebarCollapsed: boolean;
   onToggleSidebarCollapse: () => void;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
   onOpenPasswordModal: () => void;
   onLogout: () => void;
 }
@@ -318,12 +318,16 @@ export default function DashboardHeader({
                   type="button"
                   onClick={() => {
                     setIsUserMenuOpen(false);
-                    onOpenSettings();
+                    if (setActiveTab) {
+                      setActiveTab('settings');
+                    } else if (onOpenSettings) {
+                      onOpenSettings();
+                    }
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >
-                  <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                  <span>Settings & Community Standards</span>
+                  <ShieldCheck className="w-4 h-4 text-orange-500" />
+                  <span>Settings & Policies</span>
                 </button>
 
                 <button

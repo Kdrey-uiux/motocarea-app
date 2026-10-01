@@ -17,7 +17,6 @@ interface DashboardSidebarProps {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
   isSidebarCollapsed: boolean;
-  onOpenSettings?: () => void;
 }
 
 export default function DashboardSidebar({
@@ -28,7 +27,6 @@ export default function DashboardSidebar({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   isSidebarCollapsed,
-  onOpenSettings,
 }: DashboardSidebarProps) {
   const navItems = [
     { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid },
@@ -146,15 +144,15 @@ export default function DashboardSidebar({
             <button
               type="button"
               onClick={() => {
-                if (onOpenSettings) {
-                  onOpenSettings();
-                } else {
-                  setActiveTab('profile');
-                }
+                setActiveTab('settings');
                 setIsMobileMenuOpen(false);
               }}
-              className="w-full md:w-10 h-10 px-3 md:px-0 rounded-2xl flex items-center md:justify-center gap-3 text-slate-600 md:text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer group relative"
-              title="Settings & Community Standards"
+              className={`w-full md:w-10 h-10 px-3 md:px-0 rounded-2xl flex items-center md:justify-center gap-3 transition cursor-pointer group relative ${
+                activeTab === 'settings'
+                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 font-semibold'
+                  : 'text-slate-600 md:text-slate-400 hover:text-slate-900 hover:bg-slate-100'
+              }`}
+              title="Settings & Policies"
             >
               <Settings className="w-4 h-4 shrink-0" />
               <span className="md:hidden text-sm font-medium">Settings & Policies</span>

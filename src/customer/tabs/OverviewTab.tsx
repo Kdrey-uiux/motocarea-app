@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
 import {
   Wrench,
-  Calendar,
   Plus,
-  ChevronDown,
   ArrowUpRight,
   Radio,
   Clock,
@@ -103,12 +101,6 @@ export default function OverviewTab({
       ? activeTicket.total_estimate
       : '₱0.00';
 
-  const currentDateStr = new Date().toLocaleDateString('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-
   return (
     <div className="space-y-6 pb-8">
       {/* 1. Header Greeting & Action Row */}
@@ -123,13 +115,6 @@ export default function OverviewTab({
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
-          {/* Date Indicator Pill */}
-          <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-slate-200/80 text-xs font-medium text-slate-600 shadow-xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-            <span>Today, {currentDateStr}</span>
-            <ChevronDown className="w-3 h-3 text-slate-400 ml-1" />
-          </div>
-
           {/* Primary Action Pill */}
           <button
             type="button"

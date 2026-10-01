@@ -10,11 +10,11 @@ import OverviewTab from './tabs/OverviewTab';
 import ServiceHistoryTab from './tabs/ServiceHistoryTab';
 import BookServiceTab from './tabs/BookServiceTab';
 import ProfileTab from './tabs/ProfileTab';
+import SettingsTab from './tabs/SettingsTab';
 
 // Modals
 import ChangePasswordModal from './modals/ChangePasswordModal';
 import MessagesModal from './modals/MessagesModal';
-import SettingsModal from './modals/SettingsModal';
 
 import { Wrench, Loader2, MessageSquare } from 'lucide-react';
 
@@ -37,7 +37,6 @@ export default function CustomerDashboard() {
   // Modals
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isMessagesModalOpen, setIsMessagesModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [selectedBikeId, setSelectedBikeId] = useState('');
 
   const loadDashboardData = async (uid: string) => {
@@ -177,7 +176,6 @@ export default function CustomerDashboard() {
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         isSidebarCollapsed={isSidebarCollapsed}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
@@ -190,7 +188,7 @@ export default function CustomerDashboard() {
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebarCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenSettings={() => setActiveTab('settings')}
           onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
           onLogout={handleLogout}
         />
@@ -239,6 +237,14 @@ export default function CustomerDashboard() {
               onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
             />
           )}
+
+          {activeTab === 'settings' && (
+            <SettingsTab
+              onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+              onOpenHelpdesk={() => setIsMessagesModalOpen(true)}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+            />
+          )}
         </main>
       </div>
 
@@ -269,11 +275,6 @@ export default function CustomerDashboard() {
       <ChangePasswordModal
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
-      />
-
-      <SettingsModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
       />
     </div>
   );

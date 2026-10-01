@@ -1,4 +1,4 @@
-export type TabType = 'overview' | 'book' | 'history' | 'messages' | 'profile';
+export type TabType = 'overview' | 'book' | 'history' | 'profile' | 'settings';
 
 export interface BikeModel {
   id?: string;
