@@ -1,19 +1,14 @@
-export interface BaySlot {
-  bayNumber: string;
-  bayName: string;
-  isOccupied: boolean;
-  bikeModel?: string;
-  serviceType?: string;
-}
-
 export interface DayCapacity {
   date: string; // YYYY-MM-DD
-  dayLabel: string; // e.g. "Mon, Sep 28"
+  dayLabel: string; // e.g. "Mon, Oct 5"
   status: 'AVAILABLE' | 'LIMITED' | 'FULL';
   occupiedCount: number;
-  totalBays: number;
-  bays: BaySlot[];
+  totalSlots: number;
+  remainingSlots: number;
+  totalBays?: number; // legacy compatibility
 }
+
+export const DAILY_MAX_CAPACITY = 10;
 
 /**
  * Helper to format Date to YYYY-MM-DD in local time
@@ -26,7 +21,7 @@ export function formatDateKey(d: Date): string {
 }
 
 /**
- * Generates dynamic reservation schedule relative to today
+ * Generates dynamic reservation schedule relative to today based on 10 daily slots limit
  */
 export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayCapacity> {
   const schedule: Record<string, DayCapacity> = {};
@@ -43,191 +38,33 @@ export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayC
       day: 'numeric',
     });
 
-    // Custom scenario based on day offset:
-    if (i === 1) {
-      // Day + 1 (Bukas): FULLY BOOKED (4/4 Bays Occupied)
-      schedule[dateKey] = {
-        date: dateKey,
-        dayLabel,
-        status: 'FULL',
-        occupiedCount: 4,
-        totalBays: 4,
-        bays: [
-          {
-            bayNumber: '01',
-            bayName: 'Bay 01 - Quick Service',
-            isOccupied: true,
-            bikeModel: 'Yamaha Aerox 155',
-            serviceType: 'CVT Cleaning & Regrease',
-          },
-          {
-            bayNumber: '02',
-            bayName: 'Bay 02 - FI Diagnostics',
-            isOccupied: true,
-            bikeModel: 'Honda Click 125 V2',
-            serviceType: 'FI Diagnostic & Throttle Body',
-          },
-          {
-            bayNumber: '03',
-            bayName: 'Bay 03 - Precision Repair',
-            isOccupied: true,
-            bikeModel: 'Vespa Sprint 150',
-            serviceType: 'Full PMS & Valve Clearance',
-          },
-          {
-            bayNumber: '04',
-            bayName: 'Bay 04 - Heavy Mechanical',
-            isOccupied: true,
-            bikeModel: 'Kawasaki Dominar 400',
-            serviceType: 'Brake Caliper Overhaul',
-          },
-        ],
-      };
+    let occupied = 2; // default 2 slots occupied, 8 available
+
+    if (i === 0) {
+      occupied = 4; // Today: 4 booked, 6 slots available
+    } else if (i === 1) {
+      occupied = 10; // Tomorrow: Fully booked (10/10)
     } else if (i === 2) {
-      // Day + 2 (Samakalawa): LIMITED / 1 Slot Left (3/4 Bays Occupied)
-      schedule[dateKey] = {
-        date: dateKey,
-        dayLabel,
-        status: 'LIMITED',
-        occupiedCount: 3,
-        totalBays: 4,
-        bays: [
-          {
-            bayNumber: '01',
-            bayName: 'Bay 01 - Quick Service',
-            isOccupied: true,
-            bikeModel: 'Honda ADV 160',
-            serviceType: 'Change Oil & Routine Inspection',
-          },
-          {
-            bayNumber: '02',
-            bayName: 'Bay 02 - FI Diagnostics',
-            isOccupied: true,
-            bikeModel: 'Yamaha NMAX 155 V2',
-            serviceType: 'CVT Cleaning & Belt Check',
-          },
-          {
-            bayNumber: '03',
-            bayName: 'Bay 03 - Precision Repair',
-            isOccupied: true,
-            bikeModel: 'Suzuki Raider 150 Fi',
-            serviceType: 'Full PMS & Valve Clearance',
-          },
-          {
-            bayNumber: '04',
-            bayName: 'Bay 04 - Open Bay',
-            isOccupied: false,
-          },
-        ],
-      };
+      occupied = 8; // Day + 2: 8 booked, 2 slots remaining (Limited)
     } else if (i === 4) {
-      // Day + 4: FULLY BOOKED (4/4 Bays Occupied)
-      schedule[dateKey] = {
-        date: dateKey,
-        dayLabel,
-        status: 'FULL',
-        occupiedCount: 4,
-        totalBays: 4,
-        bays: [
-          {
-            bayNumber: '01',
-            bayName: 'Bay 01 - Quick Service',
-            isOccupied: true,
-            bikeModel: 'Honda Beat 110',
-            serviceType: 'Change Oil & Routine Inspection',
-          },
-          {
-            bayNumber: '02',
-            bayName: 'Bay 02 - FI Diagnostics',
-            isOccupied: true,
-            bikeModel: 'Yamaha Sniper 155',
-            serviceType: 'FI Diagnostic & Throttle Body',
-          },
-          {
-            bayNumber: '03',
-            bayName: 'Bay 03 - Precision Repair',
-            isOccupied: true,
-            bikeModel: 'Rusi Classic 250',
-            serviceType: 'Electrical & Battery Diagnostics',
-          },
-          {
-            bayNumber: '04',
-            bayName: 'Bay 04 - Heavy Mechanical',
-            isOccupied: true,
-            bikeModel: 'KTM Duke 390',
-            serviceType: 'Brake Caliper Overhaul',
-          },
-        ],
-      };
-    } else if (i === 0) {
-      // Today: 2 slots occupied
-      schedule[dateKey] = {
-        date: dateKey,
-        dayLabel: 'Today (' + dayLabel + ')',
-        status: 'AVAILABLE',
-        occupiedCount: 2,
-        totalBays: 4,
-        bays: [
-          {
-            bayNumber: '01',
-            bayName: 'Bay 01 - Quick Service',
-            isOccupied: true,
-            bikeModel: 'Honda Wave 110',
-            serviceType: 'Change Oil & Routine Inspection',
-          },
-          {
-            bayNumber: '02',
-            bayName: 'Bay 02 - FI Diagnostics',
-            isOccupied: true,
-            bikeModel: 'Yamaha Mio i125',
-            serviceType: 'CVT Cleaning & Regrease',
-          },
-          {
-            bayNumber: '03',
-            bayName: 'Bay 03 - Open Bay',
-            isOccupied: false,
-          },
-          {
-            bayNumber: '04',
-            bayName: 'Bay 04 - Open Bay',
-            isOccupied: false,
-          },
-        ],
-      };
-    } else {
-      // Default: AVAILABLE (1 bay occupied or all open)
-      schedule[dateKey] = {
-        date: dateKey,
-        dayLabel,
-        status: 'AVAILABLE',
-        occupiedCount: 1,
-        totalBays: 4,
-        bays: [
-          {
-            bayNumber: '01',
-            bayName: 'Bay 01 - Quick Service',
-            isOccupied: true,
-            bikeModel: 'Honda PCX 160',
-            serviceType: 'Change Oil & Routine Inspection',
-          },
-          {
-            bayNumber: '02',
-            bayName: 'Bay 02 - Open Bay',
-            isOccupied: false,
-          },
-          {
-            bayNumber: '03',
-            bayName: 'Bay 03 - Open Bay',
-            isOccupied: false,
-          },
-          {
-            bayNumber: '04',
-            bayName: 'Bay 04 - Open Bay',
-            isOccupied: false,
-          },
-        ],
-      };
+      occupied = 9; // Day + 4: 9 booked, 1 slot left (Limited)
+    } else if (i === 5) {
+      occupied = 3; // Day + 5: 3 booked, 7 available
     }
+
+    const remaining = Math.max(0, DAILY_MAX_CAPACITY - occupied);
+    const status: 'AVAILABLE' | 'LIMITED' | 'FULL' =
+      remaining === 0 ? 'FULL' : remaining <= 2 ? 'LIMITED' : 'AVAILABLE';
+
+    schedule[dateKey] = {
+      date: dateKey,
+      dayLabel,
+      status,
+      occupiedCount: occupied,
+      totalSlots: DAILY_MAX_CAPACITY,
+      remainingSlots: remaining,
+      totalBays: DAILY_MAX_CAPACITY,
+    };
   }
 
   return schedule;
@@ -237,12 +74,11 @@ export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayC
  * Get capacity status for a specific date
  */
 export function getBayCapacity(dateString: string): DayCapacity {
-  const schedule = getMockReservationsSchedule(20);
+  const schedule = getMockReservationsSchedule(30);
   if (schedule[dateString]) {
     return schedule[dateString];
   }
 
-  // Fallback kung lampas 20 days
   const parsed = new Date(dateString);
   const dayLabel = isNaN(parsed.getTime())
     ? dateString
@@ -256,13 +92,9 @@ export function getBayCapacity(dateString: string): DayCapacity {
     date: dateString,
     dayLabel,
     status: 'AVAILABLE',
-    occupiedCount: 0,
-    totalBays: 4,
-    bays: [
-      { bayNumber: '01', bayName: 'Bay 01 - Open Bay', isOccupied: false },
-      { bayNumber: '02', bayName: 'Bay 02 - Open Bay', isOccupied: false },
-      { bayNumber: '03', bayName: 'Bay 03 - Open Bay', isOccupied: false },
-      { bayNumber: '04', bayName: 'Bay 04 - Open Bay', isOccupied: false },
-    ],
+    occupiedCount: 2,
+    totalSlots: DAILY_MAX_CAPACITY,
+    remainingSlots: DAILY_MAX_CAPACITY - 2,
+    totalBays: DAILY_MAX_CAPACITY,
   };
 }
