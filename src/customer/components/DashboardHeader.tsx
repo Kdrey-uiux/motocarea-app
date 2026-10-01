@@ -122,7 +122,7 @@ export default function DashboardHeader({
 
   return (
     <header className="sticky top-0 z-30 pt-3 px-3 sm:pt-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4">
+      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
         {/* Left: Brand Logo & Mobile Toggle */}
         <div className="flex items-center gap-3">
           <button
@@ -147,8 +147,8 @@ export default function DashboardHeader({
           </div>
         </div>
 
-        {/* Center: Clean 3-Tab Pill Navigation (No Redundant Profile Tab) */}
-        <nav className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60">
+        {/* Center: Clean 3-Tab Pill Navigation (Exactly Centered in Desktop Header) */}
+        <nav className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60 absolute left-1/2 -translate-x-1/2">
           {navTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (

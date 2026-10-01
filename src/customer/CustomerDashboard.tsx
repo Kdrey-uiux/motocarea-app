@@ -178,7 +178,7 @@ export default function CustomerDashboard() {
         isSidebarCollapsed={isSidebarCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-scroll [scrollbar-gutter:stable]">
+      <div className="flex-1 flex flex-col min-w-0">
         <DashboardHeader
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -193,7 +193,7 @@ export default function CustomerDashboard() {
           onLogout={handleLogout}
         />
 
-        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-28 sm:pb-12">
           {activeTab === 'overview' && (
             <OverviewTab
               userProfile={userProfile}
@@ -252,7 +252,9 @@ export default function CustomerDashboard() {
       <button
         type="button"
         onClick={() => setIsMessagesModalOpen(true)}
-        className="fixed bottom-6 right-6 z-40 bg-orange-500 hover:bg-orange-600 text-white p-3.5 sm:px-4 sm:py-3 rounded-full shadow-lg shadow-orange-500/20 hover:shadow-xl flex items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/90 group"
+        className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 bg-orange-500 hover:bg-orange-600 text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-lg shadow-orange-500/25 hover:shadow-xl items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/90 group ${
+          isMobileMenuOpen ? 'hidden' : 'flex'
+        }`}
         title="Open Workshop Helpdesk"
       >
         <div className="relative">

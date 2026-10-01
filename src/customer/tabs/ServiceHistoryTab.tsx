@@ -101,8 +101,8 @@ export default function ServiceHistoryTab({
     <div className="space-y-5">
       {/* Top Action & Export Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             <span>Audit Ledger</span>
           </span>
@@ -150,7 +150,7 @@ export default function ServiceHistoryTab({
 
       {/* Data Records View (Responsive: Mobile Cards + Desktop Table) */}
       {serviceHistory.length === 0 ? (
-        <div className="bg-white border border-slate-200/80 rounded-[2rem] p-10 text-center space-y-2 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 text-center space-y-2 shadow-xs">
           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
             <Inbox className="w-6 h-6" />
           </div>
