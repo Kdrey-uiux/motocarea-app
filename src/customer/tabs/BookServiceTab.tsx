@@ -332,14 +332,14 @@ export default function BookServiceTab({
     if (currentStep === 1) {
       setCurrentStep(2);
     } else if (currentStep === 2) {
-      if (isDateFullyBooked) {
-        setErrorMsg('Please select an available date. This date has reached its maximum 10 booking capacity.');
+      if (bikeMode === 'new' && (!newBikeModel.trim() || !newBikePlate.trim())) {
+        setErrorMsg('Please enter both your motorcycle model and plate number.');
         return;
       }
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      if (bikeMode === 'new' && (!newBikeModel.trim() || !newBikePlate.trim())) {
-        setErrorMsg('Please enter both your motorcycle model and plate number.');
+      if (isDateFullyBooked) {
+        setErrorMsg('Please select an available date. This date has reached its maximum 10 booking capacity.');
         return;
       }
       if (activeDuplicate) {
@@ -468,8 +468,8 @@ export default function BookServiceTab({
 
   const stepsList = [
     { num: 1, title: 'Service Package' },
-    { num: 2, title: 'Schedule & Time' },
-    { num: 3, title: 'Vehicle & Notes' },
+    { num: 2, title: 'Vehicle & Notes' },
+    { num: 3, title: 'Schedule & Time' },
     { num: 4, title: 'Review & Confirm' },
   ];
 
@@ -693,183 +693,6 @@ export default function BookServiceTab({
                 onClick={handleNextStep}
                 className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
               >
-                <span>Continue to Schedule</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* STEP 2: DATE & ARRIVAL WINDOW (HOTEL CHECK-IN CALENDAR STYLE)              */}
-      {/* ========================================================================= */}
-      {currentStep === 2 && (
-        <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
-              <div>
-                <h2 className="text-base font-bold text-slate-900 leading-snug">
-                  Select Drop-off Date & Arrival Window
-                </h2>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">
-                  Daily intake is controlled to ensure every bike gets undivided master technician attention.
-                </p>
-              </div>
-
-              <span
-                className={`text-xs font-bold px-3 py-1 rounded-full border self-start sm:self-auto flex items-center gap-1.5 ${
-                  currentCapacity.status === 'FULL'
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : currentCapacity.status === 'LIMITED'
-                    ? 'bg-amber-50 text-amber-800 border-amber-200'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    currentCapacity.status === 'FULL'
-                      ? 'bg-rose-600'
-                      : currentCapacity.status === 'LIMITED'
-                      ? 'bg-amber-500 animate-pulse'
-                      : 'bg-emerald-500'
-                  }`}
-                />
-                {currentCapacity.status === 'FULL'
-                  ? 'Fully Booked for Selected Date'
-                  : currentCapacity.status === 'LIMITED'
-                  ? `High Demand: Only ${currentCapacity.remainingSlots} slots remaining`
-                  : `${currentCapacity.remainingSlots} of 10 slots available`}
-              </span>
-            </div>
-
-            {/* 7-Day Quick Strip */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-800 block">
-                Recommended 7-Day Dates
-              </label>
-              <div className="overflow-x-auto pb-1.5 -mx-1 px-1 sm:mx-0 sm:px-0 flex sm:grid sm:grid-cols-7 gap-2">
-                {upcomingSchedule.map((day) => {
-                  const isSelected = dropoffDate === day.date;
-                  const isFull = day.status === 'FULL';
-                  const isLimited = day.status === 'LIMITED';
-
-                  return (
-                    <button
-                      key={day.date}
-                      type="button"
-                      onClick={() => {
-                        setDropoffDate(day.date);
-                        if (errorMsg) setErrorMsg(null);
-                      }}
-                      className={`min-w-[70px] sm:min-w-0 p-2.5 rounded-2xl text-center flex flex-col items-center justify-between border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
-                          : isFull
-                          ? 'bg-rose-50/70 border-rose-200 text-rose-800 hover:bg-rose-100/70'
-                          : isLimited
-                          ? 'bg-amber-50/70 border-amber-200 text-amber-900 hover:bg-amber-100/70'
-                          : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
-                      }`}
-                    >
-                      <span className="text-[10px] uppercase font-bold opacity-80">
-                        {day.dayLabel.split(' ')[0]}
-                      </span>
-                      <span className="text-base font-bold my-0.5">
-                        {day.date.split('-')[2]}
-                      </span>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                          isSelected
-                            ? 'bg-white/25 text-white'
-                            : isFull
-                            ? 'bg-rose-200/80 text-rose-900'
-                            : isLimited
-                            ? 'bg-amber-200/80 text-amber-950'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}
-                      >
-                        {isFull ? 'FULL' : isLimited ? `${day.remainingSlots} left` : 'Open'}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Custom Date Picker Input */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-800 block">
-                Or Pick a Specific Future Date
-              </label>
-              <input
-                type="date"
-                required
-                min={new Date().toISOString().split('T')[0]}
-                value={dropoffDate}
-                onChange={(e) => {
-                  setDropoffDate(e.target.value);
-                  if (errorMsg) setErrorMsg(null);
-                }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-orange-500 transition"
-              />
-            </div>
-
-            {/* Arrival Time Window Selection */}
-            <div className="space-y-2 pt-2">
-              <label className="text-xs font-bold text-slate-800 block">
-                Preferred Arrival Window (Drop-off Time)
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {TIME_WINDOWS.map((w) => {
-                  const isSelected = selectedTimeWindow === w.id;
-                  return (
-                    <div
-                      key={w.id}
-                      onClick={() => setSelectedTimeWindow(w.id)}
-                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-bold text-xs text-slate-900">{w.label}</span>
-                        <div
-                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                            isSelected
-                              ? 'border-orange-500 bg-orange-500 text-white'
-                              : 'border-slate-300 bg-white'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </div>
-                      </div>
-                      <p className="text-xs text-orange-600 font-semibold">{w.time}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{w.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 2 Actions */}
-            <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-3">
-              <button
-                type="button"
-                onClick={() => setCurrentStep(1)}
-                className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back to Packages</span>
-              </button>
-
-              <button
-                type="button"
-                disabled={isDateFullyBooked}
-                onClick={handleNextStep}
-                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer disabled:opacity-50"
-              >
                 <span>Continue to Vehicle Details</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -879,9 +702,9 @@ export default function BookServiceTab({
       )}
 
       {/* ========================================================================= */}
-      {/* STEP 3: VEHICLE & SPECIAL REQUESTS (GUEST DETAILS STYLE)                   */}
+      {/* STEP 2: VEHICLE & SPECIAL REQUESTS (GUEST DETAILS STYLE)                   */}
       {/* ========================================================================= */}
-      {currentStep === 3 && (
+      {currentStep === 2 && (
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
@@ -1068,6 +891,182 @@ export default function BookServiceTab({
               />
             </div>
 
+            {/* Step 2 Actions */}
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-3">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(1)}
+                className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Packages</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleNextStep}
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+              >
+                <span>Continue to Schedule</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* STEP 3: DATE & ARRIVAL WINDOW (HOTEL CHECK-IN CALENDAR STYLE)              */}
+      {/* ========================================================================= */}
+      {currentStep === 3 && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 leading-snug">
+                  Select Drop-off Date & Arrival Window
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Daily intake is controlled to ensure every bike gets undivided master technician attention.
+                </p>
+              </div>
+
+              <span
+                className={`text-xs font-bold px-3 py-1 rounded-full border self-start sm:self-auto flex items-center gap-1.5 ${
+                  currentCapacity.status === 'FULL'
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : currentCapacity.status === 'LIMITED'
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                }`}
+              >
+                <span
+                  className={`w-2 h-2 rounded-full ${
+                    currentCapacity.status === 'FULL'
+                      ? 'bg-rose-600'
+                      : currentCapacity.status === 'LIMITED'
+                      ? 'bg-amber-500 animate-pulse'
+                      : 'bg-emerald-500'
+                  }`}
+                />
+                {currentCapacity.status === 'FULL'
+                  ? 'Fully Booked for Selected Date'
+                  : currentCapacity.status === 'LIMITED'
+                  ? `High Demand: Only ${currentCapacity.remainingSlots} slots remaining`
+                  : `${currentCapacity.remainingSlots} of 10 slots available`}
+              </span>
+            </div>
+
+            {/* 7-Day Quick Strip */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-800 block">
+                Recommended 7-Day Dates
+              </label>
+              <div className="overflow-x-auto pb-1.5 -mx-1 px-1 sm:mx-0 sm:px-0 flex sm:grid sm:grid-cols-7 gap-2">
+                {upcomingSchedule.map((day) => {
+                  const isSelected = dropoffDate === day.date;
+                  const isFull = day.status === 'FULL';
+                  const isLimited = day.status === 'LIMITED';
+
+                  return (
+                    <button
+                      key={day.date}
+                      type="button"
+                      onClick={() => {
+                        setDropoffDate(day.date);
+                        if (errorMsg) setErrorMsg(null);
+                      }}
+                      className={`min-w-[70px] sm:min-w-0 p-2.5 rounded-2xl text-center flex flex-col items-center justify-between border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
+                          : isFull
+                          ? 'bg-rose-50/70 border-rose-200 text-rose-800 hover:bg-rose-100/70'
+                          : isLimited
+                          ? 'bg-amber-50/70 border-amber-200 text-amber-900 hover:bg-amber-100/70'
+                          : 'bg-slate-50 border-slate-200 text-slate-800 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="text-[10px] uppercase font-bold opacity-80">
+                        {day.dayLabel.split(' ')[0]}
+                      </span>
+                      <span className="text-base font-bold my-0.5">
+                        {day.date.split('-')[2]}
+                      </span>
+                      <span
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                          isSelected
+                            ? 'bg-white/25 text-white'
+                            : isFull
+                            ? 'bg-rose-200/80 text-rose-900'
+                            : isLimited
+                            ? 'bg-amber-200/80 text-amber-950'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}
+                      >
+                        {isFull ? 'FULL' : isLimited ? `${day.remainingSlots} left` : 'Open'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Custom Date Picker Input */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-800 block">
+                Or Pick a Specific Future Date
+              </label>
+              <input
+                type="date"
+                required
+                min={new Date().toISOString().split('T')[0]}
+                value={dropoffDate}
+                onChange={(e) => {
+                  setDropoffDate(e.target.value);
+                  if (errorMsg) setErrorMsg(null);
+                }}
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-orange-500 transition"
+              />
+            </div>
+
+            {/* Arrival Time Window Selection */}
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-bold text-slate-800 block">
+                Preferred Arrival Window (Drop-off Time)
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {TIME_WINDOWS.map((w) => {
+                  const isSelected = selectedTimeWindow === w.id;
+                  return (
+                    <div
+                      key={w.id}
+                      onClick={() => setSelectedTimeWindow(w.id)}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-xs text-slate-900">{w.label}</span>
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                            isSelected
+                              ? 'border-orange-500 bg-orange-500 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
+                      </div>
+                      <p className="text-xs text-orange-600 font-semibold">{w.time}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{w.desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Step 3 Actions */}
             <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-3">
               <button
@@ -1076,13 +1075,14 @@ export default function BookServiceTab({
                 className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back to Schedule</span>
+                <span>Back to Vehicle Details</span>
               </button>
 
               <button
                 type="button"
+                disabled={isDateFullyBooked}
                 onClick={handleNextStep}
-                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer disabled:opacity-50"
               >
                 <span>Review & Confirm</span>
                 <ChevronRight className="w-4 h-4" />
@@ -1225,7 +1225,7 @@ export default function BookServiceTab({
                 className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
-                <span>Back to Vehicle Details</span>
+                <span>Back to Schedule</span>
               </button>
 
               <button
