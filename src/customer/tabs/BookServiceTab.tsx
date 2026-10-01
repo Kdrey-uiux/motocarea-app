@@ -476,9 +476,46 @@ export default function BookServiceTab({
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       
-      {/* HOTEL-STYLE STEPPER NAVIGATION BAR */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {/* HOTEL-STYLE STEPPER NAVIGATION BAR (Responsive Mobile & Desktop) */}
+      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-4 sm:p-5 shadow-xs">
+        {/* Mobile Stepper (< sm) */}
+        <div className="sm:hidden space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-orange-600 block">
+                Step {currentStep} of 4
+              </span>
+              <span className="text-xs font-bold text-slate-900 block">
+                {stepsList[currentStep - 1].title}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {stepsList.map((st) => (
+                <div
+                  key={st.num}
+                  className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center transition-all ${
+                    st.num === currentStep
+                      ? 'bg-orange-500 text-white shadow-xs scale-105'
+                      : st.num < currentStep
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-100 text-slate-400'
+                  }`}
+                >
+                  {st.num < currentStep ? <Check className="w-3 h-3" /> : st.num}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+            <div
+              className="bg-orange-500 h-full rounded-full transition-all duration-300"
+              style={{ width: `${(currentStep / 4) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Desktop Stepper (>= sm) */}
+        <div className="hidden sm:grid sm:grid-cols-4 gap-2.5">
           {stepsList.map((step) => {
             const isCompleted = currentStep > step.num;
             const isCurrent = currentStep === step.num;
@@ -494,18 +531,18 @@ export default function BookServiceTab({
                   }
                 }}
                 disabled={step.num > currentStep}
-                className={`flex items-center gap-2.5 p-2 rounded-xl text-left transition-all ${
+                className={`flex items-center gap-2.5 p-2.5 rounded-2xl text-left transition-all ${
                   isCurrent
-                    ? 'bg-blue-50/80 border border-blue-200 text-blue-700'
+                    ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
                     : isCompleted
-                    ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 cursor-pointer border border-transparent'
-                    : 'text-slate-400 cursor-not-allowed border border-transparent opacity-60'
+                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 cursor-pointer border border-emerald-200'
+                    : 'bg-slate-50 text-slate-400 cursor-not-allowed border border-slate-200/60'
                 }`}
               >
                 <div
-                  className={`w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center shrink-0 ${
+                  className={`w-7 h-7 rounded-xl text-xs font-bold flex items-center justify-center shrink-0 ${
                     isCurrent
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-white text-orange-600'
                       : isCompleted
                       ? 'bg-emerald-600 text-white'
                       : 'bg-slate-200 text-slate-500'
@@ -514,7 +551,11 @@ export default function BookServiceTab({
                   {isCompleted ? <Check className="w-4 h-4" /> : step.num}
                 </div>
                 <div className="truncate">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+                  <span
+                    className={`text-[10px] uppercase font-bold block tracking-wider ${
+                      isCurrent ? 'text-orange-100' : 'text-slate-400'
+                    }`}
+                  >
                     Step {step.num}
                   </span>
                   <span className="text-xs font-bold truncate block">{step.title}</span>
@@ -567,7 +608,7 @@ export default function BookServiceTab({
                     onClick={() => setServiceType(pkg.id)}
                     className={`p-5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                       isSelected
-                        ? 'border-blue-600 bg-blue-50/40 shadow-xs ring-2 ring-blue-600/20'
+                        ? 'border-orange-500 bg-orange-50/30 shadow-xs ring-2 ring-orange-500/20'
                         : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
                     }`}
                   >
@@ -577,14 +618,14 @@ export default function BookServiceTab({
                         <div className="flex items-center gap-2.5">
                           <div
                             className={`p-2.5 rounded-xl ${
-                              isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                              isSelected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-700'
                             }`}
                           >
                             <Icon className="w-5 h-5" />
                           </div>
                           <div>
                             {pkg.tag && (
-                              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
                                 {pkg.tag}
                               </span>
                             )}
@@ -595,7 +636,7 @@ export default function BookServiceTab({
                         <div
                           className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
                             isSelected
-                              ? 'border-blue-600 bg-blue-600 text-white'
+                              ? 'border-orange-500 bg-orange-500 text-white'
                               : 'border-slate-300 bg-white'
                           }`}
                         >
@@ -605,7 +646,7 @@ export default function BookServiceTab({
 
                       <p className="text-xs text-slate-500 leading-relaxed">{pkg.description}</p>
 
-                      {/* Transparent Inclusions list (Like Hotel Amenities) */}
+                      {/* Transparent Inclusions list */}
                       <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
                         <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                           Transparent Inclusions
@@ -625,7 +666,7 @@ export default function BookServiceTab({
                         <span className="text-[10px] text-slate-400 block uppercase font-bold">
                           Fixed Package Price
                         </span>
-                        <span className="text-base font-black text-slate-900 font-mono">
+                        <span className="text-base font-bold text-slate-900">
                           {pkg.estimatedCost}
                         </span>
                       </div>
@@ -641,8 +682,8 @@ export default function BookServiceTab({
             </div>
 
             {/* Step 1 Footer Action */}
-            <div className="flex items-center justify-between pt-6 mt-6 border-t border-slate-100">
-              <div className="text-xs text-slate-500">
+            <div className="flex flex-col sm:flex-row items-center justify-between pt-6 mt-6 border-t border-slate-100 gap-3">
+              <div className="text-xs text-slate-500 text-center sm:text-left">
                 Selected: <strong className="text-slate-900">{selectedPackage.title}</strong> (
                 {selectedPackage.estimatedCost})
               </div>
@@ -650,7 +691,7 @@ export default function BookServiceTab({
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2.5 px-6 rounded-xl flex items-center gap-1.5 shadow-xs transition"
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
               >
                 <span>Continue to Schedule</span>
                 <ChevronRight className="w-4 h-4" />
@@ -707,7 +748,7 @@ export default function BookServiceTab({
               <label className="text-xs font-bold text-slate-800 block">
                 Recommended 7-Day Dates
               </label>
-              <div className="grid grid-cols-7 gap-2">
+              <div className="overflow-x-auto pb-1.5 -mx-1 px-1 sm:mx-0 sm:px-0 flex sm:grid sm:grid-cols-7 gap-2">
                 {upcomingSchedule.map((day) => {
                   const isSelected = dropoffDate === day.date;
                   const isFull = day.status === 'FULL';
@@ -721,9 +762,9 @@ export default function BookServiceTab({
                         setDropoffDate(day.date);
                         if (errorMsg) setErrorMsg(null);
                       }}
-                      className={`p-2.5 rounded-xl text-center flex flex-col items-center justify-between border transition-all ${
+                      className={`min-w-[70px] sm:min-w-0 p-2.5 rounded-2xl text-center flex flex-col items-center justify-between border transition-all cursor-pointer ${
                         isSelected
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-600/20'
+                          ? 'bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/20'
                           : isFull
                           ? 'bg-rose-50/70 border-rose-200 text-rose-800 hover:bg-rose-100/70'
                           : isLimited
@@ -734,13 +775,13 @@ export default function BookServiceTab({
                       <span className="text-[10px] uppercase font-bold opacity-80">
                         {day.dayLabel.split(' ')[0]}
                       </span>
-                      <span className="text-base font-black my-0.5">
+                      <span className="text-base font-bold my-0.5">
                         {day.date.split('-')[2]}
                       </span>
                       <span
-                        className={`text-[9px] font-bold px-1 py-0.5 rounded ${
+                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
                           isSelected
-                            ? 'bg-white/20 text-white'
+                            ? 'bg-white/25 text-white'
                             : isFull
                             ? 'bg-rose-200/80 text-rose-900'
                             : isLimited
@@ -770,7 +811,7 @@ export default function BookServiceTab({
                   setDropoffDate(e.target.value);
                   if (errorMsg) setErrorMsg(null);
                 }}
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-orange-500 transition"
               />
             </div>
 
@@ -786,9 +827,9 @@ export default function BookServiceTab({
                     <div
                       key={w.id}
                       onClick={() => setSelectedTimeWindow(w.id)}
-                      className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-600/20'
+                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
@@ -797,14 +838,14 @@ export default function BookServiceTab({
                         <div
                           className={`w-4 h-4 rounded-full border flex items-center justify-center ${
                             isSelected
-                              ? 'border-blue-600 bg-blue-600 text-white'
+                              ? 'border-orange-500 bg-orange-500 text-white'
                               : 'border-slate-300 bg-white'
                           }`}
                         >
                           {isSelected && <Check className="w-3 h-3" />}
                         </div>
                       </div>
-                      <p className="font-mono text-[11px] text-blue-600 font-semibold">{w.time}</p>
+                      <p className="text-xs text-orange-600 font-semibold">{w.time}</p>
                       <p className="text-[10px] text-slate-400 mt-0.5">{w.desc}</p>
                     </div>
                   );
@@ -813,11 +854,11 @@ export default function BookServiceTab({
             </div>
 
             {/* Step 2 Actions */}
-            <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className="text-slate-600 hover:text-slate-900 font-medium text-xs py-2 px-3 flex items-center gap-1.5 transition"
+                className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Packages</span>
@@ -827,7 +868,7 @@ export default function BookServiceTab({
                 type="button"
                 disabled={isDateFullyBooked}
                 onClick={handleNextStep}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2.5 px-6 rounded-xl flex items-center gap-1.5 shadow-xs transition disabled:opacity-50"
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer disabled:opacity-50"
               >
                 <span>Continue to Vehicle Details</span>
                 <ChevronRight className="w-4 h-4" />
@@ -860,7 +901,7 @@ export default function BookServiceTab({
                     setBikeMode(bikeMode === 'existing' ? 'new' : 'existing');
                     if (errorMsg) setErrorMsg(null);
                   }}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg transition flex items-center gap-1 self-start sm:self-auto"
+                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-1.5 rounded-full transition flex items-center gap-1 self-start sm:self-auto cursor-pointer"
                 >
                   {bikeMode === 'existing' ? (
                     <>
@@ -886,28 +927,28 @@ export default function BookServiceTab({
                     <div
                       key={bike.id}
                       onClick={() => setSelectedBikeId(bike.id)}
-                      className={`p-4 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
                         isSelected
-                          ? 'border-blue-600 bg-blue-50/40 ring-2 ring-blue-600/20'
+                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20 shadow-xs'
                           : 'border-slate-200 hover:border-slate-300 bg-white'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div
-                          className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                            isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isSelected ? 'bg-orange-500 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           <Bike className="w-5 h-5" />
                         </div>
                         <div>
                           <p className="font-bold text-xs text-slate-900">{bike.model}</p>
-                          <p className="font-mono text-[11px] text-slate-500 font-semibold">{bike.plate_number}</p>
+                          <p className="text-[11px] text-slate-500 font-semibold">{bike.plate_number}</p>
                         </div>
                       </div>
                       <div
                         className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white'
+                          isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 bg-white'
                         }`}
                       >
                         {isSelected && <Check className="w-3 h-3" />}
@@ -918,7 +959,7 @@ export default function BookServiceTab({
               </div>
             ) : (
               /* Inline new bike registration */
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 space-y-3">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
                 <div className="text-[11px] text-slate-500 font-medium">
                   Registering a new motorcycle. It will be saved automatically to your garage:
                 </div>
@@ -938,7 +979,7 @@ export default function BookServiceTab({
                         }}
                         onFocus={() => setIsDropdownOpen(true)}
                         placeholder="e.g. Honda Click 125i, Yamaha NMAX..."
-                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs text-slate-800 focus:outline-none focus:border-blue-600"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 pr-7 text-xs text-slate-800 focus:outline-none focus:border-orange-500"
                       />
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
@@ -953,7 +994,7 @@ export default function BookServiceTab({
                               setNewBikeModel(bike.name);
                               setIsDropdownOpen(false);
                             }}
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-blue-50 flex items-center justify-between"
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-orange-50 flex items-center justify-between"
                           >
                             <span className="font-semibold text-slate-800">{bike.name}</span>
                             <span className="text-[10px] text-slate-400">{bike.brand}</span>
@@ -973,7 +1014,7 @@ export default function BookServiceTab({
                       value={newBikePlate}
                       onChange={(e) => setNewBikePlate(e.target.value.toUpperCase())}
                       placeholder="e.g. ND 45821 / TEMP"
-                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 font-mono uppercase text-xs text-slate-800 focus:outline-none focus:border-blue-600"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 uppercase text-xs text-slate-800 focus:outline-none focus:border-orange-500 font-semibold"
                     />
                   </div>
                 </div>
@@ -993,15 +1034,15 @@ export default function BookServiceTab({
                       key={idx}
                       type="button"
                       onClick={() => toggleSymptom(symptom)}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition flex items-center gap-2.5 ${
+                      className={`p-2.5 rounded-xl border text-left text-xs transition flex items-center gap-2.5 cursor-pointer ${
                         isChecked
-                          ? 'border-blue-600 bg-blue-50/60 text-blue-900 font-semibold'
+                          ? 'border-orange-500 bg-orange-50/50 text-orange-950 font-semibold'
                           : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-white'
                       }`}
                     >
                       <div
                         className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${
-                          isChecked ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300 bg-white'
+                          isChecked ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 bg-white'
                         }`}
                       >
                         {isChecked && <Check className="w-3 h-3" />}
@@ -1023,16 +1064,16 @@ export default function BookServiceTab({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Any other specific requests, parts to check, or timeline preferences..."
-                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-blue-600 transition resize-none leading-relaxed"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-orange-500 transition resize-none leading-relaxed"
               />
             </div>
 
             {/* Step 3 Actions */}
-            <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentStep(2)}
-                className="text-slate-600 hover:text-slate-900 font-medium text-xs py-2 px-3 flex items-center gap-1.5 transition"
+                className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Schedule</span>
@@ -1041,7 +1082,7 @@ export default function BookServiceTab({
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs py-2.5 px-6 rounded-xl flex items-center gap-1.5 shadow-xs transition"
+                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
               >
                 <span>Review & Confirm</span>
                 <ChevronRight className="w-4 h-4" />
@@ -1058,7 +1099,7 @@ export default function BookServiceTab({
         <div className="space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
             <div className="pb-4 border-b border-slate-100">
-              <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block">
+              <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest block">
                 Final Step • Transparent Summary
               </span>
               <h2 className="text-base font-bold text-slate-900 leading-snug mt-0.5">
@@ -1071,7 +1112,7 @@ export default function BookServiceTab({
 
             {/* Transparent Booking Details Card */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
                   Vehicle
                 </span>
@@ -1080,14 +1121,14 @@ export default function BookServiceTab({
                     ? selectedExistingBike.model
                     : newBikeModel || 'Pending'}
                 </strong>
-                <span className="font-mono text-xs text-slate-600 font-semibold block mt-0.5">
+                <span className="text-xs text-slate-600 font-semibold block mt-0.5">
                   {bikeMode === 'existing' && selectedExistingBike
                     ? selectedExistingBike.plate_number
                     : newBikePlate || 'NO PLATE'}
                 </span>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
                   Scheduled Drop-off
                 </span>
@@ -1099,12 +1140,12 @@ export default function BookServiceTab({
                     year: 'numeric',
                   })}
                 </strong>
-                <span className="text-xs text-blue-600 font-semibold block mt-0.5">
+                <span className="text-xs text-orange-600 font-semibold block mt-0.5">
                   {selectedTimeWindow}
                 </span>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
                   Turnaround Estimate
                 </span>
@@ -1117,8 +1158,8 @@ export default function BookServiceTab({
               </div>
             </div>
 
-            {/* Transparent Bill Breakdown (Itemized like a hotel folio) */}
-            <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200 space-y-3">
+            {/* Transparent Bill Breakdown */}
+            <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
               <span className="text-xs font-bold text-slate-900 block">
                 Itemized Estimate Breakdown
               </span>
@@ -1126,25 +1167,25 @@ export default function BookServiceTab({
               <div className="space-y-2 text-xs divide-y divide-slate-200/80">
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-slate-600">{selectedPackage.title} (Parts & Labor)</span>
-                  <span className="font-bold text-slate-900 font-mono">{selectedPackage.estimatedCost}</span>
+                  <span className="font-bold text-slate-900">{selectedPackage.estimatedCost}</span>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-slate-600 flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     21-Point Digital Safety Diagnostic
                   </span>
-                  <span className="font-bold text-emerald-600 font-mono">FREE (₱0.00)</span>
+                  <span className="font-bold text-emerald-600">FREE (₱0.00)</span>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-slate-600 flex items-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     Chain Lubrication & Tire Pressure Calibration
                   </span>
-                  <span className="font-bold text-emerald-600 font-mono">FREE (₱0.00)</span>
+                  <span className="font-bold text-emerald-600">FREE (₱0.00)</span>
                 </div>
                 <div className="flex items-center justify-between pt-3 text-sm">
                   <span className="font-bold text-slate-900">Total Estimated Amount Due</span>
-                  <span className="font-black text-slate-900 font-mono text-base">
+                  <span className="font-bold text-slate-900 text-base">
                     {selectedPackage.estimatedCost}
                   </span>
                 </div>
@@ -1153,21 +1194,21 @@ export default function BookServiceTab({
 
             {/* Consumer Protection / Guarantees Box */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
-              <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-start gap-2.5">
-                <CreditCard className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+              <div className="p-3 rounded-2xl border border-slate-200 bg-white flex items-start gap-2.5">
+                <CreditCard className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block text-slate-900 font-semibold">Zero Advance Payment</strong>
                   <span className="text-slate-500 text-[11px]">Pay via Cash or GCash upon vehicle release.</span>
                 </div>
               </div>
-              <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-start gap-2.5">
+              <div className="p-3 rounded-2xl border border-slate-200 bg-white flex items-start gap-2.5">
                 <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block text-slate-900 font-semibold">Service Warranty</strong>
                   <span className="text-slate-500 text-[11px]">7-day workshop guarantee on all repairs.</span>
                 </div>
               </div>
-              <div className="p-3 rounded-xl border border-slate-200 bg-white flex items-start gap-2.5">
+              <div className="p-3 rounded-2xl border border-slate-200 bg-white flex items-start gap-2.5">
                 <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block text-slate-900 font-semibold">Live Bay Tracking</strong>
@@ -1177,11 +1218,11 @@ export default function BookServiceTab({
             </div>
 
             {/* Step 4 Actions */}
-            <div className="flex items-center justify-between pt-6 border-t border-slate-100">
+            <div className="flex flex-col-reverse sm:flex-row items-center justify-between pt-6 border-t border-slate-100 gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentStep(3)}
-                className="text-slate-600 hover:text-slate-900 font-medium text-xs py-2 px-3 flex items-center gap-1.5 transition"
+                className="w-full sm:w-auto text-slate-600 hover:text-slate-900 font-semibold text-xs py-2.5 px-4 rounded-full border border-slate-200 hover:bg-slate-50 flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Back to Vehicle Details</span>
@@ -1191,12 +1232,12 @@ export default function BookServiceTab({
                 type="button"
                 disabled={loading || isDateFullyBooked || Boolean(activeDuplicate)}
                 onClick={() => handleSubmit()}
-                className={`font-semibold text-xs py-3 px-8 rounded-xl transition flex items-center gap-2 shadow-xs ${
+                className={`w-full sm:w-auto font-semibold text-xs py-3 px-8 rounded-full transition flex items-center justify-center gap-2 shadow-sm cursor-pointer ${
                   activeDuplicate
                     ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed'
                     : isDateFullyBooked
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20'
+                    : 'bg-orange-500 hover:bg-orange-600 text-white shadow-orange-500/20'
                 }`}
               >
                 {loading ? (
