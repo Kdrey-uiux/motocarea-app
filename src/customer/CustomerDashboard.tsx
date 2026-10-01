@@ -166,7 +166,7 @@ export default function CustomerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex font-sans antialiased selection:bg-blue-600 selection:text-white relative">
+    <div className="min-h-screen bg-[#f0f2f5] text-slate-800 flex font-sans antialiased selection:bg-blue-600 selection:text-white relative">
       <DashboardSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -175,7 +175,6 @@ export default function CustomerDashboard() {
         isMobileMenuOpen={isMobileMenuOpen}
         setIsMobileMenuOpen={setIsMobileMenuOpen}
         isSidebarCollapsed={isSidebarCollapsed}
-        onToggleSidebarCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">

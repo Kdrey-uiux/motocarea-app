@@ -7,7 +7,6 @@ import {
   User,
   LogOut,
   X,
-  PanelLeftClose,
 } from 'lucide-react';
 
 interface DashboardSidebarProps {
@@ -18,7 +17,6 @@ interface DashboardSidebarProps {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
   isSidebarCollapsed: boolean;
-  onToggleSidebarCollapse: () => void;
 }
 
 export default function DashboardSidebar({
@@ -29,7 +27,6 @@ export default function DashboardSidebar({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   isSidebarCollapsed,
-  onToggleSidebarCollapse,
 }: DashboardSidebarProps) {
   const navItems = [
     { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutDashboard },
@@ -90,16 +87,6 @@ export default function DashboardSidebar({
               title="Close navigation"
             >
               <X className="w-5 h-5" />
-            </button>
-
-            {/* Desktop Collapse Button */}
-            <button
-              type="button"
-              onClick={onToggleSidebarCollapse}
-              className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-              title="Close sidebar"
-            >
-              <PanelLeftClose className="w-4 h-4" />
             </button>
           </div>
 
