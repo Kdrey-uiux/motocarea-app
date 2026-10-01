@@ -47,13 +47,13 @@ export default function DashboardSidebar({
 
       {/* Drawer Panel */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] h-full bg-white shadow-2xl flex flex-col justify-between p-5 border-r border-slate-100 transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] h-[100dvh] bg-white shadow-2xl flex flex-col justify-between p-4 sm:p-5 border-r border-slate-100 transition-transform duration-300 ease-in-out md:hidden overscroll-contain ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Top Header of Mobile Drawer */}
-        <div className="flex flex-col gap-6 w-full">
-          <div className="flex items-center justify-between w-full">
+        <div className="flex flex-col gap-4 sm:gap-6 w-full overflow-y-auto no-scrollbar">
+          <div className="flex items-center justify-between w-full shrink-0">
             <div
               onClick={() => {
                 setActiveTab('overview');
@@ -129,7 +129,7 @@ export default function DashboardSidebar({
         </div>
 
         {/* Bottom Profile & Logout in Mobile Drawer */}
-        <div className="flex flex-col gap-3 w-full pt-4 border-t border-slate-100">
+        <div className="flex flex-col gap-3 w-full pt-4 border-t border-slate-100 shrink-0">
           {/* User Identity Card */}
           <div
             onClick={() => {

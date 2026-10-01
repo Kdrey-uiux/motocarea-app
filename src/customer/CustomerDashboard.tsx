@@ -134,6 +134,17 @@ export default function CustomerDashboard() {
     };
   }, [navigate]);
 
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isMobileMenuOpen]);
+
   const handleLogout = async () => {
     setIsCheckingAuth(true);
     await supabase.auth.signOut();
@@ -252,7 +263,7 @@ export default function CustomerDashboard() {
       <button
         type="button"
         onClick={() => setIsMessagesModalOpen(true)}
-        className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 bg-orange-500 hover:bg-orange-600 text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-lg shadow-orange-500/25 hover:shadow-xl items-center gap-2.5 transition-all duration-200 hover:scale-105 active:scale-95 border-2 border-white/90 group ${
+        className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 bg-orange-500 hover:bg-orange-600 text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-lg shadow-orange-500/25 hover:shadow-xl items-center gap-2.5 transition-transform duration-150 hover:scale-105 active:scale-95 border-2 border-white/90 group transform-gpu ${
           isMobileMenuOpen ? 'hidden' : 'flex'
         }`}
         title="Open Workshop Helpdesk"

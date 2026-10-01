@@ -104,9 +104,9 @@ export default function OverviewTab({
   return (
     <div className="space-y-6 pb-8">
       {/* 1. Header Greeting & Action Row */}
-      <div className="flex flex-row items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl sm:text-3xl font-light text-slate-700 tracking-tight">
+      <div className="flex flex-row items-center justify-between gap-3 px-1.5 sm:px-1">
+        <div className="min-w-0">
+          <h2 className="text-lg sm:text-2xl lg:text-3xl font-light text-slate-700 tracking-tight truncate">
             Welcome Back,{' '}
             <span className="font-semibold text-slate-900">
               {userProfile?.full_name?.split(' ')[0] || 'Rider'}
@@ -119,7 +119,7 @@ export default function OverviewTab({
           <button
             type="button"
             onClick={() => onBookClick()}
-            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-3.5 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-semibold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-3.5 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-semibold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
           >
             <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Book Service</span>
