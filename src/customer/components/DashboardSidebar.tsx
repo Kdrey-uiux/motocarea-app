@@ -3,7 +3,6 @@ import {
   LayoutGrid,
   Calendar,
   History,
-  User,
   LogOut,
   X,
   Wrench,
@@ -18,6 +17,7 @@ interface DashboardSidebarProps {
   isMobileMenuOpen: boolean;
   setIsMobileMenuOpen: (open: boolean) => void;
   isSidebarCollapsed: boolean;
+  onOpenSettings?: () => void;
 }
 
 export default function DashboardSidebar({
@@ -28,12 +28,12 @@ export default function DashboardSidebar({
   isMobileMenuOpen,
   setIsMobileMenuOpen,
   isSidebarCollapsed,
+  onOpenSettings,
 }: DashboardSidebarProps) {
   const navItems = [
     { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid },
     { id: 'book' as TabType, label: 'Book Service', icon: Calendar },
     { id: 'history' as TabType, label: 'Service Records', icon: History },
-    { id: 'profile' as TabType, label: 'Account Profile', icon: User },
   ];
 
   return (
@@ -146,16 +146,20 @@ export default function DashboardSidebar({
             <button
               type="button"
               onClick={() => {
-                setActiveTab('profile');
+                if (onOpenSettings) {
+                  onOpenSettings();
+                } else {
+                  setActiveTab('profile');
+                }
                 setIsMobileMenuOpen(false);
               }}
               className="w-full md:w-10 h-10 px-3 md:px-0 rounded-2xl flex items-center md:justify-center gap-3 text-slate-600 md:text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer group relative"
-              title="Account Settings"
+              title="Settings & Community Standards"
             >
               <Settings className="w-4 h-4 shrink-0" />
-              <span className="md:hidden text-sm font-medium">Settings</span>
+              <span className="md:hidden text-sm font-medium">Settings & Policies</span>
               <span className="hidden md:group-hover:block absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg whitespace-nowrap shadow-md z-50 pointer-events-none">
-                Settings
+                Settings & Policies
               </span>
             </button>
 

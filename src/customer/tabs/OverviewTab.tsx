@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
 import {
   Wrench,
@@ -9,8 +10,8 @@ import {
   Clock,
   ArrowUp,
   ArrowDown,
-  Activity,
-  ShieldCheck,
+  Bike,
+  Info
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -33,16 +34,74 @@ export default function OverviewTab({
 }: OverviewTabProps) {
   const activeTicket = activeTickets.length > 0 ? activeTickets[0] : null;
   const primaryBike = motorcycles.length > 0 ? motorcycles[0] : null;
+
+  // Exact booked motorcycle details
+  const activeBikeModel = activeTicket?.motorcycles?.model || primaryBike?.model || 'Motorcycle Unit';
+  const activeBikePlate = activeTicket?.motorcycles?.plate_number || primaryBike?.plate_number || 'N/A';
+
   const isReady = activeTicket?.status === 'READY_FOR_PICKUP';
   const currentStage = activeTicket ? (isReady ? 5 : activeTicket.stage) : 0;
 
+  // Interactive Stage Inspection State (Defaults to active stage or Stage 1)
+  const [inspectedStageStep, setInspectedStageStep] = useState<number>(currentStage > 0 ? currentStage : 1);
+
   const stages = [
-    { step: 1, key: 'JAN', name: 'Intake', height: 'h-24' },
-    { step: 2, key: 'FEB', name: 'Inspect', height: 'h-32' },
-    { step: 3, key: 'MAR', name: 'Service', height: 'h-40' },
-    { step: 4, key: 'APR', name: 'Test', height: 'h-28' },
-    { step: 5, key: 'MAY', name: 'Ready', height: 'h-36' },
+    {
+      step: 1,
+      name: 'Intake',
+      tag: 'Check-in',
+      height: 'h-24',
+      summary: 'Vehicle Intake & Registration',
+      desc: 'Vehicle received at workshop, initial odometer reading recorded, keys logged into workshop lockbox, and unit transferred to the assigned service bay.',
+    },
+    {
+      step: 2,
+      name: 'Inspect',
+      tag: 'Diagnostics',
+      height: 'h-32',
+      summary: '21-Point Multi-System Diagnostic Check',
+      desc: 'Mechanics inspect brake pad thickness, battery voltage, spark plug gap, tire tread depth, and check for any reported electrical or CVT anomalies.',
+    },
+    {
+      step: 3,
+      name: 'Service',
+      tag: 'Active Repair',
+      height: 'h-40',
+      summary: 'Active Mechanical Service & Parts Installation',
+      desc: 'Oil flushed and replaced with certified fluids, CVT belt cleaned and degreased, brake calipers calibrated, and worn parts replaced with OEM components.',
+    },
+    {
+      step: 4,
+      name: 'Test',
+      tag: 'Quality Test',
+      height: 'h-28',
+      summary: 'Road Testing & Performance Calibration',
+      desc: 'Engine idle speed tuned, brake responsiveness tested, electrical lighting verified, and quality safety inspection conducted prior to release clearance.',
+    },
+    {
+      step: 5,
+      name: 'Ready',
+      tag: 'Customer Pickup',
+      height: 'h-36',
+      summary: 'Service Complete & Counter Release',
+      desc: 'Work verified by lead technician, replaced parts packaged for owner verification, official service invoice finalized, and vehicle ready for release.',
+    },
   ];
+
+  const inspectedStage = stages.find((s) => s.step === inspectedStageStep) || stages[0];
+
+  // Dynamic Total Maintenance Calculation from Real DB Service History
+  const totalMaintenanceValue = serviceHistory.reduce((sum, item) => {
+    const numeric = parseFloat(item.total_estimate.replace(/[^0-9.]/g, '')) || 0;
+    return sum + numeric;
+  }, 0);
+
+  const formattedTotalMaintenance =
+    totalMaintenanceValue > 0
+      ? `₱${totalMaintenanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : activeTicket
+      ? activeTicket.total_estimate
+      : '₱0.00';
 
   const currentDateStr = new Date().toLocaleDateString('en-US', {
     day: 'numeric',
@@ -52,7 +111,7 @@ export default function OverviewTab({
 
   return (
     <div className="space-y-6 pb-8">
-      {/* 1. Header Greeting & Action Row (Matches Reference Design) */}
+      {/* 1. Header Greeting & Action Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl sm:text-3xl font-light text-slate-700 tracking-tight">
@@ -83,51 +142,55 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* 2. Top Bento Grid Row (3 Cards: VIP Pass, Striped Bar Stepper, Wavy Chart) */}
+      {/* 2. Top Bento Grid Row (3 Cards: VIP Pass, Interactive Stage Stepper, Wavy Chart) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Card 1: Primary Motorcycle VIP Pass (Matches Green VISA Card in Reference) */}
+        {/* Card 1: Motorcycle VIP Pass (Shows the exact booked motorcycle when active repair exists) */}
         <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
-                Primary Motorcycle
+                {activeTicket ? 'Active Service Unit' : 'Primary Motorcycle'}
               </h3>
-              <p className="text-xs text-slate-400">Total registered in fleet</p>
+              <p className="text-xs text-slate-400">
+                {activeTicket ? 'Vehicle currently in repair' : 'Registered in garage fleet'}
+              </p>
             </div>
             <button
               type="button"
               onClick={() => onBookClick(primaryBike?.id)}
               className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
-              title="View Motorcycle Details"
+              title="Book for this vehicle"
             >
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* VIP Garage Card (Cool Emerald / Slate Luxury Card) */}
-          <div className="bg-gradient-to-br from-emerald-800 via-teal-900 to-slate-950 rounded-2xl p-5 text-white shadow-md relative overflow-hidden space-y-4">
-            {/* Subtle background glow */}
-            <div className="absolute top-0 right-0 -mt-4 -mr-4 w-28 h-28 bg-emerald-400/10 rounded-full blur-2xl pointer-events-none" />
-
+          {/* VIP Garage Card */}
+          <div className={`rounded-2xl p-5 text-white shadow-md relative overflow-hidden space-y-4 ${
+            activeTicket
+              ? 'bg-gradient-to-br from-orange-600 via-amber-700 to-slate-900'
+              : 'bg-gradient-to-br from-emerald-800 via-teal-900 to-slate-950'
+          }`}>
             <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold tracking-wider uppercase text-emerald-300">
-                MotoCare Pass
+              <span className="text-xs font-bold tracking-wider uppercase text-white/90 flex items-center gap-1.5">
+                <Bike className="w-3.5 h-3.5" />
+                {activeTicket ? 'Service Bay Pass' : 'MotoCare VIP Pass'}
               </span>
-              <Radio className="w-4 h-4 text-emerald-300 rotate-90" />
+              <Radio className="w-4 h-4 text-white/80 rotate-90" />
             </div>
 
             <div className="relative z-10 space-y-0.5">
-              <div className="text-[11px] text-emerald-200/80 font-medium uppercase tracking-wide">
-                {primaryBike?.model || 'Yamaha Mio i 125'}
+              <div className="text-[11px] text-white/80 font-medium uppercase tracking-wide">
+                {activeBikeModel}
               </div>
               <div className="text-2xl font-bold tracking-tight text-white">
-                {primaryBike?.plate_number || 'ABC 123'}
+                {activeBikePlate}
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] text-emerald-200/90 pt-1 border-t border-emerald-500/20 relative z-10">
-              <span className="font-mono">•••• 909090</span>
-              <span>{primaryBike?.next_service || 'PMS: 3,000 KM'}</span>
+            <div className="flex items-center justify-between text-[11px] text-white/90 pt-1 border-t border-white/20 relative z-10">
+              <span className="font-mono">{activeTicket ? `REF: ${activeTicket.ticket_code}` : '•••• 909090'}</span>
+              <span>{activeTicket ? activeTicket.assigned_bay : (primaryBike?.next_service || 'PMS: 3,000 KM')}</span>
             </div>
           </div>
 
@@ -135,18 +198,28 @@ export default function OverviewTab({
           <div className="flex items-center justify-between pt-1">
             <div className="space-y-0.5">
               <span className="text-xs text-slate-400 block font-medium">Workshop Status</span>
-              <div className="text-lg font-bold text-slate-900">
-                {activeTicket ? `${activeTickets.length} Active Unit` : 'Road-Ready'}
+              <div className="text-base font-bold text-slate-900">
+                {activeTicket
+                  ? isReady
+                    ? 'Ready for Release'
+                    : `In Service • Stage ${activeTicket.stage}`
+                  : 'Road-Ready'}
               </div>
             </div>
-            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              {activeTicket ? 'In Progress' : '+100% Road'}
+            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
+              activeTicket
+                ? isReady
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : 'bg-orange-50 text-orange-700 border border-orange-200'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+            }`}>
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+              {activeTicket ? (isReady ? 'Ready for Pickup' : 'Bay Assigned') : '+100% Ready'}
             </span>
           </div>
         </div>
 
-        {/* Card 2: Live Workshop Progress (Matches "Engagement Rate" Striped Pillars in Reference) */}
+        {/* Card 2: Interactive Workshop Progress (Clickable Stages & Booked Motorcycle Display) */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -157,112 +230,161 @@ export default function OverviewTab({
                 <h3 className="text-sm font-bold text-slate-900">
                   Workshop Progress
                 </h3>
-                <p className="text-xs text-slate-400">Live service stage tracking</p>
+                <p className="text-xs text-slate-400">
+                  {activeTicket ? `${activeBikeModel} (${activeBikePlate})` : 'Click any stage to inspect details'}
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-1.5">
               <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-[11px] font-medium text-slate-600">
                 <span className="px-2.5 py-0.5 rounded-full">Stages</span>
-                <span className="px-2.5 py-0.5 rounded-full bg-emerald-800 text-white font-semibold shadow-xs">
-                  Live
+                <span className="px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-semibold shadow-xs">
+                  {activeTicket ? `Stage ${currentStage}` : 'Interactive'}
                 </span>
               </div>
-              <button
-                type="button"
-                className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition"
-              >
-                <ArrowUpRight className="w-4 h-4" />
-              </button>
             </div>
           </div>
 
-          {/* Striped Pillars Chart Layout (Matches Reference Image) */}
-          <div className="pt-2">
-            <div className="flex items-end justify-between gap-2 sm:gap-3 h-48 px-2 pb-2">
+          {/* Interactive Striped Pillars (Clickable!) */}
+          <div className="pt-1">
+            <div className="flex items-end justify-between gap-2 sm:gap-3 h-36 px-2 pb-2">
               {stages.map((st) => {
                 const isActivePillar = activeTicket
                   ? st.step === currentStage
-                  : st.step === 3;
-                const isPassedPillar = activeTicket
-                  ? st.step < currentStage
-                  : false;
+                  : st.step === inspectedStageStep;
+                const isPassedPillar = activeTicket ? st.step < currentStage : false;
+                const isInspected = st.step === inspectedStageStep;
 
                 return (
-                  <div key={st.step} className="flex-1 flex flex-col items-center justify-end h-full relative group">
-                    {/* Active Floating Badge (Matches `+17.8%` pill in Reference) */}
+                  <button
+                    key={st.step}
+                    type="button"
+                    onClick={() => setInspectedStageStep(st.step)}
+                    className="flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer focus:outline-none"
+                    title={`Click to inspect Stage ${st.step}: ${st.name}`}
+                  >
+                    {/* Active Floating Badge */}
                     {isActivePillar && (
-                      <div className="absolute -top-3 px-2 py-0.5 rounded-full bg-emerald-900 text-white text-[10px] font-bold shadow-md z-10 flex items-center gap-0.5 animate-bounce">
-                        <span>●</span>
-                        <span>{activeTicket ? st.name : 'Ready'}</span>
+                      <div className="absolute -top-3 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold shadow-md z-10 flex items-center gap-1 animate-bounce">
+                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                        <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
                       </div>
                     )}
 
-                    {/* Striped Pill Column */}
+                    {/* Striped Pillar */}
                     <div
                       className={`w-full rounded-2xl transition-all duration-300 relative overflow-hidden ${
                         isActivePillar
-                          ? 'bg-orange-500 shadow-md shadow-orange-500/25 h-36'
+                          ? 'bg-orange-500 shadow-md shadow-orange-500/25 h-32'
                           : isPassedPillar
-                          ? 'bg-emerald-200/90 h-28'
-                          : `${st.height} bg-slate-100`
-                      }`}
+                          ? 'bg-emerald-400 h-28'
+                          : `${st.height} bg-slate-100 hover:bg-slate-200`
+                      } ${isInspected ? 'ring-2 ring-orange-500 ring-offset-2' : ''}`}
                       style={{
-                        backgroundImage: !isActivePillar
-                          ? 'repeating-linear-gradient(45deg, rgba(16,185,129,0.18), rgba(16,185,129,0.18) 4px, transparent 4px, transparent 8px)'
+                        backgroundImage: !isActivePillar && !isPassedPillar
+                          ? 'repeating-linear-gradient(45deg, rgba(16,185,129,0.15), rgba(16,185,129,0.15) 4px, transparent 4px, transparent 8px)'
                           : undefined,
                       }}
                     />
 
                     {/* Stage Label Below Pillar */}
-                    <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase mt-2.5">
+                    <span className={`text-[10px] sm:text-xs font-bold uppercase mt-2 transition ${
+                      isInspected ? 'text-orange-600' : 'text-slate-500'
+                    }`}>
                       {st.name}
                     </span>
-                  </div>
+                  </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Footer Metadata */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-            <span>
-              {activeTicket ? (
-                <>Bay: <strong className="text-slate-800 font-semibold">{activeTicket.assigned_bay}</strong></>
-              ) : (
-                'All workshop bays ready for booking'
-              )}
-            </span>
-            <span className="text-slate-400">
-              {activeTicket ? activeTicket.estimated_pickup : '0 Ongoing Maintenance'}
-            </span>
+          {/* Interactive Inspection Detail Box (Explains What is Done at this Stage) */}
+          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                <strong className="text-slate-900 font-bold">
+                  Stage {inspectedStage.step}: {inspectedStage.summary}
+                </strong>
+              </div>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                activeTicket
+                  ? inspectedStage.step < currentStage
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : inspectedStage.step === currentStage
+                    ? 'bg-orange-100 text-orange-800 animate-pulse'
+                    : 'bg-slate-200 text-slate-600'
+                  : 'bg-slate-200 text-slate-600'
+              }`}>
+                {activeTicket
+                  ? inspectedStage.step < currentStage
+                    ? 'Completed ✓'
+                    : inspectedStage.step === currentStage
+                    ? 'In Progress ⚙'
+                    : 'Upcoming ⏱'
+                  : 'Stage Overview'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              {inspectedStage.desc}
+            </p>
           </div>
+
+          {/* Booked Motorcycle Information Footer */}
+          {activeTicket ? (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+              <div>
+                <span className="text-slate-400 text-[10px] block">Booked Vehicle</span>
+                <span className="font-bold text-slate-800 truncate block">{activeBikeModel}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] block">Plate Number</span>
+                <span className="font-bold text-slate-800 block">{activeBikePlate}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] block">Assigned Bay</span>
+                <span className="font-bold text-slate-800 block">{activeTicket.assigned_bay}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 text-[10px] block">Lead Mechanic</span>
+                <span className="font-bold text-slate-800 truncate block">{activeTicket.assigned_mechanic}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+              <span>All workshop service bays ready for booking</span>
+              <span className="text-slate-400">0 Ongoing Maintenance</span>
+            </div>
+          )}
         </div>
 
-        {/* Card 3: Vehicle Care & Wavy Chart (Matches "Payment Goal" in Reference) */}
+        {/* Card 3: Vehicle Care & Wavy Chart (Dynamic Real Value) */}
         <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900">Vehicle Care</h3>
-              <p className="text-xs text-slate-400">Maintenance score</p>
+              <p className="text-xs text-slate-400">Service investment</p>
             </div>
             <button
               type="button"
               onClick={onViewHistoryClick}
               className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
+              title="View History Records"
             >
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 block font-medium">Total Maintenance</span>
+            <span className="text-xs text-slate-400 block font-medium">Total Maintenance Logged</span>
             <div className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              ₱3,450.00
+              {formattedTotalMaintenance}
             </div>
           </div>
 
-          {/* Smooth Wavy Line Chart (SVG Bezier Curve from Reference Image) */}
+          {/* Smooth Wavy Line Chart */}
           <div className="w-full h-20 relative overflow-hidden py-1">
             <svg
               className="w-full h-full overflow-visible"
@@ -275,12 +397,10 @@ export default function OverviewTab({
                   <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
-              {/* Fill area under curve */}
               <path
                 d="M 0,40 Q 30,15 60,35 T 120,20 T 180,45 T 240,15 L 240,60 L 0,60 Z"
                 fill="url(#waveGradient)"
               />
-              {/* Green Smooth Curve Line */}
               <path
                 d="M 0,40 Q 30,15 60,35 T 120,20 T 180,45 T 240,15"
                 fill="none"
@@ -288,14 +408,13 @@ export default function OverviewTab({
                 strokeWidth="2.5"
                 strokeLinecap="round"
               />
-              {/* Pulse dots along the line */}
               <circle cx="60" cy="35" r="3" fill="#10b981" />
               <circle cx="120" cy="20" r="3" fill="#10b981" />
               <circle cx="240" cy="15" r="4" fill="#059669" className="animate-pulse" />
             </svg>
           </div>
 
-          {/* Dual Action Pills (Matches `Send ↑` and `Receive ↓` in Reference) */}
+          {/* Dual Action Pills */}
           <div className="grid grid-cols-2 gap-2 pt-1">
             <button
               type="button"
@@ -317,27 +436,28 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* 3. Bottom Bento Grid Row (Payment History Table & Right Side Stat Cards) */}
+      {/* 3. Bottom Bento Grid Row (Service Records & Garage Fleet Milestone - NO FAKE SPECIALISTS) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Bottom Left: Recent Service Records Table (Matches "Payment History" in Reference) */}
+        {/* Bottom Left: Genuine Service History Table (NO HARDCODED ROWS) */}
         <div className="lg:col-span-8 bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div>
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
                 Service History
               </h3>
-              <p className="text-xs text-slate-400">Recent official workshop records</p>
+              <p className="text-xs text-slate-400">Official verified workshop records from database</p>
             </div>
             <button
               type="button"
               onClick={onViewHistoryClick}
               className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
+              title="View Complete Ledger"
             >
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Table Container */}
+          {/* Genuine Table Container (No Fake Hardcoded Items!) */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -368,7 +488,7 @@ export default function OverviewTab({
                       <td className="py-3.5 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          Successful
+                          {item.status}
                         </span>
                       </td>
                       <td className="py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
@@ -377,75 +497,26 @@ export default function OverviewTab({
                     </tr>
                   ))
                 ) : (
-                  <>
-                    {/* Realistic Records Styled Like Reference Image */}
-                    <tr className="hover:bg-slate-50/70 transition">
-                      <td className="py-3.5 font-semibold text-slate-900 flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xs shrink-0">
-                          <Activity className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="truncate max-w-[160px] sm:max-w-xs">Full Preventive Maintenance (PMS)</span>
-                      </td>
-                      <td className="py-3.5 text-slate-500 whitespace-nowrap">16 Jun 2025</td>
-                      <td className="py-3.5 text-slate-400 whitespace-nowrap font-mono text-[11px]">10:30 PM</td>
-                      <td className="py-3.5 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          Successful
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                        ₱1,250.00
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-slate-50/70 transition">
-                      <td className="py-3.5 font-semibold text-slate-900 flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs shrink-0">
-                          <Wrench className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="truncate max-w-[160px] sm:max-w-xs">CVT Cleaning & Belt Check</span>
-                      </td>
-                      <td className="py-3.5 text-slate-500 whitespace-nowrap">15 Jun 2025</td>
-                      <td className="py-3.5 text-slate-400 whitespace-nowrap font-mono text-[11px]">11:45 PM</td>
-                      <td className="py-3.5 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          Successful
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                        ₱850.00
-                      </td>
-                    </tr>
-                    <tr className="hover:bg-slate-50/70 transition">
-                      <td className="py-3.5 font-semibold text-slate-900 flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
-                          <ShieldCheck className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="truncate max-w-[160px] sm:max-w-xs">Synthetic Oil & Filter Replacement</span>
-                      </td>
-                      <td className="py-3.5 text-slate-500 whitespace-nowrap">14 Jun 2025</td>
-                      <td className="py-3.5 text-slate-400 whitespace-nowrap font-mono text-[11px]">10:15 PM</td>
-                      <td className="py-3.5 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          Successful
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                        ₱1,345.00
-                      </td>
-                    </tr>
-                  </>
+                  <tr>
+                    <td colSpan={5} className="py-10 text-center">
+                      <div className="space-y-2 max-w-sm mx-auto">
+                        <Clock className="w-8 h-8 text-slate-300 mx-auto" />
+                        <div className="text-xs font-bold text-slate-700">No Past Service Records Yet</div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          When your active service ticket is completed by our mechanics, verified official records and downloadable slips will appear here automatically.
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Bottom Right: Stacked Sub-Cards (Matches "Amount of credit" & "Mandatory Payments") */}
+        {/* Bottom Right: Real Fleet Status & Next Service Milestone (NO FAKE SPECIALISTS) */}
         <div className="lg:col-span-4 flex flex-col justify-between gap-5">
-          {/* Sub-Card 1: Next Service Milestone (Matches "Amount of credit" in Reference) */}
+          {/* Sub-Card 1: Next Service Milestone */}
           <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
@@ -459,46 +530,57 @@ export default function OverviewTab({
 
             <div className="flex items-baseline justify-between pt-1">
               <div className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                3,000 km
+                {primaryBike?.next_service || '3,000 km'}
               </div>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                 On Schedule
               </span>
             </div>
+
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">
+              Assigned to: <strong className="text-slate-800">{activeBikeModel}</strong>
+            </div>
           </div>
 
-          {/* Sub-Card 2: Workshop Specialists Team (Matches "Mandatory Payments" with circular team avatars) */}
+          {/* Sub-Card 2: Registered Garage Fleet Summary */}
           <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-slate-900">Workshop Specialists</h4>
-                <p className="text-[11px] text-slate-400">Certified technicians on duty</p>
+                <h4 className="text-xs font-bold text-slate-900">My Garage Fleet</h4>
+                <p className="text-[11px] text-slate-400">Registered motorcycles ({motorcycles.length})</p>
               </div>
               <button
                 type="button"
-                className="w-7 h-7 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition"
+                onClick={() => onBookClick()}
+                className="w-7 h-7 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-600 flex items-center justify-center transition cursor-pointer"
+                title="Add Motorcycle via Booking"
               >
-                <ArrowUpRight className="w-3.5 h-3.5" />
+                <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Overlapping Team Avatars */}
-            <div className="flex items-center -space-x-2 pt-1">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-xs" title="Juan Dela Cruz - Master Technician">
-                JD
-              </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-400 to-rose-600 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-xs" title="Mark Santos - Electrical Specialist">
-                MS
-              </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-orange-400 to-orange-600 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-xs" title="Ryan Torres - Diagnostic Tech">
-                RT
-              </div>
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-blue-400 to-blue-600 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-xs" title="Alex Lim - Engine Specialist">
-                AL
-              </div>
-              <div className="w-9 h-9 rounded-full bg-emerald-800 border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-xs" title="2 more certified technicians">
-                +2
-              </div>
+            <div className="space-y-2 pt-1 max-h-36 overflow-y-auto pr-1">
+              {motorcycles.map((bike) => (
+                <div
+                  key={bike.id}
+                  className="p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2">
+                    <Bike className="w-3.5 h-3.5 text-slate-400" />
+                    <div>
+                      <span className="font-bold text-slate-800 block text-xs">{bike.model}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{bike.plate_number}</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onBookClick(bike.id)}
+                    className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                  >
+                    Book
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
