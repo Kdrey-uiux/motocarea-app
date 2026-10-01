@@ -108,28 +108,11 @@ export default function DashboardSidebar({
                 </button>
               );
             })}
-
-            {/* Settings & Policies in mobile nav */}
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('settings');
-                setIsMobileMenuOpen(false);
-              }}
-              className={`w-full h-12 px-4 rounded-2xl flex items-center gap-3.5 transition-all duration-200 cursor-pointer text-left ${
-                activeTab === 'settings'
-                  ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
-              }`}
-            >
-              <Settings className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-semibold">Settings & Policies</span>
-            </button>
           </nav>
         </div>
 
-        {/* Bottom Profile & Logout in Mobile Drawer */}
-        <div className="flex flex-col gap-3 w-full pt-4 border-t border-slate-100 shrink-0">
+        {/* Bottom Profile, Settings & Logout in Mobile Drawer */}
+        <div className="flex flex-col gap-2.5 w-full pt-4 border-t border-slate-100 shrink-0">
           {/* User Identity Card */}
           <div
             onClick={() => {
@@ -150,6 +133,23 @@ export default function DashboardSidebar({
               </div>
             </div>
           </div>
+
+          {/* Settings & Policies Button (Directly under Profile) */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('settings');
+              setIsMobileMenuOpen(false);
+            }}
+            className={`w-full h-11 px-4 rounded-2xl flex items-center gap-3 transition-all duration-200 cursor-pointer text-left ${
+              activeTab === 'settings'
+                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 font-semibold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+            }`}
+          >
+            <Settings className="w-4 h-4 shrink-0" />
+            <span className="text-sm font-semibold">Settings & Policies</span>
+          </button>
 
           {/* Sign Out Button */}
           <button

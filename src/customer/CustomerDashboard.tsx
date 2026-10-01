@@ -15,6 +15,7 @@ import SettingsTab from './tabs/SettingsTab';
 // Modals
 import ChangePasswordModal from './modals/ChangePasswordModal';
 import MessagesModal from './modals/MessagesModal';
+import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
 
 import { Wrench, Loader2, MessageSquare } from 'lucide-react';
 
@@ -37,6 +38,8 @@ export default function CustomerDashboard() {
   // Modals
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isMessagesModalOpen, setIsMessagesModalOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [selectedBikeId, setSelectedBikeId] = useState('');
 
   const loadDashboardData = async (uid: string) => {
@@ -145,8 +148,12 @@ export default function CustomerDashboard() {
     }
   }, [isMobileMenuOpen]);
 
-  const handleLogout = async () => {
-    setIsCheckingAuth(true);
+  const handleLogout = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  const executeLogout = async () => {
+    setIsLoggingOut(true);
     await supabase.auth.signOut();
     navigate('/login', { replace: true });
   };
@@ -288,6 +295,13 @@ export default function CustomerDashboard() {
       <ChangePasswordModal
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
+      />
+
+      <ConfirmLogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={executeLogout}
+        loading={isLoggingOut}
       />
     </div>
   );
