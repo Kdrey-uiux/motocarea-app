@@ -18,6 +18,8 @@ import {
   Zap,
   Sparkles,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   ArrowLeft,
   Check,
   ShieldCheck,
@@ -183,8 +185,9 @@ export default function BookServiceTab({
   // Wizard current step: 1 = Service, 2 = Date & Time, 3 = Vehicle, 4 = Review & Confirm
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
 
-  // Step 1: Selected service package
+  // Step 1: Selected service package & mobile accordion toggle
   const [serviceType, setServiceType] = useState(HOTEL_STYLE_PACKAGES[0].id);
+  const [expandedPackageId, setExpandedPackageId] = useState<string | null>(null);
 
   // Step 2: Date & arrival window
   const [dropoffDate, setDropoffDate] = useState(
@@ -600,68 +603,129 @@ export default function BookServiceTab({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
               {HOTEL_STYLE_PACKAGES.map((pkg) => {
                 const isSelected = serviceType === pkg.id;
+                const isExpanded = expandedPackageId === pkg.id;
                 const Icon = pkg.icon;
 
                 return (
                   <div
                     key={pkg.id}
                     onClick={() => setServiceType(pkg.id)}
-                    className={`p-5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    className={`p-4 sm:p-5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                       isSelected
                         ? 'border-orange-500 bg-orange-50/30 shadow-xs ring-2 ring-orange-500/20'
                         : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
                     }`}
                   >
                     <div className="space-y-3">
-                      {/* Top Header */}
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2.5">
+                      {/* Top Header Row (Mobile: Shows Icon, Tag, Title, Price, and Radio; Desktop: Shows Icon, Tag, Title, and Radio) */}
+                      <div className="flex items-center sm:items-start justify-between gap-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
                           <div
-                            className={`p-2.5 rounded-xl ${
+                            className={`p-2.5 rounded-xl shrink-0 ${
                               isSelected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-700'
                             }`}
                           >
                             <Icon className="w-5 h-5" />
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             {pkg.tag && (
-                              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200">
+                              <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200 inline-block">
                                 {pkg.tag}
                               </span>
                             )}
-                            <h3 className="font-bold text-sm text-slate-900 mt-1">{pkg.title}</h3>
+                            <h3 className="font-bold text-sm text-slate-900 mt-0.5 leading-snug truncate">
+                              {pkg.title}
+                            </h3>
                           </div>
                         </div>
 
-                        <div
-                          className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
-                            isSelected
-                              ? 'border-orange-500 bg-orange-500 text-white'
-                              : 'border-slate-300 bg-white'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        {/* Right: Mobile Price + Radio Selector */}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          <div className="text-right md:hidden">
+                            <span className="text-xs font-bold text-slate-900 block leading-tight">
+                              {pkg.estimatedCost}
+                            </span>
+                          </div>
+
+                          <div
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                              isSelected
+                                ? 'border-orange-500 bg-orange-500 text-white'
+                                : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                          </div>
                         </div>
                       </div>
 
-                      <p className="text-xs text-slate-500 leading-relaxed">{pkg.description}</p>
+                      {/* --- MOBILE ACCORDION (md:hidden) --- */}
+                      <div className="md:hidden">
+                        {/* Toggle button row on mobile */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedPackageId(isExpanded ? null : pkg.id);
+                            }}
+                            className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer py-0.5"
+                          >
+                            <span>{isExpanded ? 'Hide details' : 'View inclusions & details'}</span>
+                            {isExpanded ? (
+                              <ChevronUp className="w-3.5 h-3.5" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5" />
+                            )}
+                          </button>
 
-                      {/* Transparent Inclusions list */}
-                      <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                          Transparent Inclusions
-                        </span>
-                        {pkg.inclusions.map((inc, i) => (
-                          <div key={i} className="flex items-center gap-2 text-slate-600 text-[11px]">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>{inc}</span>
+                          <span className="text-[10px] text-slate-500 font-medium flex items-center gap-1 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            {pkg.estimatedDuration}
+                          </span>
+                        </div>
+
+                        {/* Collapsible details on mobile */}
+                        {isExpanded && (
+                          <div className="space-y-3 pt-3 border-t border-slate-100 mt-2.5 animate-in fade-in duration-150">
+                            <p className="text-xs text-slate-500 leading-relaxed">{pkg.description}</p>
+
+                            <div className="space-y-1.5 text-xs">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                                Transparent Inclusions
+                              </span>
+                              {pkg.inclusions.map((inc, i) => (
+                                <div key={i} className="flex items-center gap-2 text-slate-600 text-[11px]">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span>{inc}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        ))}
+                        )}
+                      </div>
+
+                      {/* --- DESKTOP VIEW (Always visible on md: and above) --- */}
+                      <div className="hidden md:block space-y-3">
+                        <p className="text-xs text-slate-500 leading-relaxed">{pkg.description}</p>
+
+                        {/* Transparent Inclusions list */}
+                        <div className="space-y-1.5 pt-2 border-t border-slate-100 text-xs">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Transparent Inclusions
+                          </span>
+                          {pkg.inclusions.map((inc, i) => (
+                            <div key={i} className="flex items-center gap-2 text-slate-600 text-[11px]">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                              <span>{inc}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Price and turnaround footer */}
-                    <div className="pt-3 mt-4 border-t border-slate-100 flex items-center justify-between">
+                    {/* Desktop Price and turnaround footer (Always visible on md: and above) */}
+                    <div className="hidden md:flex pt-3 mt-4 border-t border-slate-100 items-center justify-between">
                       <div>
                         <span className="text-[10px] text-slate-400 block uppercase font-bold">
                           Fixed Package Price
