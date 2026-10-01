@@ -233,7 +233,7 @@ export default function OverviewTab({
 
           {/* Interactive Striped Pillars (Clickable!) */}
           <div className="pt-1">
-            <div className="flex items-end justify-between gap-2 sm:gap-3 h-36 px-2 pb-2">
+            <div className="flex items-end justify-between gap-1.5 sm:gap-3 h-36 px-1 sm:px-2 pb-2">
               {stages.map((st) => {
                 const isActivePillar = activeTicket
                   ? st.step === currentStage
@@ -246,12 +246,12 @@ export default function OverviewTab({
                     key={st.step}
                     type="button"
                     onClick={() => setInspectedStageStep(st.step)}
-                    className="flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer focus:outline-none"
+                    className="flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer focus:outline-none min-w-0"
                     title={`Click to inspect Stage ${st.step}: ${st.name}`}
                   >
                     {/* Active Floating Badge */}
                     {isActivePillar && (
-                      <div className="absolute -top-3 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-bold shadow-md z-10 flex items-center gap-1 animate-bounce">
+                      <div className="absolute -top-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-900 text-white text-[9px] sm:text-[10px] font-bold shadow-md z-10 flex items-center gap-1 animate-bounce whitespace-nowrap">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                         <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
                       </div>
@@ -274,7 +274,7 @@ export default function OverviewTab({
                     />
 
                     {/* Stage Label Below Pillar */}
-                    <span className={`text-[10px] sm:text-xs font-bold uppercase mt-2 transition ${
+                    <span className={`text-[9px] sm:text-xs font-bold uppercase mt-2 transition truncate ${
                       isInspected ? 'text-orange-600' : 'text-slate-500'
                     }`}>
                       {st.name}

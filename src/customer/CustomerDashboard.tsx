@@ -178,7 +178,7 @@ export default function CustomerDashboard() {
         isSidebarCollapsed={isSidebarCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-scroll [scrollbar-gutter:stable]">
         <DashboardHeader
           activeTab={activeTab}
           setActiveTab={setActiveTab}
@@ -193,7 +193,7 @@ export default function CustomerDashboard() {
           onLogout={handleLogout}
         />
 
-        <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
+        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6">
           {activeTab === 'overview' && (
             <OverviewTab
               userProfile={userProfile}

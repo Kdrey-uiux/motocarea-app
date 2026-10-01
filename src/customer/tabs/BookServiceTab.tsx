@@ -474,7 +474,7 @@ export default function BookServiceTab({
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="w-full space-y-6">
       
       {/* HOTEL-STYLE STEPPER NAVIGATION BAR (Responsive Mobile & Desktop) */}
       <div className="bg-white border border-slate-200/80 rounded-[2rem] p-4 sm:p-5 shadow-xs">
