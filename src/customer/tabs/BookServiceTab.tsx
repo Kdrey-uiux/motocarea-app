@@ -24,7 +24,8 @@ import {
   Check,
   ShieldCheck,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  XCircle
 } from 'lucide-react';
 import { TabType } from '../../types/dashboard';
 import { getBayCapacity, getMockReservationsSchedule, DAILY_MAX_CAPACITY } from '../../utils/mockReservations';
@@ -43,6 +44,7 @@ interface BookServiceTabProps {
   onBookingComplete: () => Promise<void>;
   onNavigateTab?: (tab: TabType) => void;
   onOpenChat?: () => void;
+  onRequestCancelTicket?: (ticket: ServiceTicket) => void;
 }
 
 interface ServicePackageOption {
@@ -187,6 +189,7 @@ export default function BookServiceTab({
   onBookingComplete,
   onNavigateTab,
   onOpenChat,
+  onRequestCancelTicket,
 }: BookServiceTabProps) {
   // Wizard current step: 1 = Service, 2 = Date & Time, 3 = Vehicle, 4 = Review & Confirm
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -934,6 +937,16 @@ export default function BookServiceTab({
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-200/60">
+                      {onRequestCancelTicket && activeTicketForSelectedBike.stage === 1 && (
+                        <button
+                          type="button"
+                          onClick={() => onRequestCancelTicket(activeTicketForSelectedBike)}
+                          className="flex-1 sm:flex-initial px-3 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
+                        >
+                          <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                          <span>Cancel Booking</span>
+                        </button>
+                      )}
                       {onNavigateTab && (
                         <button
                           type="button"
@@ -1022,11 +1035,23 @@ export default function BookServiceTab({
 
                 {/* Real-time alert if typed plate already has an active ticket */}
                 {activeTicketForSelectedBike && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-xs text-amber-900 animate-in fade-in duration-200">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                    <span>
-                      Plate <strong>{newBikePlate}</strong> already has open Ticket #{activeTicketForSelectedBike.ticket_code} ({activeTicketForSelectedBike.service_type}).
-                    </span>
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs text-amber-900 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>
+                        Plate <strong>{newBikePlate}</strong> already has open Ticket #{activeTicketForSelectedBike.ticket_code} ({activeTicketForSelectedBike.service_type}).
+                      </span>
+                    </div>
+                    {onRequestCancelTicket && activeTicketForSelectedBike.stage === 1 && (
+                      <button
+                        type="button"
+                        onClick={() => onRequestCancelTicket(activeTicketForSelectedBike)}
+                        className="px-3 py-1 rounded-full bg-white hover:bg-rose-50 text-rose-700 border border-rose-300 text-[11px] font-semibold transition cursor-pointer flex items-center justify-center gap-1 shrink-0 self-start sm:self-auto"
+                      >
+                        <XCircle className="w-3 h-3 text-rose-500" />
+                        <span>Cancel Booking</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

@@ -16,8 +16,9 @@ import SettingsTab from './tabs/SettingsTab';
 import ChangePasswordModal from './modals/ChangePasswordModal';
 import MessagesModal from './modals/MessagesModal';
 import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
+import CancelBookingModal from './modals/CancelBookingModal';
 
-import { Wrench, Loader2, MessageSquare } from 'lucide-react';
+import { Wrench, Loader2, MessageSquare, CheckCircle2 } from 'lucide-react';
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
@@ -35,11 +36,15 @@ export default function CustomerDashboard() {
   const [activeTickets, setActiveTickets] = useState<ServiceTicket[]>([]);
   const [serviceHistory, setServiceHistory] = useState<ServiceTicket[]>([]);
 
-  // Modals
+  // Modals & Actions
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isMessagesModalOpen, setIsMessagesModalOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [cancellingTicket, setCancellingTicket] = useState<ServiceTicket | null>(null);
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
+  const [isCancellingTicket, setIsCancellingTicket] = useState(false);
+  const [cancelSuccessMsg, setCancelSuccessMsg] = useState<string | null>(null);
   const [selectedBikeId, setSelectedBikeId] = useState('');
 
   const loadDashboardData = async (uid: string) => {
@@ -158,15 +163,47 @@ export default function CustomerDashboard() {
     navigate('/login', { replace: true });
   };
 
-  const handleCancelTicket = async (ticketId: string) => {
-    if (!confirm('Are you sure you want to cancel this service reservation?')) return;
+  const handleRequestCancelTicket = (ticket: ServiceTicket) => {
+    if (ticket.stage > 1) {
+      alert(
+        `Ticket #${ticket.ticket_code} is already in active workshop service (Stage ${ticket.stage}). Direct cancellation is disabled once inspection or repairs commence. Please message the workshop advisor to modify your service.`
+      );
+      setIsMessagesModalOpen(true);
+      return;
+    }
+    setCancellingTicket(ticket);
+    setIsCancelModalOpen(true);
+  };
+
+  const executeCancelTicket = async () => {
+    if (!cancellingTicket) return;
+    setIsCancellingTicket(true);
     try {
-      const { error } = await supabase.from('service_tickets').delete().eq('id', ticketId);
-      if (error) throw error;
+      // Attempt status update to CANCELLED first, fallback to delete
+      const { error: updateErr } = await supabase
+        .from('service_tickets')
+        .update({ status: 'CANCELLED' })
+        .eq('id', cancellingTicket.id);
+
+      if (updateErr) {
+        const { error: delErr } = await supabase
+          .from('service_tickets')
+          .delete()
+          .eq('id', cancellingTicket.id);
+        if (delErr) throw delErr;
+      }
+
       if (userId) await loadDashboardData(userId);
+      setIsCancelModalOpen(false);
+      const code = cancellingTicket.ticket_code;
+      setCancellingTicket(null);
+      setCancelSuccessMsg(`Booking #${code} has been cancelled. Vehicle slot is now released.`);
+      setTimeout(() => setCancelSuccessMsg(null), 4000);
     } catch (err: unknown) {
       console.error('Error cancelling ticket:', err);
-      alert('Failed to cancel service ticket.');
+      alert('Failed to cancel service ticket. Please try again or contact shop support.');
+    } finally {
+      setIsCancellingTicket(false);
     }
   };
 
@@ -223,7 +260,7 @@ export default function CustomerDashboard() {
                 setActiveTab('book');
               }}
               onViewHistoryClick={() => setActiveTab('history')}
-              onCancelTicket={handleCancelTicket}
+              onRequestCancelTicket={handleRequestCancelTicket}
             />
           )}
 
@@ -241,6 +278,7 @@ export default function CustomerDashboard() {
               }}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenChat={() => setIsMessagesModalOpen(true)}
+              onRequestCancelTicket={handleRequestCancelTicket}
             />
           )}
 
@@ -286,6 +324,14 @@ export default function CustomerDashboard() {
         </span>
       </button>
 
+      {/* Cancellation Success Feedback Toast */}
+      {cancelSuccessMsg && (
+        <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-24 z-50 bg-slate-900/95 backdrop-blur-md text-white border border-emerald-500/50 shadow-2xl px-4 py-3 rounded-2xl flex items-center gap-2.5 text-xs animate-in slide-in-from-bottom duration-200">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span className="font-semibold text-emerald-100">{cancelSuccessMsg}</span>
+        </div>
+      )}
+
       {/* Modals */}
       <MessagesModal
         isOpen={isMessagesModalOpen}
@@ -304,6 +350,17 @@ export default function CustomerDashboard() {
         onClose={() => setIsLogoutModalOpen(false)}
         onConfirm={executeLogout}
         loading={isLoggingOut}
+      />
+
+      <CancelBookingModal
+        isOpen={isCancelModalOpen}
+        onClose={() => {
+          setIsCancelModalOpen(false);
+          setCancellingTicket(null);
+        }}
+        onConfirm={executeCancelTicket}
+        ticket={cancellingTicket}
+        loading={isCancellingTicket}
       />
     </div>
   );

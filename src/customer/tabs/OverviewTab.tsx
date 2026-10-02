@@ -9,7 +9,8 @@ import {
   ArrowUp,
   ArrowDown,
   Bike,
-  Info
+  Info,
+  XCircle
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -19,7 +20,7 @@ interface OverviewTabProps {
   serviceHistory: ServiceTicket[];
   onBookClick: (bikeId?: string) => void;
   onViewHistoryClick?: () => void;
-  onCancelTicket?: (ticketId: string) => void;
+  onRequestCancelTicket?: (ticket: ServiceTicket) => void;
 }
 
 export default function OverviewTab({
@@ -29,6 +30,7 @@ export default function OverviewTab({
   serviceHistory,
   onBookClick,
   onViewHistoryClick,
+  onRequestCancelTicket,
 }: OverviewTabProps) {
   const activeTicket = activeTickets.length > 0 ? activeTickets[0] : null;
   const primaryBike = motorcycles.length > 0 ? motorcycles[0] : null;
@@ -319,22 +321,53 @@ export default function OverviewTab({
 
           {/* Booked Motorcycle Information Footer */}
           {activeTicket ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
-              <div>
-                <span className="text-slate-400 text-[10px] block">Booked Vehicle</span>
-                <span className="font-bold text-slate-800 truncate block">{activeBikeModel}</span>
+            <div className="space-y-2 pt-2 border-t border-slate-100">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-slate-600">
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Booked Vehicle</span>
+                  <span className="font-bold text-slate-800 truncate block">{activeBikeModel}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Plate Number</span>
+                  <span className="font-bold text-slate-800 block">{activeBikePlate}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Assigned Bay</span>
+                  <span className="font-bold text-slate-800 block">{activeTicket.assigned_bay}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 text-[10px] block">Lead Mechanic</span>
+                  <span className="font-bold text-slate-800 truncate block">{activeTicket.assigned_mechanic}</span>
+                </div>
               </div>
-              <div>
-                <span className="text-slate-400 text-[10px] block">Plate Number</span>
-                <span className="font-bold text-slate-800 block">{activeBikePlate}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[10px] block">Assigned Bay</span>
-                <span className="font-bold text-slate-800 block">{activeTicket.assigned_bay}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[10px] block">Lead Mechanic</span>
-                <span className="font-bold text-slate-800 truncate block">{activeTicket.assigned_mechanic}</span>
+
+              {/* Cancellation or Stage Action Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-2 border-t border-slate-100/90 text-xs">
+                <div className="text-[11px] text-slate-500 font-medium">
+                  {activeTicket.dropoff_date ? (
+                    <span>Drop-off Date: <strong className="text-slate-700">{activeTicket.dropoff_date}</strong></span>
+                  ) : (
+                    <span>Ticket Ref: <strong className="text-slate-700">#{activeTicket.ticket_code}</strong></span>
+                  )}
+                </div>
+
+                {activeTicket.stage === 1 ? (
+                  onRequestCancelTicket && (
+                    <button
+                      type="button"
+                      onClick={() => onRequestCancelTicket(activeTicket)}
+                      className="px-3 py-1 rounded-full border border-rose-200 text-rose-700 hover:bg-rose-50 text-[11px] font-semibold transition cursor-pointer flex items-center justify-center gap-1.5 self-start sm:self-auto"
+                      title="Cancel this booking reservation"
+                    >
+                      <XCircle className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Cancel Reservation</span>
+                    </button>
+                  )
+                ) : (
+                  <span className="text-[10px] font-medium text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/50 self-start sm:self-auto">
+                    In Active Service (Contact Advisor to Modify)
+                  </span>
+                )}
               </div>
             </div>
           ) : (
