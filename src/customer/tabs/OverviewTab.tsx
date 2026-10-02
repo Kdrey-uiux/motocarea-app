@@ -208,22 +208,22 @@ export default function OverviewTab({
 
         {/* Card 2: Interactive Workshop Progress (Clickable Stages & Booked Motorcycle Display) */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                 <Wrench className="w-4 h-4" />
               </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">
+              <div className="min-w-0">
+                <h3 className="text-sm font-bold text-slate-900 leading-tight">
                   Workshop Progress
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 truncate">
                   {activeTicket ? `${activeBikeModel} (${activeBikePlate})` : 'Click any stage to inspect details'}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
               <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-[11px] font-medium text-slate-600">
                 <span className="px-2.5 py-0.5 rounded-full">Stages</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-semibold shadow-xs">
@@ -234,8 +234,8 @@ export default function OverviewTab({
           </div>
 
           {/* Interactive Striped Pillars (Clickable!) */}
-          <div className="pt-1">
-            <div className="flex items-end justify-between gap-1 sm:gap-2.5 h-36 px-0.5 sm:px-2 pb-2">
+          <div className="pt-2 sm:pt-3">
+            <div className="flex items-end justify-between gap-1 sm:gap-2.5 h-38 sm:h-40 px-0.5 sm:px-2 pb-2">
               {stages.map((st) => {
                 const isActivePillar = activeTicket
                   ? st.step === currentStage
@@ -253,7 +253,7 @@ export default function OverviewTab({
                   >
                     {/* Active Floating Badge */}
                     {isActivePillar && (
-                      <div className="absolute -top-3 px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-900 text-white text-[9px] sm:text-[10px] font-bold shadow-md z-10 flex items-center gap-1 animate-bounce whitespace-nowrap">
+                      <div className="absolute -top-3.5 sm:-top-4 px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md z-10 flex items-center gap-1 whitespace-nowrap">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                         <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
                       </div>
@@ -263,9 +263,9 @@ export default function OverviewTab({
                     <div
                       className={`w-full rounded-2xl transition-all duration-300 relative overflow-hidden ${
                         isActivePillar
-                          ? 'bg-orange-500 shadow-md shadow-orange-500/25 h-32'
+                          ? 'bg-orange-500 shadow-md shadow-orange-500/25 h-30 sm:h-32'
                           : isPassedPillar
-                          ? 'bg-emerald-400 h-28'
+                          ? 'bg-emerald-400 h-26 sm:h-28'
                           : `${st.height} bg-slate-100 hover:bg-slate-200`
                       } ${isInspected ? 'ring-2 ring-orange-500 ring-offset-2' : ''}`}
                       style={{
@@ -288,15 +288,15 @@ export default function OverviewTab({
           </div>
 
           {/* Interactive Inspection Detail Box (Explains What is Done at this Stage) */}
-          <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5 text-xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
+          <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
                 <Info className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                <strong className="text-slate-900 font-bold">
+                <strong className="text-slate-900 font-bold text-xs truncate">
                   Stage {inspectedStage.step}: {inspectedStage.summary}
                 </strong>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 w-fit self-start sm:self-auto ${
                 activeTicket
                   ? inspectedStage.step < currentStage
                     ? 'bg-emerald-100 text-emerald-800'
@@ -475,8 +475,48 @@ export default function OverviewTab({
             </button>
           </div>
 
-          {/* Genuine Table Container (No Fake Hardcoded Items!) */}
-          <div className="overflow-x-auto">
+          {/* Mobile Card List (< sm screens) */}
+          <div className="sm:hidden space-y-2.5">
+            {serviceHistory.length > 0 ? (
+              serviceHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3.5 space-y-2.5 text-xs shadow-2xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-orange-600 bg-orange-50 border border-orange-200/80 px-2 py-0.5 rounded-lg text-[11px]">
+                      {item.ticket_code}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-xs text-slate-900">{item.service_type}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {new Date(item.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[11px]">
+                    <span className="text-slate-400">Total Billed</span>
+                    <span className="font-bold text-slate-900">{item.total_estimate}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="py-8 text-center space-y-1.5">
+                <Clock className="w-7 h-7 text-slate-300 mx-auto" />
+                <div className="text-xs font-bold text-slate-700">No Past Service Records Yet</div>
+                <p className="text-[11px] text-slate-400">Verified official records will appear here.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Desktop Table Container (>= sm screens) */}
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="text-slate-400 text-[11px] font-semibold border-b border-slate-100 pb-2">

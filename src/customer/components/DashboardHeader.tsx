@@ -121,7 +121,7 @@ export default function DashboardHeader({
   ];
 
   return (
-    <header className="sticky top-0 z-30 pt-3 px-3 sm:pt-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+    <header className="sticky top-0 z-30 bg-[#f2f4f7]/95 backdrop-blur-md pt-2.5 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full transition-all">
       <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
         {/* Left: Brand Logo & Mobile Toggle */}
         <div className="flex items-center gap-3">
@@ -189,26 +189,32 @@ export default function DashboardHeader({
 
             {/* Notification Popover Dropdown */}
             {isNotificationsOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white border border-slate-200/90 rounded-[1.75rem] shadow-xl z-50 p-4 space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <div className="flex items-center gap-1.5">
-                    <h4 className="text-xs font-bold text-slate-900">Notifications</h4>
+              <>
+                {/* Mobile Backdrop */}
+                <div
+                  className="fixed inset-0 z-40 bg-black/25 backdrop-blur-xs sm:hidden"
+                  onClick={() => setIsNotificationsOpen(false)}
+                />
+                <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-h-[82vh] flex flex-col bg-white border border-slate-200/90 rounded-2xl sm:rounded-[1.75rem] shadow-2xl sm:shadow-xl z-50 p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-bold text-slate-900">Notifications</h4>
+                      {hasUnreadNotifications && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold">
+                          New
+                        </span>
+                      )}
+                    </div>
                     {hasUnreadNotifications && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold">
-                        New
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setHasUnreadNotifications(false)}
+                        className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
                     )}
                   </div>
-                  {hasUnreadNotifications && (
-                    <button
-                      type="button"
-                      onClick={() => setHasUnreadNotifications(false)}
-                      className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
-                    >
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
 
                 <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
                   {notificationsList.map((notif) => {
@@ -256,36 +262,43 @@ export default function DashboardHeader({
                   </button>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          )}
+        </div>
 
-          {/* Interactive User "K" Avatar Dropdown Menu (Universal Account Menu) */}
-          <div className="relative" ref={userMenuRef}>
-            <button
-              type="button"
-              onClick={() => {
-                setIsUserMenuOpen((prev) => !prev);
-                setIsNotificationsOpen(false);
-              }}
-              className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full hover:bg-slate-50 border border-slate-200/60 hover:border-slate-300 transition cursor-pointer"
-              title="User Account Menu"
-            >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'K'}
-              </div>
-              <span className="hidden sm:block text-xs font-semibold text-slate-800 max-w-[100px] truncate">
-                {userProfile?.full_name?.split(' ')[0] || 'Account'}
-              </span>
-              <ChevronDown
-                className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                  isUserMenuOpen ? 'rotate-180 text-orange-500' : ''
-                }`}
+        {/* Interactive User "K" Avatar Dropdown Menu (Universal Account Menu) */}
+        <div className="relative" ref={userMenuRef}>
+          <button
+            type="button"
+            onClick={() => {
+              setIsUserMenuOpen((prev) => !prev);
+              setIsNotificationsOpen(false);
+            }}
+            className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full hover:bg-slate-50 border border-slate-200/60 hover:border-slate-300 transition cursor-pointer"
+            title="User Account Menu"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+              {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'K'}
+            </div>
+            <span className="hidden sm:block text-xs font-semibold text-slate-800 max-w-[100px] truncate">
+              {userProfile?.full_name?.split(' ')[0] || 'Account'}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                isUserMenuOpen ? 'rotate-180 text-orange-500' : ''
+              }`}
+            />
+          </button>
+
+          {/* User Dropdown Menu */}
+          {isUserMenuOpen && (
+            <>
+              {/* Mobile Backdrop */}
+              <div
+                className="fixed inset-0 z-40 bg-black/25 backdrop-blur-xs sm:hidden"
+                onClick={() => setIsUserMenuOpen(false)}
               />
-            </button>
-
-            {/* User Dropdown Menu */}
-            {isUserMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-slate-200/90 rounded-[1.75rem] shadow-xl z-50 p-2 space-y-1">
+              <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white border border-slate-200/90 rounded-2xl sm:rounded-[1.75rem] shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                 {/* Header Profile Identity */}
                 <div className="p-3 border-b border-slate-100 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-xs">
@@ -356,7 +369,8 @@ export default function DashboardHeader({
                   </button>
                 </div>
               </div>
-            )}
+            </>
+          )}
           </div>
         </div>
       </div>

@@ -248,7 +248,7 @@ export default function CustomerDashboard() {
           onLogout={handleLogout}
         />
 
-        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-28 sm:pb-12">
+        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-36 sm:pb-16">
           {activeTab === 'overview' && (
             <OverviewTab
               userProfile={userProfile}
