@@ -27,6 +27,7 @@ export interface ServiceTicket {
   total_estimate: string;
   status: string;
   created_at: string;
+  motorcycle_id?: string;
   dropoff_date?: string;
   notes?: string;
   motorcycles?: {

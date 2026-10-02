@@ -23,8 +23,10 @@ import {
   ArrowLeft,
   Check,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  MessageSquare
 } from 'lucide-react';
+import { TabType } from '../../types/dashboard';
 import { getBayCapacity, getMockReservationsSchedule, DAILY_MAX_CAPACITY } from '../../utils/mockReservations';
 import {
   getCompleteMotorcycleCatalog,
@@ -39,6 +41,8 @@ interface BookServiceTabProps {
   activeTickets?: ServiceTicket[];
   serviceHistory?: ServiceTicket[];
   onBookingComplete: () => Promise<void>;
+  onNavigateTab?: (tab: TabType) => void;
+  onOpenChat?: () => void;
 }
 
 interface ServicePackageOption {
@@ -181,6 +185,8 @@ export default function BookServiceTab({
   setSelectedBikeId,
   activeTickets = [],
   onBookingComplete,
+  onNavigateTab,
+  onOpenChat,
 }: BookServiceTabProps) {
   // Wizard current step: 1 = Service, 2 = Date & Time, 3 = Vehicle, 4 = Review & Confirm
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
@@ -250,8 +256,36 @@ export default function BookServiceTab({
 
   const cleanPlate = (str: string) => str.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
 
-  // Active duplicate check: same plate + same date + same service type
+  // Helper: Find if a motorcycle (by ID or Plate) already has an active ongoing ticket in the workshop
+  const getActiveTicketForBike = (bikeIdOrPlate?: string) => {
+    if (!bikeIdOrPlate || !bikeIdOrPlate.trim()) return null;
+    const clean = cleanPlate(bikeIdOrPlate);
+    return (activeTickets || []).find((ticket) => {
+      if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') return false;
+      const matchId = ticket.motorcycle_id && ticket.motorcycle_id === bikeIdOrPlate;
+      const matchPlate = ticket.motorcycles?.plate_number && cleanPlate(ticket.motorcycles.plate_number) === clean;
+      return matchId || matchPlate;
+    });
+  };
+
+  // Real-time detection: Does the currently selected motorcycle have an active ticket in progress?
+  const activeTicketForSelectedBike = useMemo(() => {
+    if (bikeMode === 'existing') {
+      const selectedBike = motorcycles.find((b) => b.id === selectedBikeId) || motorcycles[0];
+      if (!selectedBike) return null;
+      return getActiveTicketForBike(selectedBike.id) || getActiveTicketForBike(selectedBike.plate_number);
+    } else {
+      if (!newBikePlate.trim()) return null;
+      return getActiveTicketForBike(newBikePlate);
+    }
+  }, [bikeMode, selectedBikeId, motorcycles, newBikePlate, activeTickets]);
+
+  // Duplicate Check: Same motorcycle cannot be scheduled if it has an active ticket OR already booked on the selected date
   const activeDuplicate = useMemo(() => {
+    if (activeTicketForSelectedBike) {
+      return activeTicketForSelectedBike;
+    }
+
     const selectedExistingBike = motorcycles.find((b) => b.id === selectedBikeId);
     const targetPlate =
       bikeMode === 'existing' && selectedExistingBike
@@ -262,21 +296,19 @@ export default function BookServiceTab({
     const cleanTarget = cleanPlate(targetPlate);
 
     return (activeTickets || []).find((ticket) => {
+      if (ticket.status === 'CANCELLED' || ticket.status === 'COMPLETED') return false;
       const ticketPlate = ticket.motorcycles?.plate_number
         ? cleanPlate(ticket.motorcycles.plate_number)
         : '';
       const ticketDate = ticket.dropoff_date || '';
-      const ticketService = ticket.service_type || '';
 
+      // Block if same plate on the same date (regardless of service type!), OR if motorcycle is currently in progress
       return (
-        ticketPlate === cleanTarget &&
-        ticketDate === dropoffDate &&
-        ticketService === serviceType &&
-        ticket.status !== 'CANCELLED' &&
-        ticket.status !== 'COMPLETED'
+        (ticketPlate === cleanTarget && ticketDate === dropoffDate) ||
+        (ticketPlate === cleanTarget && (ticket.status === 'IN_PROGRESS' || ticket.status === 'READY_FOR_PICKUP'))
       );
     });
-  }, [bikeMode, selectedBikeId, motorcycles, newBikePlate, activeTickets, dropoffDate, serviceType]);
+  }, [activeTicketForSelectedBike, bikeMode, selectedBikeId, motorcycles, newBikePlate, activeTickets, dropoffDate]);
 
   // Selected package details
   const selectedPackage = useMemo(() => {
@@ -339,6 +371,12 @@ export default function BookServiceTab({
         setErrorMsg('Please enter both your motorcycle model and plate number.');
         return;
       }
+      if (activeTicketForSelectedBike) {
+        setErrorMsg(
+          `This motorcycle already has active Ticket #${activeTicketForSelectedBike.ticket_code} (${activeTicketForSelectedBike.service_type}). A motorcycle can only have one active service ticket at a time.`
+        );
+        return;
+      }
       setCurrentStep(3);
     } else if (currentStep === 3) {
       if (isDateFullyBooked) {
@@ -346,7 +384,9 @@ export default function BookServiceTab({
         return;
       }
       if (activeDuplicate) {
-        setErrorMsg(`You already have active Ticket #${activeDuplicate.ticket_code} for this motorcycle on ${dropoffDate}.`);
+        setErrorMsg(
+          `Active booking detected for this motorcycle (Ticket #${activeDuplicate.ticket_code}). Cannot create duplicate reservations.`
+        );
         return;
       }
       setCurrentStep(4);
@@ -365,8 +405,11 @@ export default function BookServiceTab({
       return;
     }
 
-    if (activeDuplicate) {
-      setErrorMsg(`Duplicate booking detected. You already have a ticket for this bike on ${dropoffDate}.`);
+    if (activeDuplicate || activeTicketForSelectedBike) {
+      const conflictTicket = activeDuplicate || activeTicketForSelectedBike;
+      setErrorMsg(
+        `Active booking detected. Ticket #${conflictTicket?.ticket_code} (${conflictTicket?.service_type}) is already open for this motorcycle.`
+      );
       return;
     }
 
@@ -807,42 +850,113 @@ export default function BookServiceTab({
 
             {/* Motorcycle Selector */}
             {bikeMode === 'existing' && motorcycles.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {motorcycles.map((bike) => {
-                  const isSelected = selectedBikeId === bike.id;
-                  return (
-                    <div
-                      key={bike.id}
-                      onClick={() => setSelectedBikeId(bike.id)}
-                      className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
-                        isSelected
-                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20 shadow-xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            isSelected ? 'bg-orange-500 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
-                          }`}
-                        >
-                          <Bike className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-xs text-slate-900">{bike.model}</p>
-                          <p className="text-[11px] text-slate-500 font-semibold">{bike.plate_number}</p>
-                        </div>
-                      </div>
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {motorcycles.map((bike) => {
+                    const isSelected = selectedBikeId === bike.id;
+                    const bikeActiveTicket = getActiveTicketForBike(bike.id) || getActiveTicketForBike(bike.plate_number);
+                    const isBikeActive = Boolean(bikeActiveTicket);
+
+                    return (
                       <div
-                        className={`w-4 h-4 rounded-full border flex items-center justify-center ${
-                          isSelected ? 'border-orange-500 bg-orange-500 text-white' : 'border-slate-300 bg-white'
+                        key={bike.id}
+                        onClick={() => setSelectedBikeId(bike.id)}
+                        className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
+                          isSelected
+                            ? isBikeActive
+                              ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-xs'
+                              : 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20 shadow-xs'
+                            : isBikeActive
+                            ? 'border-amber-200/80 bg-amber-50/20 hover:border-amber-300'
+                            : 'border-slate-200 hover:border-slate-300 bg-white'
                         }`}
                       >
-                        {isSelected && <Check className="w-3 h-3" />}
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              isSelected
+                                ? isBikeActive
+                                  ? 'bg-amber-500 text-white shadow-xs'
+                                  : 'bg-orange-500 text-white shadow-xs'
+                                : isBikeActive
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
+                          >
+                            <Bike className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="font-bold text-xs text-slate-900 truncate">{bike.model}</p>
+                              {isBikeActive ? (
+                                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                                  In Workshop
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
+                                  Available
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-semibold">{bike.plate_number}</p>
+                          </div>
+                        </div>
+
+                        <div
+                          className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ml-2 ${
+                            isSelected
+                              ? isBikeActive
+                                ? 'border-amber-500 bg-amber-500 text-white'
+                                : 'border-orange-500 bg-orange-500 text-white'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Active Ticket Alert Card for Selected Motorcycle */}
+                {activeTicketForSelectedBike && (
+                  <div className="p-4 bg-amber-50 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-900 shadow-xs animate-in fade-in duration-200">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="space-y-0.5 text-xs">
+                        <strong className="font-bold text-amber-950 block">
+                          Motorcycle Currently in Workshop (Ticket #{activeTicketForSelectedBike.ticket_code})
+                        </strong>
+                        <p className="text-amber-800 leading-relaxed">
+                          This vehicle is actively being serviced for <strong>{activeTicketForSelectedBike.service_type}</strong> (Stage {activeTicketForSelectedBike.stage}). A motorcycle cannot have concurrent bookings until the current ticket is completed.
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
+
+                    <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-amber-200/60">
+                      {onNavigateTab && (
+                        <button
+                          type="button"
+                          onClick={() => onNavigateTab('overview')}
+                          className="flex-1 sm:flex-initial px-3.5 py-1.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <Activity className="w-3.5 h-3.5" />
+                          <span>Track Repair</span>
+                        </button>
+                      )}
+                      {onOpenChat && (
+                        <button
+                          type="button"
+                          onClick={onOpenChat}
+                          className="flex-1 sm:flex-initial px-3 py-1.5 rounded-full bg-white hover:bg-amber-100/60 text-amber-900 border border-amber-300 text-xs font-semibold transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Chat Shop</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* Inline new bike registration */
@@ -905,6 +1019,16 @@ export default function BookServiceTab({
                     />
                   </div>
                 </div>
+
+                {/* Real-time alert if typed plate already has an active ticket */}
+                {activeTicketForSelectedBike && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-2.5 text-xs text-amber-900 animate-in fade-in duration-200">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      Plate <strong>{newBikePlate}</strong> already has open Ticket #{activeTicketForSelectedBike.ticket_code} ({activeTicketForSelectedBike.service_type}).
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -969,10 +1093,17 @@ export default function BookServiceTab({
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                disabled={Boolean(activeTicketForSelectedBike)}
+                className={`w-full sm:w-auto font-semibold text-xs py-2.5 px-6 rounded-full flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  activeTicketForSelectedBike
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed opacity-90'
+                    : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm shadow-orange-500/20'
+                }`}
               >
-                <span>Continue to Schedule</span>
-                <ChevronRight className="w-4 h-4" />
+                <span>
+                  {activeTicketForSelectedBike ? 'Vehicle Has Active Ticket' : 'Continue to Schedule'}
+                </span>
+                {!activeTicketForSelectedBike && <ChevronRight className="w-4 h-4" />}
               </button>
             </div>
           </div>
@@ -1308,6 +1439,11 @@ export default function BookServiceTab({
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Confirming reservation...</span>
+                  </>
+                ) : activeDuplicate ? (
+                  <>
+                    <AlertCircle className="w-4 h-4 text-amber-700" />
+                    <span>Active Booking Exists for this Bike</span>
                   </>
                 ) : (
                   <>

@@ -239,6 +239,8 @@ export default function CustomerDashboard() {
                 if (userId) await loadDashboardData(userId);
                 setActiveTab('overview');
               }}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenChat={() => setIsMessagesModalOpen(true)}
             />
           )}
 
