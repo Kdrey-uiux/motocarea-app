@@ -286,6 +286,7 @@ export default function CustomerDashboard() {
             <ServiceHistoryTab 
               serviceHistory={serviceHistory} 
               userProfile={userProfile} 
+              onNavigateTab={(tab) => setActiveTab(tab)}
             />
           )}
 

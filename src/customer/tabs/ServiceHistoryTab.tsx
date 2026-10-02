@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ServiceTicket, UserProfile } from '../../types/dashboard';
+import { ServiceTicket, UserProfile, TabType } from '../../types/dashboard';
 import {
   Inbox,
   CheckCircle2,
@@ -10,17 +10,20 @@ import {
   FileText,
   X,
   Wrench,
-  Bike
+  Bike,
+  Calendar
 } from 'lucide-react';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
   userProfile: UserProfile | null;
+  onNavigateTab?: (tab: TabType) => void;
 }
 
 export default function ServiceHistoryTab({
   serviceHistory,
   userProfile,
+  onNavigateTab,
 }: ServiceHistoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
@@ -98,25 +101,30 @@ export default function ServiceHistoryTab({
   };
 
   return (
-    <div className="space-y-5">
-      {/* Top Action & Export Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 w-fit">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Audit Ledger</span>
-          </span>
-          <span className="text-xs text-slate-500">
+    <div className="space-y-4 sm:space-y-5">
+      {/* 1. Top Action & Export Header Hero Card */}
+      <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Verified Audit Ledger</span>
+            </span>
+          </div>
+          <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
+            Service History & Records
+          </h2>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
             Tamper-proof maintenance records verified by workshop mechanics.
-          </span>
+          </p>
         </div>
 
         {serviceHistory.length > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
             <button
               type="button"
               onClick={exportToCSV}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-orange-500" />
               <span>Export CSV</span>
@@ -125,7 +133,7 @@ export default function ServiceHistoryTab({
             <button
               type="button"
               onClick={handlePrint}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print / PDF</span>
@@ -134,7 +142,7 @@ export default function ServiceHistoryTab({
         )}
       </div>
 
-      {/* Pill Search Input */}
+      {/* 2. Pill Search Input */}
       {serviceHistory.length > 0 && (
         <div className="relative">
           <input
@@ -142,25 +150,75 @@ export default function ServiceHistoryTab({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by ticket code (e.g. MC-2326), motorcycle, or service type..."
-            className="w-full bg-white border border-slate-200/80 rounded-full pl-10 pr-4 py-2.5 text-base sm:text-xs text-slate-800 focus:outline-none focus:border-orange-500 shadow-xs transition"
+            className="w-full bg-white border border-slate-200/80 rounded-full pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-orange-500 shadow-xs transition"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
         </div>
       )}
 
-      {/* Data Records View (Responsive: Mobile Cards + Desktop Table) */}
+      {/* 3. Data Records View (Empty State with CTA or Records) */}
       {serviceHistory.length === 0 ? (
-        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 text-center space-y-2 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-400">
-            <Inbox className="w-6 h-6" />
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 text-center space-y-4 shadow-xs">
+            <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center mx-auto text-orange-600 shadow-xs">
+              <Inbox className="w-7 h-7" />
+            </div>
+            <div className="space-y-1">
+              <div className="text-base font-bold text-slate-900">No Past Service Records Yet</div>
+              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                Once your ongoing service ticket is marked as completed by the mechanic, official logs and downloadable receipts will appear here automatically.
+              </p>
+            </div>
+
+            {onNavigateTab && (
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('book')}
+                  className="bg-orange-500 hover:bg-orange-600 text-white rounded-full py-2.5 px-6 font-semibold text-xs inline-flex items-center gap-2 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Book a Service Appointment</span>
+                </button>
+              </div>
+            )}
           </div>
-          <div className="text-sm font-bold text-slate-800">No Past Service Records Yet</div>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            Once your ongoing service ticket is marked as completed by the mechanic, official logs and downloadable receipts will appear here.
-          </p>
+
+          {/* Helpful Information Bento Cards for Mobile Riders */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900">7-Day Service Warranty</h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                All maintenance and parts replacements are tracked under our official labor warranty policy.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+                <FileText className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900">Official Downloadable Slips</h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Export verified maintenance ledgers anytime for insurance compliance or motorcycle resale value.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Wrench className="w-4 h-4" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-900">OEM Parts & Fluids Registry</h4>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                Every oil brand, viscosity, and component installed is cataloged directly to your motorcycle's plate.
+              </p>
+            </div>
+          </div>
         </div>
       ) : filteredHistory.length === 0 ? (
-        <div className="bg-white border border-slate-200/80 rounded-[2rem] p-8 text-center text-xs text-slate-500">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-8 text-center text-xs text-slate-500 shadow-xs">
           No records matching &quot;{searchQuery}&quot;.
         </div>
       ) : (
