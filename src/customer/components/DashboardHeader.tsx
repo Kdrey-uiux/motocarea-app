@@ -56,7 +56,7 @@ export default function DashboardHeader({
 
   // Close dropdowns on outside click
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
       }
@@ -65,7 +65,11 @@ export default function DashboardHeader({
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, []);
 
   const handleToggle = () => {
@@ -190,9 +194,9 @@ export default function DashboardHeader({
             {/* Notification Popover Dropdown */}
             {isNotificationsOpen && (
               <>
-                {/* Mobile Backdrop */}
+                {/* Mobile Backdrop (Transparent click-catcher, does not darken top header) */}
                 <div
-                  className="fixed inset-0 z-40 bg-black/25 backdrop-blur-xs sm:hidden"
+                  className="fixed inset-0 z-40 sm:hidden"
                   onClick={() => setIsNotificationsOpen(false)}
                 />
                 <div className="fixed inset-x-3 top-16 sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 w-auto sm:w-96 max-h-[82vh] flex flex-col bg-white border border-slate-200/90 rounded-2xl sm:rounded-[1.75rem] shadow-2xl sm:shadow-xl z-50 p-4 space-y-3 animate-in fade-in zoom-in-95 duration-150">
@@ -248,19 +252,6 @@ export default function DashboardHeader({
                     );
                   })}
                 </div>
-
-                {activeTicket && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsNotificationsOpen(false);
-                      setActiveTab && setActiveTab('overview');
-                    }}
-                    className="w-full py-2 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-semibold text-xs transition cursor-pointer text-center"
-                  >
-                    View Active Repair Tracker
-                  </button>
-                )}
               </div>
             </>
           )}
@@ -293,9 +284,9 @@ export default function DashboardHeader({
           {/* User Dropdown Menu */}
           {isUserMenuOpen && (
             <>
-              {/* Mobile Backdrop */}
+              {/* Mobile Backdrop (Transparent click-catcher, does not darken top header) */}
               <div
-                className="fixed inset-0 z-40 bg-black/25 backdrop-blur-xs sm:hidden"
+                className="fixed inset-0 z-40 sm:hidden"
                 onClick={() => setIsUserMenuOpen(false)}
               />
               <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white border border-slate-200/90 rounded-2xl sm:rounded-[1.75rem] shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150">
