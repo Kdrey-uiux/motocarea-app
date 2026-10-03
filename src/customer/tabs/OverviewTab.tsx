@@ -1,13 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
 import {
   Wrench,
   Plus,
-  ArrowUpRight,
   Radio,
   Clock,
-  ArrowUp,
-  ArrowDown,
   Bike,
   Info,
   XCircle
@@ -117,18 +114,33 @@ export default function OverviewTab({
 
   const inspectedStage = stages.find((s) => s.step === inspectedStageStep) || stages[0];
 
-  // Dynamic Total Maintenance Calculation from Real DB Service History
-  const totalMaintenanceValue = serviceHistory.reduce((sum, item) => {
-    const numeric = parseFloat(item.total_estimate.replace(/[^0-9.]/g, '')) || 0;
-    return sum + numeric;
-  }, 0);
+  // 6-Month Real Maintenance Activity Data computed from real serviceHistory
+  const serviceActivityData = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthLabel = d.toLocaleDateString('en-US', { month: 'short' });
+      const year = d.getFullYear();
+      const monthIdx = d.getMonth();
+      const count = serviceHistory.filter((item) => {
+        if (!item.created_at) return false;
+        const itemDate = new Date(item.created_at);
+        return itemDate.getFullYear() === year && itemDate.getMonth() === monthIdx;
+      }).length;
+      months.push({
+        label: monthLabel,
+        count,
+        isCurrent: i === 0,
+      });
+    }
+    return months;
+  }, [serviceHistory]);
 
-  const formattedTotalMaintenance =
-    totalMaintenanceValue > 0
-      ? `₱${totalMaintenanceValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      : activeTicket
-      ? activeTicket.total_estimate
-      : '₱0.00';
+  const maxActivityCount = useMemo(() => {
+    const max = Math.max(...serviceActivityData.map((m) => m.count));
+    return max > 0 ? max : 1;
+  }, [serviceActivityData]);
 
   return (
     <div className="space-y-6 pb-8">
@@ -252,36 +264,28 @@ export default function OverviewTab({
 
       {/* 2. Top Bento Grid Row (3 Cards: VIP Pass, Interactive Stage Stepper, Wavy Chart) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
-        {/* Card 1: Motorcycle VIP Pass (Shows the exact booked motorcycle when active repair exists) */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                {activeTicket ? 'Active Service Unit' : 'Primary Motorcycle'}
-              </h3>
-              <p className="text-xs text-slate-400">
-                {activeTicket ? 'Vehicle currently in repair' : 'Registered in garage fleet'}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => onBookClick(primaryBike?.id)}
-              className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer shrink-0"
-              title="Book for this vehicle"
-            >
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
+        {/* Card 1: Active Service Unit / Motorcycle Bay Pass */}
+        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3.5">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">
+              {activeTicket ? 'Active Service Unit' : 'Primary Motorcycle'}
+            </h3>
+            <p className="text-xs text-slate-400">
+              {activeTicket ? 'Vehicle currently in repair' : 'Registered in garage fleet'}
+            </p>
           </div>
 
           {/* Digital Motorcycle Garage Card */}
-          <div className={`rounded-2xl p-5 text-white shadow-md relative overflow-hidden space-y-4 ${
-            activeTicket
-              ? 'bg-gradient-to-br from-orange-600 via-amber-700 to-slate-900'
-              : 'bg-gradient-to-br from-emerald-800 via-teal-900 to-slate-950'
-          }`}>
+          <div
+            className={`rounded-2xl p-5 text-white shadow-md relative overflow-hidden space-y-3.5 ${
+              activeTicket
+                ? 'bg-gradient-to-br from-orange-600 via-amber-700 to-slate-900'
+                : 'bg-gradient-to-br from-emerald-800 via-teal-900 to-slate-950'
+            }`}
+          >
             <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold tracking-wider uppercase text-white/90 flex items-center gap-1.5">
-                <Bike className="w-3.5 h-3.5" />
+                <Bike className="w-4 h-4" />
                 {activeTicket ? 'Service Bay Pass' : 'Garage Vehicle Pass'}
               </span>
               {activeTicket ? (
@@ -297,47 +301,68 @@ export default function OverviewTab({
               <div className="text-[11px] text-white/80 font-medium uppercase tracking-wide">
                 {activeBikeModel}
               </div>
-              <div className="text-2xl font-bold tracking-tight text-white">
+              <div className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-mono">
                 {activeBikePlate}
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] text-white/90 pt-1 border-t border-white/20 relative z-10">
-              <span className="font-mono">
-                {activeTicket
-                  ? `REF: #${activeTicket.ticket_code}`
-                  : `ODO: ${primaryBike?.odometer || '0 km'}`}
-              </span>
-              <span>
-                {activeTicket
-                  ? (activeTicket.assigned_bay || 'Bay Pending')
-                  : `NEXT DUE: ${primaryBike?.next_service || '3,000 km'}`}
-              </span>
+            <div className="grid grid-cols-2 gap-2 text-[11px] text-white/90 pt-2.5 border-t border-white/20 relative z-10">
+              <div>
+                <span className="text-white/60 text-[10px] block uppercase tracking-wider">
+                  {activeTicket ? 'Ticket Ref' : 'Odometer'}
+                </span>
+                <span className="font-mono font-bold">
+                  {activeTicket ? `#${activeTicket.ticket_code}` : primaryBike?.odometer || '0 km'}
+                </span>
+              </div>
+              <div className="text-right">
+                <span className="text-white/60 text-[10px] block uppercase tracking-wider">
+                  {activeTicket ? 'Assigned Bay' : 'Next Due'}
+                </span>
+                <span className="font-bold truncate block">
+                  {activeTicket ? (activeTicket.assigned_bay || 'Bay Pending') : primaryBike?.next_service || '3,000 km'}
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Bottom Card Stat */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="space-y-0.5">
-              <span className="text-xs text-slate-400 block font-medium">Workshop Status</span>
-              <div className="text-base font-bold text-slate-900">
-                {activeTicket
-                  ? isReady
-                    ? 'Ready for Release'
-                    : `In Service • Stage ${activeTicket.stage}`
-                  : 'Road-Ready'}
-              </div>
+          {/* Operational Workshop Summary (Eliminates empty white gaps on desktop) */}
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-500 font-medium text-xs">Workshop Bay Status</span>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 ${
+                  activeTicket
+                    ? isReady
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-orange-50 text-orange-700 border border-orange-200'
+                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                {activeTicket ? (isReady ? 'Ready for Pickup' : 'Bay In-Progress') : '100% Road Ready'}
+              </span>
             </div>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-              activeTicket
-                ? isReady
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-orange-50 text-orange-700 border border-orange-200'
-                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            }`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-              {activeTicket ? (isReady ? 'Ready for Pickup' : 'Bay Assigned') : '+100% Ready'}
-            </span>
+
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-slate-600">
+              <span className="text-slate-400">
+                {activeTicket ? 'Lead Mechanic' : 'Vehicle Condition'}
+              </span>
+              <span className="font-bold text-slate-800">
+                {activeTicket ? activeTicket.assigned_mechanic : 'Road-Ready'}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between text-slate-600">
+              <span className="text-slate-400">
+                {activeTicket ? 'Drop-off / Schedule' : 'Next PMS Due'}
+              </span>
+              <span className="font-bold text-slate-800">
+                {activeTicket
+                  ? activeTicket.dropoff_date || activeTicket.estimated_pickup || 'Standard Queue'
+                  : primaryBike?.next_service || '3,000 km'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -526,79 +551,97 @@ export default function OverviewTab({
           )}
         </div>
 
-        {/* Card 3: Vehicle Care & Wavy Chart (Dynamic Real Value) */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Vehicle Care</h3>
-              <p className="text-xs text-slate-400">Service investment</p>
-            </div>
-            <button
-              type="button"
-              onClick={onViewHistoryClick}
-              className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
-              title="View History Records"
-            >
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
+        {/* Card 3: Service Records & Functional Activity Chart */}
+        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Service Records</h3>
+            <p className="text-xs text-slate-400">Official maintenance history</p>
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs text-slate-400 block font-medium">Total Maintenance Logged</span>
-            <div className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-              {formattedTotalMaintenance}
+            <span className="text-xs text-slate-400 block font-medium">Completed Services</span>
+            <div className="flex items-baseline gap-2">
+              <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                {serviceHistory.length}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                {serviceHistory.length === 1 ? 'Record Logged' : 'Records Logged'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {serviceHistory.length === 0
+                ? 'No past services yet • Records log upon release'
+                : `Latest: ${serviceHistory[0]?.service_type || 'Maintenance'}`}
+            </p>
+          </div>
+
+          {/* Real Functional 6-Month Maintenance Activity Chart */}
+          <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-semibold text-slate-700 text-[11px]">Monthly Visits</span>
+              <span className="text-[10px] text-slate-400">Past 6 Months</span>
+            </div>
+
+            <div className="flex items-end justify-between gap-1.5 sm:gap-2 h-16 pt-1 px-1">
+              {serviceActivityData.map((m, idx) => {
+                const heightPercent = m.count > 0 ? Math.max((m.count / maxActivityCount) * 100, 30) : 10;
+
+                return (
+                  <div
+                    key={idx}
+                    className="flex-1 flex flex-col items-center justify-end h-full group relative"
+                    title={`${m.label}: ${m.count} ${m.count === 1 ? 'service' : 'services'} completed`}
+                  >
+                    {/* Tooltip on hover */}
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 pointer-events-none z-10">
+                      <span className="bg-slate-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
+                        {m.count} done
+                      </span>
+                    </div>
+
+                    {/* Bar */}
+                    <div
+                      style={{ height: `${heightPercent}%` }}
+                      className={`w-full rounded-t transition-all duration-300 ${
+                        m.count > 0
+                          ? 'bg-orange-500 shadow-xs'
+                          : m.isCurrent
+                          ? 'bg-orange-200/80'
+                          : 'bg-slate-200/80'
+                      }`}
+                    />
+
+                    {/* Month Label */}
+                    <span
+                      className={`text-[9px] sm:text-[10px] font-bold uppercase mt-1 tracking-tight ${
+                        m.isCurrent ? 'text-orange-600' : 'text-slate-400'
+                      }`}
+                    >
+                      {m.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-200/60">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                <span>{serviceHistory.length} Completed Total</span>
+              </span>
+              <span>Workshop Log</span>
             </div>
           </div>
 
-          {/* Smooth Wavy Line Chart */}
-          <div className="w-full h-20 relative overflow-hidden py-1">
-            <svg
-              className="w-full h-full overflow-visible"
-              viewBox="0 0 240 60"
-              preserveAspectRatio="none"
-            >
-              <defs>
-                <linearGradient id="waveGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-                </linearGradient>
-              </defs>
-              <path
-                d="M 0,40 Q 30,15 60,35 T 120,20 T 180,45 T 240,15 L 240,60 L 0,60 Z"
-                fill="url(#waveGradient)"
-              />
-              <path
-                d="M 0,40 Q 30,15 60,35 T 120,20 T 180,45 T 240,15"
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <circle cx="60" cy="35" r="3" fill="#10b981" />
-              <circle cx="120" cy="20" r="3" fill="#10b981" />
-              <circle cx="240" cy="15" r="4" fill="#059669" className="animate-pulse" />
-            </svg>
-          </div>
-
-          {/* Dual Action Pills */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => onBookClick()}
-              className="w-full bg-emerald-800 hover:bg-emerald-900 text-white rounded-full py-2 px-3 text-xs font-semibold shadow-xs flex items-center justify-center gap-1 transition cursor-pointer"
-            >
-              <span>Book</span>
-              <ArrowUp className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={onViewHistoryClick}
-              className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-full py-2 px-3 text-xs font-semibold shadow-xs flex items-center justify-center gap-1 transition cursor-pointer"
-            >
-              <span>History</span>
-              <ArrowDown className="w-3.5 h-3.5 text-slate-400" />
-            </button>
-          </div>
+          {/* Single Action Button: History Only */}
+          <button
+            type="button"
+            onClick={onViewHistoryClick}
+            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full py-2.5 px-4 text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+          >
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span>View Service Records</span>
+          </button>
         </div>
       </div>
 
@@ -616,10 +659,9 @@ export default function OverviewTab({
             <button
               type="button"
               onClick={onViewHistoryClick}
-              className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
-              title="View Complete Ledger"
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
             >
-              <ArrowUpRight className="w-4 h-4" />
+              View Full History →
             </button>
           </div>
 
