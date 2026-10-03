@@ -80,25 +80,25 @@ export default function DashboardHeader({
     }
   };
 
-  const activeTicket = activeTickets.length > 0 ? activeTickets[0] : null;
-  const isReady = activeTicket?.status === 'READY_FOR_PICKUP';
-
   // Dynamic Notifications based on user DB state
   const notificationsList = [
-    ...(activeTicket
-      ? [
-          {
-            id: 'active-ticket',
-            title: isReady ? 'Vehicle Ready for Pickup!' : `Service in Progress: Stage ${activeTicket.stage}`,
-            desc: isReady
-              ? `Your ${activeTicket.motorcycles?.model || 'motorcycle'} has passed all road tests and is ready at the workshop counter.`
-              : `Your ${activeTicket.motorcycles?.model || 'motorcycle'} is currently in repair at ${activeTicket.assigned_bay || 'Service Bay'}.`,
+    ...(activeTickets.length > 0
+      ? activeTickets.map((t) => {
+          const isTicketReady = t.status === 'READY_FOR_PICKUP';
+          return {
+            id: `active-ticket-${t.id}`,
+            title: isTicketReady
+              ? `Ready for Pickup: ${t.motorcycles?.model || 'Motorcycle'}`
+              : `${t.motorcycles?.model || 'Motorcycle'}: Stage ${t.stage} Service`,
+            desc: isTicketReady
+              ? `Your ${t.motorcycles?.model || 'motorcycle'} (${t.motorcycles?.plate_number || 'Unit'}) has passed all tests and is ready at the workshop counter.`
+              : `Your ${t.motorcycles?.model || 'motorcycle'} (${t.motorcycles?.plate_number || 'Unit'}) is currently in repair at ${t.assigned_bay || 'Service Bay'}.`,
             time: 'Live Workshop Alert',
-            isHighPriority: isReady,
-            icon: isReady ? CheckCircle2 : Wrench,
-            color: isReady ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50',
-          },
-        ]
+            isHighPriority: isTicketReady,
+            icon: isTicketReady ? CheckCircle2 : Wrench,
+            color: isTicketReady ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50',
+          };
+        })
       : []),
     ...(serviceHistory.length > 0
       ? [

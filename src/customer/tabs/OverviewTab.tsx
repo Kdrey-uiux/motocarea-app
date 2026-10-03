@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
 import {
   Wrench,
@@ -10,7 +10,9 @@ import {
   ArrowDown,
   Bike,
   Info,
-  XCircle
+  XCircle,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -32,7 +34,42 @@ export default function OverviewTab({
   onViewHistoryClick,
   onRequestCancelTicket,
 }: OverviewTabProps) {
-  const activeTicket = activeTickets.length > 0 ? activeTickets[0] : null;
+  // Support switching between multiple active booked motorcycles
+  const [selectedTicketId, setSelectedTicketId] = useState<string>(
+    activeTickets.length > 0 ? activeTickets[0].id : ''
+  );
+
+  // Keep selected ticket synchronized when activeTickets changes
+  useEffect(() => {
+    if (activeTickets.length > 0) {
+      if (!activeTickets.some((t) => t.id === selectedTicketId)) {
+        setSelectedTicketId(activeTickets[0].id);
+      }
+    } else {
+      setSelectedTicketId('');
+    }
+  }, [activeTickets, selectedTicketId]);
+
+  const activeTicket =
+    activeTickets.find((t) => t.id === selectedTicketId) ||
+    (activeTickets.length > 0 ? activeTickets[0] : null);
+
+  const currentTicketIndex = activeTicket
+    ? activeTickets.findIndex((t) => t.id === activeTicket.id)
+    : 0;
+
+  const handlePrevTicket = () => {
+    if (activeTickets.length <= 1) return;
+    const newIndex = (currentTicketIndex - 1 + activeTickets.length) % activeTickets.length;
+    setSelectedTicketId(activeTickets[newIndex].id);
+  };
+
+  const handleNextTicket = () => {
+    if (activeTickets.length <= 1) return;
+    const newIndex = (currentTicketIndex + 1) % activeTickets.length;
+    setSelectedTicketId(activeTickets[newIndex].id);
+  };
+
   const primaryBike = motorcycles.length > 0 ? motorcycles[0] : null;
 
   // Exact booked motorcycle details
@@ -44,6 +81,14 @@ export default function OverviewTab({
 
   // Interactive Stage Inspection State (Defaults to active stage or Stage 1)
   const [inspectedStageStep, setInspectedStageStep] = useState<number>(currentStage > 0 ? currentStage : 1);
+
+  // Synchronize inspected stage whenever active ticket changes
+  useEffect(() => {
+    if (activeTicket) {
+      const stage = activeTicket.status === 'READY_FOR_PICKUP' ? 5 : activeTicket.stage;
+      setInspectedStageStep(stage > 0 ? stage : 1);
+    }
+  }, [activeTicket?.id, activeTicket?.stage, activeTicket?.status]);
 
   const stages = [
     {
@@ -129,11 +174,75 @@ export default function OverviewTab({
         </div>
       </div>
 
+      {/* 1.5 Active Service Units Quick-Switcher (When customer has multiple concurrent bookings) */}
+      {activeTickets.length > 1 && (
+        <div className="bg-white border border-orange-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-4 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900">
+                Ongoing Service Units ({activeTickets.length} Active Bookings)
+              </h3>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+              Tap any vehicle to track its live workshop stage
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none">
+            {activeTickets.map((t, idx) => {
+              const isSelected = t.id === activeTicket?.id;
+              const isTicketReady = t.status === 'READY_FOR_PICKUP';
+              const bikeLabel = t.motorcycles?.model || `Motorcycle ${idx + 1}`;
+              const plateLabel = t.motorcycles?.plate_number || 'No Plate';
+
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setSelectedTicketId(t.id)}
+                  className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl sm:rounded-2xl transition-all duration-200 shrink-0 cursor-pointer border text-left min-w-[210px] sm:min-w-[230px] ${
+                    isSelected
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-orange-500/50 scale-[1.01]'
+                      : 'bg-slate-50/80 hover:bg-slate-100/80 border-slate-200/80 text-slate-700'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                    isSelected ? 'bg-orange-500 text-white shadow-xs' : 'bg-white text-slate-600 shadow-2xs'
+                  }`}>
+                    <Bike className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <span className={`text-xs font-bold truncate ${isSelected ? 'text-white' : 'text-slate-900'}`}>
+                        {bikeLabel}
+                      </span>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase shrink-0 ${
+                        isTicketReady
+                          ? 'bg-emerald-500 text-white'
+                          : isSelected
+                          ? 'bg-orange-500 text-white'
+                          : 'bg-orange-100 text-orange-800'
+                      }`}>
+                        {isTicketReady ? 'Ready' : `Stage ${t.stage}`}
+                      </span>
+                    </div>
+                    <div className={`text-[10px] truncate ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>
+                      {plateLabel} • #{t.ticket_code}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 2. Top Bento Grid Row (3 Cards: VIP Pass, Interactive Stage Stepper, Wavy Chart) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
         {/* Card 1: Motorcycle VIP Pass (Shows the exact booked motorcycle when active repair exists) */}
         <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-bold text-slate-900">
                 {activeTicket ? 'Active Service Unit' : 'Primary Motorcycle'}
@@ -142,14 +251,39 @@ export default function OverviewTab({
                 {activeTicket ? 'Vehicle currently in repair' : 'Registered in garage fleet'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => onBookClick(primaryBike?.id)}
-              className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
-              title="Book for this vehicle"
-            >
-              <ArrowUpRight className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {activeTickets.length > 1 && (
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-xs font-semibold text-slate-700">
+                  <button
+                    type="button"
+                    onClick={handlePrevTicket}
+                    className="w-6 h-6 rounded-full hover:bg-white flex items-center justify-center transition cursor-pointer text-slate-600 hover:text-slate-900 shadow-2xs"
+                    title="Previous motorcycle unit"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="px-1.5 text-[10px] font-bold text-slate-800">
+                    {currentTicketIndex + 1}/{activeTickets.length}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleNextTicket}
+                    className="w-6 h-6 rounded-full hover:bg-white flex items-center justify-center transition cursor-pointer text-slate-600 hover:text-slate-900 shadow-2xs"
+                    title="Next motorcycle unit"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => onBookClick(primaryBike?.id)}
+                className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
+                title="Book for this vehicle"
+              >
+                <ArrowUpRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* VIP Garage Card */}
@@ -466,6 +600,143 @@ export default function OverviewTab({
           </div>
         </div>
       </div>
+
+      {/* 2.5 Active Workshop Bookings & Queue (Full birds-eye view of all ongoing bookings) */}
+      {activeTickets.length > 0 && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-100">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-pulse" />
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                  Active Workshop Bookings & Queue ({activeTickets.length})
+                </h3>
+              </div>
+              <p className="text-xs text-slate-400">
+                All motorcycles currently scheduled or undergoing service at MotoCare bays
+              </p>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium self-start sm:self-auto">
+              Real-time multi-vehicle fleet tracker
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4">
+            {activeTickets.map((ticket, idx) => {
+              const isSelected = ticket.id === activeTicket?.id;
+              const isTicketReady = ticket.status === 'READY_FOR_PICKUP';
+              const bikeModel = ticket.motorcycles?.model || `Motorcycle ${idx + 1}`;
+              const bikePlate = ticket.motorcycles?.plate_number || 'N/A';
+              const currentTicketStage = isTicketReady ? 5 : ticket.stage;
+
+              return (
+                <div
+                  key={ticket.id}
+                  className={`rounded-2xl p-4 border transition-all duration-200 flex flex-col justify-between space-y-3 relative ${
+                    isSelected
+                      ? 'bg-orange-50/40 border-orange-300 ring-2 ring-orange-500/20 shadow-xs'
+                      : 'bg-slate-50/50 hover:bg-slate-50 border-slate-200/80 shadow-2xs'
+                  }`}
+                >
+                  {/* Top Bar: Ticket Code & Status */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-mono font-bold text-slate-800 bg-white border border-slate-200/70 px-2 py-0.5 rounded-md shadow-2xs">
+                      #{ticket.ticket_code}
+                    </span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                      isTicketReady
+                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        : 'bg-orange-100 text-orange-800 border border-orange-200'
+                    }`}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                      {isTicketReady ? 'Ready for Pickup' : `Stage ${ticket.stage}: ${stages[ticket.stage - 1]?.name || 'Service'}`}
+                    </span>
+                  </div>
+
+                  {/* Bike and Service Details */}
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Bike className="w-4 h-4 text-orange-500 shrink-0" />
+                      <h4 className="font-bold text-sm text-slate-900 truncate">
+                        {bikeModel}
+                      </h4>
+                    </div>
+                    <div className="text-xs text-slate-500 font-mono pl-6">
+                      {bikePlate}
+                    </div>
+                    <div className="text-xs font-medium text-slate-700 pt-1 pl-6 truncate">
+                      {ticket.service_type}
+                    </div>
+                  </div>
+
+                  {/* Mini 5-Stage Stepper Track */}
+                  <div className="space-y-1 pt-1 border-t border-slate-200/60">
+                    <div className="flex items-center justify-between text-[10px] font-medium text-slate-400">
+                      <span>Progress</span>
+                      <span className="font-bold text-slate-700">
+                        {currentTicketStage} of 5 ({stages[currentTicketStage - 1]?.name})
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1 h-1.5 bg-slate-200/80 rounded-full overflow-hidden p-0.5">
+                      {[1, 2, 3, 4, 5].map((st) => (
+                        <div
+                          key={st}
+                          className={`rounded-full transition-all duration-300 ${
+                            st <= currentTicketStage
+                              ? 'bg-orange-500'
+                              : 'bg-transparent'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Bay & Mechanic Info */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500 bg-white/70 p-2 rounded-xl border border-slate-200/50">
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Assigned Bay</span>
+                      <strong className="text-slate-800 truncate block">{ticket.assigned_bay}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-slate-400 block">Lead Mechanic</span>
+                      <strong className="text-slate-800 truncate block">{ticket.assigned_mechanic}</strong>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedTicketId(ticket.id);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className={`flex-1 py-1.5 px-2.5 rounded-xl text-xs font-semibold transition cursor-pointer text-center ${
+                        isSelected
+                          ? 'bg-orange-500 text-white shadow-xs'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      {isSelected ? 'Currently Viewing' : 'Track in Stepper'}
+                    </button>
+
+                    {ticket.stage === 1 && onRequestCancelTicket && (
+                      <button
+                        type="button"
+                        onClick={() => onRequestCancelTicket(ticket)}
+                        className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                        title="Cancel this reservation"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 3. Bottom Bento Grid Row (Service Records & Garage Fleet Milestone - NO FAKE SPECIALISTS) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
