@@ -219,15 +219,15 @@ export default function OverviewTab({
                   onClick={() => setSelectedTicketId(t.id)}
                   className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-all duration-200 cursor-pointer border text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink ${
                     isSelected
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-orange-500/60 ring-offset-1'
-                      : 'bg-slate-50/70 hover:bg-slate-100/90 border-slate-200/80 text-slate-700 hover:border-slate-300'
+                      ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white border-orange-500 shadow-md shadow-orange-500/25 ring-2 ring-orange-500/50 ring-offset-1'
+                      : 'bg-white hover:bg-orange-50/40 border-slate-200/90 text-slate-700 hover:border-orange-300 shadow-2xs'
                   }`}
                 >
                   <div
                     className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                       isSelected
-                        ? 'bg-orange-500 text-white shadow-xs'
-                        : 'bg-white text-slate-500 border border-slate-200/60 shadow-2xs'
+                        ? 'bg-white/20 backdrop-blur-xs text-white shadow-xs border border-white/25'
+                        : 'bg-orange-50 text-orange-600 border border-orange-100 shadow-2xs'
                     }`}
                   >
                     <Bike className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -244,10 +244,12 @@ export default function OverviewTab({
                       <span
                         className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors ${
                           isTicketReady
-                            ? 'bg-emerald-500 text-white'
+                            ? isSelected
+                              ? 'bg-emerald-950/40 text-emerald-200 border border-emerald-300/40'
+                              : 'bg-emerald-500 text-white shadow-xs'
                             : isSelected
-                            ? 'bg-orange-500 text-white shadow-xs'
-                            : 'bg-orange-100 text-orange-800'
+                            ? 'bg-white text-orange-600 font-extrabold shadow-xs'
+                            : 'bg-orange-50 text-orange-700 border border-orange-200/60'
                         }`}
                       >
                         {isTicketReady ? 'Ready' : `Stage ${t.stage}`}
@@ -255,7 +257,7 @@ export default function OverviewTab({
                     </div>
                     <div
                       className={`text-[10px] sm:text-[11px] font-mono truncate mt-0.5 ${
-                        isSelected ? 'text-slate-300' : 'text-slate-400'
+                        isSelected ? 'text-white/85' : 'text-slate-400'
                       }`}
                     >
                       {plateLabel} • #{t.ticket_code}
