@@ -14,7 +14,6 @@ import {
   Calendar,
   ShieldCheck,
   Stamp,
-  Clock,
   MapPin
 } from 'lucide-react';
 
@@ -145,85 +144,87 @@ export default function ServiceHistoryTab({
           )}
         </div>
 
-        {/* Live Hardcopy Request Status Banner */}
+        {/* Live Hardcopy Request Status Banner (Matches MotoCare White & Neutral Design System) */}
         {latestActiveHardcopy && (
-          <div
-            className={`rounded-2xl p-4 sm:p-4.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs transition animate-in fade-in duration-200 ${
-              latestActiveHardcopy.status === 'READY_FOR_PICKUP'
-                ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20'
-                : 'bg-amber-50/90 border-amber-300'
-            }`}
-          >
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-start gap-3.5">
+              {/* Static, elegant icon matching MotoCare theme (No loading / No spinning) */}
               <div
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                   latestActiveHardcopy.status === 'READY_FOR_PICKUP'
-                    ? 'bg-emerald-600 text-white animate-bounce'
-                    : 'bg-amber-500 text-white'
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                    : 'bg-orange-50 text-orange-600 border border-orange-200/80'
                 }`}
               >
                 {latestActiveHardcopy.status === 'READY_FOR_PICKUP' ? (
-                  <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 ) : (
-                  <Clock className="w-5 h-5 animate-spin" />
+                  <FileText className="w-4 h-4 text-orange-600" />
                 )}
               </div>
 
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-extrabold text-slate-900 text-sm">
+                  <span className="text-xs font-bold text-slate-900">
                     {latestActiveHardcopy.status === 'READY_FOR_PICKUP'
-                      ? 'Certified Hardcopy Ready for Pickup!'
-                      : 'Preparing Certified Hardcopy'}
+                      ? 'Official Hardcopy Ready for Pickup'
+                      : 'Certified Hardcopy Request in Progress'}
                   </span>
                   <span
-                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                    className={`font-mono font-bold px-2 py-0.5 rounded-lg text-[11px] ${
                       latestActiveHardcopy.status === 'READY_FOR_PICKUP'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-amber-200 text-amber-900'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-orange-50 text-orange-600 border border-orange-200/80'
                     }`}
                   >
-                    REF #{latestActiveHardcopy.id}
+                    #{latestActiveHardcopy.id}
+                  </span>
+                  <span
+                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                      latestActiveHardcopy.status === 'READY_FOR_PICKUP'
+                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        : 'bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}
+                  >
+                    {latestActiveHardcopy.status === 'READY_FOR_PICKUP' ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>Ready at Front Desk</span>
+                      </>
+                    ) : (
+                      <span>Preparing Copy</span>
+                    )}
                   </span>
                 </div>
 
-                <p className="text-slate-600 text-xs">
-                  Motorcycle:{' '}
-                  <span className="font-bold text-slate-900">
-                    {latestActiveHardcopy.bikeModel}
-                  </span>{' '}
-                  ({latestActiveHardcopy.plateNumber}) • Purpose:{' '}
-                  <span className="font-medium text-slate-800">
-                    {latestActiveHardcopy.purpose}
-                  </span>
+                <p className="text-xs text-slate-600">
+                  Motorcycle: <span className="font-semibold text-slate-900">{latestActiveHardcopy.bikeModel}</span>{' '}
+                  <span className="text-slate-400 font-mono">({latestActiveHardcopy.plateNumber})</span> • Purpose:{' '}
+                  <span className="text-slate-700">{latestActiveHardcopy.purpose}</span>
                 </p>
 
                 {latestActiveHardcopy.status === 'READY_FOR_PICKUP' ? (
-                  <p className="text-emerald-800 text-[11px] font-semibold flex items-center gap-1.5 pt-1">
+                  <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 pt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>
-                      Printed, signed by Lead Tech, and dry-stamped! Please claim at Santa Maria Main Workshop Front Desk reception.
-                    </span>
+                    <span>Stamped & signed. Available for claim at Santa Maria Main Workshop Front Desk.</span>
                   </p>
                 ) : (
-                  <p className="text-amber-800 text-[11px] font-medium pt-0.5">
-                    Our Service Advisor and Lead Technician are preparing and certifying your physical copy. You will receive an instant notification once ready.
+                  <p className="text-xs text-slate-500 pt-0.5">
+                    Our Service Advisor and Lead Technician are preparing and certifying your physical copy. You will be notified once ready.
                   </p>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-              {latestActiveHardcopy.status === 'READY_FOR_PICKUP' && onOpenHelpdesk && (
-                <button
-                  type="button"
-                  onClick={onOpenHelpdesk}
-                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-bold text-xs shadow-xs transition cursor-pointer"
-                >
-                  Contact Desk
-                </button>
-              )}
-            </div>
+            {latestActiveHardcopy.status === 'READY_FOR_PICKUP' && onOpenHelpdesk && (
+              <button
+                type="button"
+                onClick={onOpenHelpdesk}
+                className="w-full sm:w-auto px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer shrink-0"
+              >
+                <span>Contact Desk</span>
+              </button>
+            )}
           </div>
         )}
 
