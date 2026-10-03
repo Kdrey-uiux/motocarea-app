@@ -10,6 +10,65 @@ interface MessagesModalProps {
   userProfile: UserProfile | null;
 }
 
+function formatMessageTimestamp(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  const timeStr = date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) {
+    return `Today, ${timeStr}`;
+  }
+  if (isYesterday) {
+    return `Yesterday, ${timeStr}`;
+  }
+  if (date.getFullYear() === now.getFullYear()) {
+    const monthDay = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `${monthDay}, ${timeStr}`;
+  }
+  const fullDate = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${fullDate}, ${timeStr}`;
+}
+
+function getDateDividerLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) return 'Today';
+  if (isYesterday) return 'Yesterday';
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default function MessagesModal({
   isOpen,
   onClose,
@@ -116,20 +175,20 @@ export default function MessagesModal({
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-end sm:justify-end sm:p-6 transition-all duration-200">
       <div className="bg-white w-full sm:w-[420px] h-[580px] max-h-[90vh] rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
         
-        {/* Header Bar */}
-        <div className="px-5 py-4 border-b border-slate-100 bg-slate-900 text-white flex items-center justify-between shrink-0">
+        {/* Header Bar (Light Green Theme, Clean & Harmonious) */}
+        <div className="px-5 py-3.5 border-b border-emerald-100 bg-emerald-50/80 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-xs">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-100 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shadow-2xs">
               <Wrench className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold leading-tight tracking-tight">
+                <span className="text-xs font-bold text-slate-900 leading-tight tracking-tight">
                   MotoCare Workshop Helpdesk
                 </span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
-              <span className="text-[11px] text-slate-400 font-medium block">
+              <span className="text-[11px] text-slate-500 font-medium block">
                 Santa Maria Hub • Service Advisor On Duty
               </span>
             </div>
@@ -138,7 +197,7 @@ export default function MessagesModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-emerald-100/70 transition cursor-pointer"
             title="Close Helpdesk Chat"
           >
             <X className="w-4 h-4" />
@@ -146,7 +205,7 @@ export default function MessagesModal({
         </div>
 
         {/* Message Feed Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#f8fafc]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#f8fafc]">
           {loading ? (
             <div className="h-full flex items-center justify-center text-slate-400 text-xs gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
@@ -171,29 +230,39 @@ export default function MessagesModal({
               </div>
             </div>
           ) : (
-            messages.map((msg) => {
+            messages.map((msg, idx) => {
               const isMe = msg.sender_role === 'customer';
-              const time = new Date(msg.created_at).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
+              const timeFormatted = formatMessageTimestamp(msg.created_at);
+
+              const prevMsg = idx > 0 ? messages[idx - 1] : null;
+              const isNewDay =
+                !prevMsg ||
+                new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
+              const dividerLabel = getDateDividerLabel(msg.created_at);
 
               return (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                >
-                  <div className="text-[10px] text-slate-400 mb-0.5 px-1.5">
-                    {isMe ? 'You' : 'Advisor'} • {time}
-                  </div>
-                  <div
-                    className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                      isMe
-                        ? 'bg-orange-500 text-white rounded-br-xs shadow-xs font-medium'
-                        : 'bg-white border border-slate-200/80 text-slate-800 rounded-bl-xs shadow-2xs font-normal'
-                    }`}
-                  >
-                    {msg.message}
+                <div key={msg.id} className="space-y-1">
+                  {isNewDay && (
+                    <div className="flex items-center justify-center my-2.5">
+                      <span className="text-[10px] font-semibold bg-slate-200/80 text-slate-600 px-3 py-0.5 rounded-full shadow-2xs">
+                        {dividerLabel}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className="text-[10px] text-slate-400 mb-0.5 px-1.5 font-medium">
+                      {isMe ? 'You' : 'Advisor'} • {timeFormatted}
+                    </div>
+                    <div
+                      className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                        isMe
+                          ? 'bg-orange-500 text-white rounded-br-xs shadow-xs font-medium'
+                          : 'bg-white border border-slate-200/80 text-slate-800 rounded-bl-xs shadow-2xs font-normal'
+                      }`}
+                    >
+                      {msg.message}
+                    </div>
                   </div>
                 </div>
               );

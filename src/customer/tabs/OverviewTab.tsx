@@ -633,13 +633,13 @@ export default function OverviewTab({
             </div>
           </div>
 
-          {/* Single Action Button: History Only */}
+          {/* Single Action Button: History Only (Light Green Theme) */}
           <button
             type="button"
             onClick={onViewHistoryClick}
-            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full py-2.5 px-4 text-xs font-semibold shadow-xs flex items-center justify-center gap-2 transition cursor-pointer"
+            className="w-full bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border border-emerald-200/90 rounded-full py-2.5 px-4 text-xs font-semibold shadow-2xs flex items-center justify-center gap-2 transition cursor-pointer"
           >
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <Clock className="w-3.5 h-3.5 text-emerald-600" />
             <span>View Service Records</span>
           </button>
         </div>

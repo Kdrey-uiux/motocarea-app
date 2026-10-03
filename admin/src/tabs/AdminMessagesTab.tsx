@@ -33,6 +33,61 @@ const PRESET_REPLIES = [
   'On-going na po ang road test at safety QA inspection ng inyong unit.',
 ];
 
+function formatMessageTimestamp(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  const timeStr = date.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) return `Today, ${timeStr}`;
+  if (isYesterday) return `Yesterday, ${timeStr}`;
+  if (date.getFullYear() === now.getFullYear()) {
+    const monthDay = date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    return `${monthDay}, ${timeStr}`;
+  }
+  const fullDate = date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${fullDate}, ${timeStr}`;
+}
+
+function getDateDividerLabel(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const isYesterday =
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear();
+
+  if (isToday) return 'Today';
+  if (isYesterday) return 'Yesterday';
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 export default function AdminMessagesTab({ tickets }: AdminMessagesTabProps) {
   const [conversations, setConversations] = useState<CustomerConversation[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -320,31 +375,41 @@ export default function AdminMessagesTab({ tickets }: AdminMessagesTabProps) {
               </div>
 
               {/* Chat Messages Feed */}
-              <div className="flex-1 overflow-y-auto p-5 space-y-3.5 bg-slate-50/60 max-h-[420px]">
-                {activeConversation.messages.map((msg) => {
+              <div className="flex-1 overflow-y-auto p-5 space-y-2.5 bg-slate-50/60 max-h-[420px]">
+                {activeConversation.messages.map((msg, idx) => {
                   const isAdmin = msg.sender_role === 'admin';
-                  const time = new Date(msg.created_at).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
+                  const timeFormatted = formatMessageTimestamp(msg.created_at);
+
+                  const prevMsg = idx > 0 ? activeConversation.messages[idx - 1] : null;
+                  const isNewDay =
+                    !prevMsg ||
+                    new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
+                  const dividerLabel = getDateDividerLabel(msg.created_at);
 
                   return (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}
-                    >
-                      <div className="text-[10px] text-slate-400 mb-0.5 px-1">
-                        {isAdmin ? 'Workshop Advisor (You)' : activeConversation.customerName} • {time}
-                      </div>
+                    <div key={msg.id} className="space-y-1">
+                      {isNewDay && (
+                        <div className="flex items-center justify-center my-2.5">
+                          <span className="text-[10px] font-semibold bg-slate-200/80 text-slate-600 px-3 py-0.5 rounded-full shadow-2xs">
+                            {dividerLabel}
+                          </span>
+                        </div>
+                      )}
 
-                      <div
-                        className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
-                          isAdmin
-                            ? 'bg-blue-600 text-white font-medium rounded-br-xs shadow-xs'
-                            : 'bg-white text-slate-800 border border-slate-200 rounded-bl-xs shadow-2xs'
-                        }`}
-                      >
-                        {msg.message}
+                      <div className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                        <div className="text-[10px] text-slate-400 mb-0.5 px-1 font-medium">
+                          {isAdmin ? 'Workshop Advisor (You)' : activeConversation.customerName} • {timeFormatted}
+                        </div>
+
+                        <div
+                          className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                            isAdmin
+                              ? 'bg-blue-600 text-white font-medium rounded-br-xs shadow-xs'
+                              : 'bg-white text-slate-800 border border-slate-200 rounded-bl-xs shadow-2xs'
+                          }`}
+                        >
+                          {msg.message}
+                        </div>
                       </div>
                     </div>
                   );
