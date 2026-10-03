@@ -179,14 +179,14 @@ export default function OverviewTab({
         <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-4 shadow-xs space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                 <Bike className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-2">
                 <h3 className="text-xs sm:text-sm font-bold text-slate-900">
                   Ongoing Service Units
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] sm:text-xs font-bold border border-emerald-200/60">
+                <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[10px] sm:text-xs font-bold border border-orange-200/60">
                   {activeTickets.length} Active
                 </span>
               </div>
@@ -217,17 +217,17 @@ export default function OverviewTab({
                   key={t.id}
                   type="button"
                   onClick={() => setSelectedTicketId(t.id)}
-                  className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-all duration-200 cursor-pointer border text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink ${
+                  className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-all duration-200 cursor-pointer text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink bg-white ${
                     isSelected
-                      ? 'bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-950 text-white border-emerald-700/80 shadow-md shadow-emerald-950/20 ring-2 ring-emerald-500/50 ring-offset-1'
-                      : 'bg-white hover:bg-emerald-50/30 border-slate-200/90 text-slate-700 hover:border-emerald-300 shadow-2xs'
+                      ? 'border-2 border-orange-500 shadow-md shadow-orange-500/10 ring-4 ring-orange-500/15'
+                      : 'border border-slate-200/90 hover:bg-slate-50/80 hover:border-slate-300 text-slate-700 shadow-2xs'
                   }`}
                 >
                   <div
                     className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                       isSelected
-                        ? 'bg-emerald-500/25 backdrop-blur-xs text-emerald-200 border border-emerald-400/30 shadow-xs'
-                        : 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-2xs'
+                        ? 'bg-orange-500 text-white shadow-xs'
+                        : 'bg-slate-100 text-slate-500 border border-slate-200/60 shadow-2xs'
                     }`}
                   >
                     <Bike className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -236,7 +236,7 @@ export default function OverviewTab({
                     <div className="flex items-center justify-between gap-1.5">
                       <span
                         className={`text-xs sm:text-sm font-bold truncate block ${
-                          isSelected ? 'text-white' : 'text-slate-900'
+                          isSelected ? 'text-slate-900' : 'text-slate-700'
                         }`}
                       >
                         {bikeLabel}
@@ -244,10 +244,10 @@ export default function OverviewTab({
                       <span
                         className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors ${
                           isTicketReady
-                            ? 'bg-emerald-400 text-slate-950 font-extrabold shadow-xs'
+                            ? 'bg-emerald-500 text-white shadow-xs'
                             : isSelected
-                            ? 'bg-emerald-500 text-white font-extrabold shadow-xs'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
+                            ? 'bg-orange-500 text-white font-extrabold shadow-xs'
+                            : 'bg-slate-100 text-slate-600'
                         }`}
                       >
                         {isTicketReady ? 'Ready' : `Stage ${t.stage}`}
@@ -255,7 +255,7 @@ export default function OverviewTab({
                     </div>
                     <div
                       className={`text-[10px] sm:text-[11px] font-mono truncate mt-0.5 ${
-                        isSelected ? 'text-emerald-100/90' : 'text-slate-400'
+                        isSelected ? 'text-slate-500 font-medium' : 'text-slate-400'
                       }`}
                     >
                       {plateLabel} • #{t.ticket_code}
