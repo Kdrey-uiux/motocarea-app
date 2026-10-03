@@ -22,11 +22,15 @@
    ========================================================================= */
 @media print {
   @page {
-    size: auto;
-    margin: 12mm 15mm;
+    size: portrait;
+    margin: 10mm 12mm;
   }
 
+  html,
   body {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
@@ -45,44 +49,44 @@
     display: none !important;
   }
 
-  /* Ensure official document is rendered clearly on paper and anchored to the bottom */
+  /* Ensure official document fits cleanly on a single sheet of paper */
   .print-document {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
+    display: block !important;
     width: 100% !important;
     max-width: 100% !important;
-    min-height: 93vh !important;
     margin: 0 !important;
     padding: 0 !important;
     overflow: visible !important;
     box-sizing: border-box !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
   }
 
   .print-body {
-    flex: 1 0 auto !important;
+    width: 100% !important;
   }
 
   .print-footer {
-    flex-shrink: 0 !important;
-    margin-top: auto !important;
+    margin-top: 24px !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
   .print-document table {
     width: 100% !important;
     border-collapse: collapse !important;
     table-layout: fixed !important;
-    page-break-inside: auto;
   }
 
   .print-document tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 
-  /* Siguraduhing visible at malinis ang resibo modal */
+  /* Siguraduhing visible at malinis ang resibo modal kung sakaling i-print */
   .print-slip-modal {
     position: static !important;
     background: transparent !important;
@@ -91,5 +95,9 @@
     border: none !important;
     width: 100% !important;
     max-width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

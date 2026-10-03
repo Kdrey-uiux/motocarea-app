@@ -460,7 +460,7 @@ export default function ServiceHistoryTab({
           (Anchored at bottom, unified clean typography, no double-hash, no font glitches)
          ========================================================================= */}
       {!selectedTicket && (
-        <div className="hidden print:flex print:flex-col print:justify-between print-document text-slate-900 bg-white min-h-[92vh] p-1">
+        <div className="hidden print:block print-document text-slate-900 bg-white p-0">
           {/* Top Section: Letterhead, Customer Box, and Maintenance Table */}
           <div className="print-body space-y-3.5">
             {/* Official Letterhead Header */}
@@ -606,8 +606,8 @@ export default function ServiceHistoryTab({
             </div>
           </div>
 
-          {/* Bottom Section: Verification & Sign-off Footer (Pinned at the very bottom of the page) */}
-          <div className="print-footer pt-3 border-t border-slate-300 grid grid-cols-12 gap-6 text-[8pt] items-end mt-auto">
+          {/* Bottom Section: Verification & Sign-off Footer */}
+          <div className="print-footer pt-3 border-t border-slate-300 grid grid-cols-12 gap-6 text-[8pt] items-end mt-6">
             <div className="col-span-7">
               <p className="text-slate-500 leading-relaxed text-[7.5pt]">
                 This document is an authentic certified record of preventive maintenance, mechanical service, and certified fluids replacement conducted at MotoCare Workshop & Service Hub. Valid for warranty documentation and motorcycle resale valuation.
