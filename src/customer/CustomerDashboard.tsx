@@ -19,6 +19,7 @@ import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
 import CancelBookingModal from './modals/CancelBookingModal';
 
 import { Wrench, Loader2, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ export default function CustomerDashboard() {
   const [motorcycles, setMotorcycles] = useState<Motorcycle[]>([]);
   const [activeTickets, setActiveTickets] = useState<ServiceTicket[]>([]);
   const [serviceHistory, setServiceHistory] = useState<ServiceTicket[]>([]);
+  const [hardcopyRequests, setHardcopyRequests] = useState<HardcopyRequest[]>([]);
 
   // Modals & Actions
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -81,6 +83,10 @@ export default function CustomerDashboard() {
         .order('created_at', { ascending: false });
 
       setServiceHistory(historyTickets || []);
+
+      // 4. Kunin ang certified hardcopy requests
+      const hardcopies = await fetchHardcopyRequests(uid);
+      setHardcopyRequests(hardcopies);
     } catch (err) {
       console.error('Error loading Supabase dashboard data:', err);
     }
@@ -141,6 +147,38 @@ export default function CustomerDashboard() {
       subscription.unsubscribe();
     };
   }, [navigate]);
+
+  // Realtime subscription para sa hardcopy status updates
+  useEffect(() => {
+    if (!userId) return;
+
+    const hardcopyChannel = supabase
+      .channel(`customer_hardcopy_realtime_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          fetchHardcopyRequests(userId).then(setHardcopyRequests);
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'HARDCOPY_STATUS_CHANGED' },
+        () => {
+          fetchHardcopyRequests(userId).then(setHardcopyRequests);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(hardcopyChannel);
+    };
+  }, [userId]);
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
@@ -240,6 +278,7 @@ export default function CustomerDashboard() {
           userProfile={userProfile}
           activeTickets={activeTickets}
           serviceHistory={serviceHistory}
+          hardcopyRequests={hardcopyRequests}
           onToggleMobileMenu={() => setIsMobileMenuOpen(true)}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleSidebarCollapse={() => setIsSidebarCollapsed((prev) => !prev)}
@@ -286,6 +325,11 @@ export default function CustomerDashboard() {
             <ServiceHistoryTab 
               serviceHistory={serviceHistory} 
               userProfile={userProfile} 
+              userId={userId}
+              hardcopyRequests={hardcopyRequests}
+              onRefreshHardcopy={() => {
+                if (userId) fetchHardcopyRequests(userId).then(setHardcopyRequests);
+              }}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenHelpdesk={() => setIsMessagesModalOpen(true)}
             />

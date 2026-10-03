@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { ServiceTicket, UserProfile, TabType } from '../../types/dashboard';
+import RequestHardcopyModal from '../modals/RequestHardcopyModal';
+import { HardcopyRequest } from '../../lib/hardcopyService';
 import {
   Inbox,
   CheckCircle2,
@@ -10,26 +12,44 @@ import {
   Wrench,
   Bike,
   Calendar,
-  MessageSquare,
-  ShieldCheck
+  ShieldCheck,
+  Stamp,
+  Clock,
+  MapPin
 } from 'lucide-react';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
   userProfile: UserProfile | null;
+  userId?: string | null;
   onNavigateTab?: (tab: TabType) => void;
   onOpenHelpdesk?: () => void;
+  hardcopyRequests?: HardcopyRequest[];
+  onRefreshHardcopy?: () => void;
 }
 
 export default function ServiceHistoryTab({
   serviceHistory,
   userProfile,
+  userId,
   onNavigateTab,
   onOpenHelpdesk,
+  hardcopyRequests = [],
+  onRefreshHardcopy,
 }: ServiceHistoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
   const [selectedBikePlate, setSelectedBikePlate] = useState<string>('all');
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+
+  const latestActiveHardcopy = useMemo(() => {
+    if (!hardcopyRequests || hardcopyRequests.length === 0) return null;
+    return (
+      hardcopyRequests.find(
+        (r) => r.status === 'READY_FOR_PICKUP' || r.status === 'PENDING'
+      ) || null
+    );
+  }, [hardcopyRequests]);
 
   // Extract all unique motorcycles from service history for vehicle filtering
   const uniqueBikes = useMemo(() => {
@@ -94,17 +114,15 @@ export default function ServiceHistoryTab({
 
           {serviceHistory.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-              {onOpenHelpdesk && (
-                <button
-                  type="button"
-                  onClick={onOpenHelpdesk}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
-                  title="Inquire or request certified stamped record copy from Workshop Admin"
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-orange-500" />
-                  <span>Request Copy from Admin</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setIsRequestModalOpen(true)}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
+                title="Request official certified hardcopy with workshop dry seal and Lead Tech sign-off"
+              >
+                <Stamp className="w-3.5 h-3.5 text-orange-500" />
+                <span>Request Certified Hardcopy</span>
+              </button>
 
               <button
                 type="button"
@@ -126,6 +144,88 @@ export default function ServiceHistoryTab({
             </div>
           )}
         </div>
+
+        {/* Live Hardcopy Request Status Banner */}
+        {latestActiveHardcopy && (
+          <div
+            className={`rounded-2xl p-4 sm:p-4.5 border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs transition animate-in fade-in duration-200 ${
+              latestActiveHardcopy.status === 'READY_FOR_PICKUP'
+                ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20'
+                : 'bg-amber-50/90 border-amber-300'
+            }`}
+          >
+            <div className="flex items-start gap-3.5">
+              <div
+                className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs ${
+                  latestActiveHardcopy.status === 'READY_FOR_PICKUP'
+                    ? 'bg-emerald-600 text-white animate-bounce'
+                    : 'bg-amber-500 text-white'
+                }`}
+              >
+                {latestActiveHardcopy.status === 'READY_FOR_PICKUP' ? (
+                  <CheckCircle2 className="w-5 h-5" />
+                ) : (
+                  <Clock className="w-5 h-5 animate-spin" />
+                )}
+              </div>
+
+              <div className="space-y-0.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-extrabold text-slate-900 text-sm">
+                    {latestActiveHardcopy.status === 'READY_FOR_PICKUP'
+                      ? 'Certified Hardcopy Ready for Pickup!'
+                      : 'Preparing Certified Hardcopy'}
+                  </span>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono ${
+                      latestActiveHardcopy.status === 'READY_FOR_PICKUP'
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-amber-200 text-amber-900'
+                    }`}
+                  >
+                    REF #{latestActiveHardcopy.id}
+                  </span>
+                </div>
+
+                <p className="text-slate-600 text-xs">
+                  Motorcycle:{' '}
+                  <span className="font-bold text-slate-900">
+                    {latestActiveHardcopy.bikeModel}
+                  </span>{' '}
+                  ({latestActiveHardcopy.plateNumber}) • Purpose:{' '}
+                  <span className="font-medium text-slate-800">
+                    {latestActiveHardcopy.purpose}
+                  </span>
+                </p>
+
+                {latestActiveHardcopy.status === 'READY_FOR_PICKUP' ? (
+                  <p className="text-emerald-800 text-[11px] font-semibold flex items-center gap-1.5 pt-1">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>
+                      Printed, signed by Lead Tech, and dry-stamped! Please claim at Santa Maria Main Workshop Front Desk reception.
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-amber-800 text-[11px] font-medium pt-0.5">
+                    Our Service Advisor and Lead Technician are preparing and certifying your physical copy. You will receive an instant notification once ready.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+              {latestActiveHardcopy.status === 'READY_FOR_PICKUP' && onOpenHelpdesk && (
+                <button
+                  type="button"
+                  onClick={onOpenHelpdesk}
+                  className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full font-bold text-xs shadow-xs transition cursor-pointer"
+                >
+                  Contact Desk
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* 2. Quick Summary Stats Bar (No more 'Primary' label!) */}
         {serviceHistory.length > 0 && (
@@ -742,6 +842,19 @@ export default function ServiceHistoryTab({
           </div>
         </div>
       )}
+
+      {/* Request Certified Hardcopy Modal */}
+      <RequestHardcopyModal
+        isOpen={isRequestModalOpen}
+        onClose={() => setIsRequestModalOpen(false)}
+        userId={userId || null}
+        userProfile={userProfile}
+        uniqueBikes={uniqueBikes}
+        initialBikePlate={selectedBikePlate}
+        onSuccess={() => {
+          if (onRefreshHardcopy) onRefreshHardcopy();
+        }}
+      />
     </div>
   );
 }

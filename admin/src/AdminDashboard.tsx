@@ -23,6 +23,13 @@ import AdminMessagesTab from './tabs/AdminMessagesTab';
 import AdminServicesTab from './tabs/AdminServicesTab';
 import AdminStaffTab from './tabs/AdminStaffTab';
 import { getStaffMembers } from './utils/staffManager';
+import HardcopyRequestsModal from './modals/HardcopyRequestsModal';
+import HardcopyAlertToast from './components/HardcopyAlertToast';
+import { 
+  HardcopyRequest, 
+  fetchHardcopyRequests, 
+  updateHardcopyStatus 
+} from './utils/hardcopyService';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -46,6 +53,16 @@ export default function AdminDashboard() {
 
   // Messages count
   const [messagesCount, setMessagesCount] = useState(0);
+
+  // Hardcopy Requests state
+  const [hardcopyRequests, setHardcopyRequests] = useState<HardcopyRequest[]>([]);
+  const [isHardcopyModalOpen, setIsHardcopyModalOpen] = useState(false);
+  const [toastRequest, setToastRequest] = useState<HardcopyRequest | null>(null);
+
+  const loadHardcopyData = useCallback(async () => {
+    const data = await fetchHardcopyRequests();
+    setHardcopyRequests(data);
+  }, []);
 
   // Tab Guard: Kapag Staff at sinubukang buksan ang analytics, i-balik sa queue
   useEffect(() => {
@@ -159,6 +176,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchTickets();
     fetchMessagesCount();
+    loadHardcopyData();
 
     // Check user profile for existing role
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -197,7 +215,42 @@ export default function AdminDashboard() {
         (payload) => {
           if (payload.new && (payload.new as any).sender_role === 'customer') {
             setMessagesCount((prev) => prev + 1);
+            const msgText = (payload.new as any).message || '';
+            if (msgText.startsWith('[HARDCOPY_REQUEST]')) {
+              loadHardcopyData();
+              try {
+                const parsed = JSON.parse(msgText.replace('[HARDCOPY_REQUEST]', '').trim());
+                if (parsed.id) {
+                  setToastRequest(parsed);
+                }
+              } catch {
+                // ignore
+              }
+            }
           }
+        }
+      )
+      .subscribe();
+
+    // Realtime broadcast channel for instant pop-out alerts
+    const hardcopyBroadcastChannel = supabase
+      .channel('motocare_hardcopy_realtime')
+      .on(
+        'broadcast',
+        { event: 'NEW_HARDCOPY_REQUEST' },
+        (payload) => {
+          if (payload.payload) {
+            const newReq = payload.payload as HardcopyRequest;
+            setHardcopyRequests((prev) => [newReq, ...prev.filter((r) => r.id !== newReq.id)]);
+            setToastRequest(newReq);
+          }
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'HARDCOPY_STATUS_CHANGED' },
+        () => {
+          loadHardcopyData();
         }
       )
       .subscribe();
@@ -205,8 +258,9 @@ export default function AdminDashboard() {
     return () => {
       supabase.removeChannel(ticketChannel);
       supabase.removeChannel(messageChannel);
+      supabase.removeChannel(hardcopyBroadcastChannel);
     };
-  }, [fetchTickets, fetchMessagesCount]);
+  }, [fetchTickets, fetchMessagesCount, loadHardcopyData]);
 
   const handleLogout = async () => {
     localStorage.removeItem('motocare_workshop_auth_override');
@@ -224,10 +278,51 @@ export default function AdminDashboard() {
     setIsPrintOpen(true);
   };
 
+  const handleMarkHardcopyReady = async (req: HardcopyRequest) => {
+    await updateHardcopyStatus({
+      requestId: req.id,
+      userId: req.userId,
+      bikeModel: req.bikeModel,
+      status: 'READY_FOR_PICKUP',
+    });
+    setToastRequest(null);
+    loadHardcopyData();
+  };
+
+  const handleMarkHardcopyClaimed = async (req: HardcopyRequest) => {
+    await updateHardcopyStatus({
+      requestId: req.id,
+      userId: req.userId,
+      bikeModel: req.bikeModel,
+      status: 'CLAIMED',
+    });
+    loadHardcopyData();
+  };
+
+  const handlePrintHardcopy = (req: HardcopyRequest) => {
+    const match = tickets.find(
+      (t) =>
+        t.user_id === req.userId ||
+        (t.motorcycles?.plate_number &&
+          req.plateNumber &&
+          t.motorcycles.plate_number.toLowerCase().includes(req.plateNumber.toLowerCase()))
+    );
+    if (match) {
+      handleOpenPrint(match);
+    } else if (tickets.length > 0) {
+      handleOpenPrint(tickets[0]);
+    }
+  };
+
   // Badge calculations
   const queueCount = useMemo(
     () => tickets.filter((t) => t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length,
     [tickets]
+  );
+
+  const hardcopyPendingCount = useMemo(
+    () => hardcopyRequests.filter((r) => r.status === 'PENDING').length,
+    [hardcopyRequests]
   );
 
   const occupiedBaysCount = useMemo(() => {
@@ -264,6 +359,8 @@ export default function AdminDashboard() {
         onToggleMobileMenu={() => setIsMobileSidebarOpen(true)}
         currentRole={currentRole}
         onToggleRole={handleToggleRole}
+        hardcopyPendingCount={hardcopyPendingCount}
+        onOpenHardcopyRequests={() => setIsHardcopyModalOpen(true)}
       />
 
       {/* Main Body with Sticky Sidebar & Dynamic Tabs */}
@@ -336,6 +433,28 @@ export default function AdminDashboard() {
         ticket={printTicket}
         isOpen={isPrintOpen}
         onClose={() => setIsPrintOpen(false)}
+      />
+
+      {/* Real-time Pop-out Toast Alert for Admin */}
+      <HardcopyAlertToast
+        request={toastRequest}
+        onDismiss={() => setToastRequest(null)}
+        onOpenRequestsModal={() => {
+          setToastRequest(null);
+          setIsHardcopyModalOpen(true);
+        }}
+        onMarkReady={handleMarkHardcopyReady}
+        onPrint={handlePrintHardcopy}
+      />
+
+      {/* Hardcopy Requests Modal */}
+      <HardcopyRequestsModal
+        isOpen={isHardcopyModalOpen}
+        onClose={() => setIsHardcopyModalOpen(false)}
+        requests={hardcopyRequests}
+        onMarkReady={handleMarkHardcopyReady}
+        onMarkClaimed={handleMarkHardcopyClaimed}
+        onPrint={handlePrintHardcopy}
       />
     </div>
   );

@@ -9,7 +9,9 @@ import {
   Phone, 
   Loader2, 
   Sparkles, 
-  RefreshCw 
+  RefreshCw,
+  Stamp,
+  CheckCircle2
 } from 'lucide-react';
 
 interface AdminMessagesTabProps {
@@ -248,6 +250,55 @@ export default function AdminMessagesTab({ tickets }: AdminMessagesTabProps) {
     }
   };
 
+  const renderMessageContent = (text: string) => {
+    if (text.startsWith('[HARDCOPY_REQUEST]')) {
+      try {
+        const data = JSON.parse(text.replace('[HARDCOPY_REQUEST]', '').trim());
+        return (
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-amber-700">
+              <Stamp className="w-3.5 h-3.5 shrink-0" />
+              <span>OFFICIAL HARDCOPY REQUEST</span>
+            </div>
+            <div className="text-[11px] font-semibold text-slate-800">
+              Unit: {data.bikeModel} ({data.plateNumber})
+            </div>
+            <div className="text-[10px] text-slate-600">
+              Purpose: {data.purpose} • Ref #{data.id}
+            </div>
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    if (text.startsWith('[HARDCOPY_STATUS_UPDATE]')) {
+      try {
+        const data = JSON.parse(text.replace('[HARDCOPY_STATUS_UPDATE]', '').trim());
+        const isReady = data.status === 'READY_FOR_PICKUP';
+        return (
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-600">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span>{isReady ? 'Hardcopy Ready for Pickup' : 'Hardcopy Status Updated'}</span>
+            </div>
+            <div className="text-[11px] text-slate-800">
+              {data.message || `Official stamped copy for ${data.bikeModel} is ready at Santa Maria Front Desk.`}
+            </div>
+            <div className="text-[10px] text-slate-500 font-mono">
+              Claim Ref: #{data.requestId}
+            </div>
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    return text;
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Banner */}
@@ -408,7 +459,7 @@ export default function AdminMessagesTab({ tickets }: AdminMessagesTabProps) {
                               : 'bg-white text-slate-800 border border-slate-200 rounded-bl-xs shadow-2xs'
                           }`}
                         >
-                          {msg.message}
+                          {renderMessageContent(msg.message)}
                         </div>
                       </div>
                     </div>

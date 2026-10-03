@@ -10,7 +10,8 @@ import {
   AlertCircle,
   Menu,
   Shield,
-  UserCheck
+  UserCheck,
+  Stamp
 } from 'lucide-react';
 import { AdminTicket, UserRole } from '../types/admin';
 
@@ -22,6 +23,8 @@ interface AdminHeaderProps {
   onToggleMobileMenu?: () => void;
   currentRole?: UserRole;
   onToggleRole?: () => void;
+  hardcopyPendingCount?: number;
+  onOpenHardcopyRequests?: () => void;
 }
 
 export default function AdminHeader({
@@ -32,6 +35,8 @@ export default function AdminHeader({
   onToggleMobileMenu,
   currentRole = 'admin',
   onToggleRole,
+  hardcopyPendingCount = 0,
+  onOpenHardcopyRequests,
 }: AdminHeaderProps) {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState<string>('');
@@ -159,6 +164,28 @@ export default function AdminHeader({
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 self-end md:self-auto">
+          {/* Hardcopy Requests Button / Badge */}
+          {onOpenHardcopyRequests && (
+            <button
+              type="button"
+              onClick={onOpenHardcopyRequests}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                hardcopyPendingCount > 0
+                  ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-800 shadow-xs animate-pulse'
+                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-700'
+              }`}
+              title="View Certified Hardcopy Requests"
+            >
+              <Stamp className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline">Hardcopy Requests</span>
+              {hardcopyPendingCount > 0 && (
+                <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-white">
+                  {hardcopyPendingCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* Direct Switcher to Customer View */}
           <button
             type="button"

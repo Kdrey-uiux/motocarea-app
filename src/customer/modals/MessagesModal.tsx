@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ChatMessage, UserProfile } from '../../types/dashboard';
-import { Send, MessageSquare, Loader2, X, Wrench, ShieldCheck } from 'lucide-react';
+import { Send, MessageSquare, Loader2, X, Wrench, ShieldCheck, Stamp, CheckCircle2 } from 'lucide-react';
 
 interface MessagesModalProps {
   isOpen: boolean;
@@ -169,6 +169,55 @@ export default function MessagesModal({
     }
   };
 
+  const renderMessageContent = (text: string) => {
+    if (text.startsWith('[HARDCOPY_REQUEST]')) {
+      try {
+        const data = JSON.parse(text.replace('[HARDCOPY_REQUEST]', '').trim());
+        return (
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-1.5 font-bold text-xs">
+              <Stamp className="w-3.5 h-3.5 shrink-0" />
+              <span>Official Hardcopy Requested</span>
+            </div>
+            <div className="text-[11px] opacity-95">
+              Unit: <span className="font-semibold">{data.bikeModel}</span> ({data.plateNumber})
+            </div>
+            <div className="text-[10px] opacity-80 pt-0.5">
+              Purpose: {data.purpose} • Ref #{data.id}
+            </div>
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    if (text.startsWith('[HARDCOPY_STATUS_UPDATE]')) {
+      try {
+        const data = JSON.parse(text.replace('[HARDCOPY_STATUS_UPDATE]', '').trim());
+        const isReady = data.status === 'READY_FOR_PICKUP';
+        return (
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-1.5 font-bold text-xs">
+              <CheckCircle2 className={`w-3.5 h-3.5 shrink-0 ${isReady ? 'text-emerald-300' : ''}`} />
+              <span>{isReady ? 'Hardcopy Ready for Pickup!' : 'Hardcopy Status Update'}</span>
+            </div>
+            <div className="text-[11px] opacity-95">
+              {data.message || `Official stamped copy for ${data.bikeModel} is ready at Santa Maria Front Desk.`}
+            </div>
+            <div className="text-[10px] opacity-80 font-mono">
+              Claim Ref: #{data.requestId}
+            </div>
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    return text;
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -261,7 +310,7 @@ export default function MessagesModal({
                           : 'bg-white border border-slate-200/80 text-slate-800 rounded-bl-xs shadow-2xs font-normal'
                       }`}
                     >
-                      {msg.message}
+                      {renderMessageContent(msg.message)}
                     </div>
                   </div>
                 </div>

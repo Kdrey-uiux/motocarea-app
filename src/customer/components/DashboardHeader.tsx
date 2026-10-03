@@ -9,9 +9,12 @@ import {
   Key,
   LogOut,
   CheckCircle2,
-  Clock
+  Clock,
+  Stamp,
+  FileText
 } from 'lucide-react';
 import { TabType, ServiceTicket, UserProfile } from '../../types/dashboard';
+import { HardcopyRequest } from '../../lib/hardcopyService';
 
 interface DashboardHeaderProps {
   activeTab: TabType;
@@ -19,6 +22,7 @@ interface DashboardHeaderProps {
   userProfile?: UserProfile | null;
   activeTickets: ServiceTicket[];
   serviceHistory?: ServiceTicket[];
+  hardcopyRequests?: HardcopyRequest[];
   onToggleMobileMenu: () => void;
   isSidebarCollapsed: boolean;
   onToggleSidebarCollapse: () => void;
@@ -33,6 +37,7 @@ export default function DashboardHeader({
   userProfile,
   activeTickets,
   serviceHistory = [],
+  hardcopyRequests = [],
   onToggleMobileMenu,
   isSidebarCollapsed,
   onToggleSidebarCollapse,
@@ -82,6 +87,26 @@ export default function DashboardHeader({
 
   // Dynamic Notifications based on user DB state
   const notificationsList = [
+    ...(hardcopyRequests.length > 0
+      ? hardcopyRequests
+          .filter((hr) => hr.status === 'READY_FOR_PICKUP' || hr.status === 'PENDING')
+          .map((hr) => {
+            const isReady = hr.status === 'READY_FOR_PICKUP';
+            return {
+              id: `hardcopy-${hr.id}`,
+              title: isReady
+                ? `Ready for Pickup: Certified Records (${hr.bikeModel})`
+                : `Preparing Stamped Records: ${hr.bikeModel}`,
+              desc: isReady
+                ? `Your official certified copy (#${hr.id}) is stamped, signed, and waiting for you at the Santa Maria Front Desk Reception.`
+                : `Your hardcopy request (#${hr.id}) has been submitted and is currently being processed by our Service Advisor.`,
+              time: 'Front Desk Claim',
+              isHighPriority: isReady,
+              icon: isReady ? Stamp : FileText,
+              color: isReady ? 'text-emerald-700 bg-emerald-100' : 'text-amber-700 bg-amber-100',
+            };
+          })
+      : []),
     ...(activeTickets.length > 0
       ? activeTickets.map((t) => {
           const isTicketReady = t.status === 'READY_FOR_PICKUP';
