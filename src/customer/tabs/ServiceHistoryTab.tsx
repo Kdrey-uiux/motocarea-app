@@ -457,162 +457,177 @@ export default function ServiceHistoryTab({
 
       {/* =========================================================================
           DEDICATED PRINT-ONLY OFFICIAL SERVICE HISTORY DOCUMENT
-          (Professional dealership-grade typography, compact, zero text-wrapping bugs)
+          (Anchored at bottom, unified clean typography, no double-hash, no font glitches)
          ========================================================================= */}
       {!selectedTicket && (
-        <div className="hidden print:block print-document space-y-4 text-black bg-white p-1">
-          {/* Official Letterhead Header */}
-          <div className="border-b-2 border-slate-900 pb-2.5 flex items-start justify-between">
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded bg-orange-500 text-white flex items-center justify-center font-black text-xs">
-                  MC
+        <div className="hidden print:flex print:flex-col print:justify-between print-document text-slate-900 bg-white min-h-[92vh] p-1">
+          {/* Top Section: Letterhead, Customer Box, and Maintenance Table */}
+          <div className="print-body space-y-3.5">
+            {/* Official Letterhead Header */}
+            <div className="border-b-2 border-slate-900 pb-2.5 flex items-start justify-between">
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded bg-orange-500 text-white flex items-center justify-center font-black text-xs shrink-0">
+                    MC
+                  </div>
+                  <h1 className="text-[12pt] font-extrabold uppercase tracking-wide text-slate-900">
+                    MotoCare Workshop & Service Hub
+                  </h1>
                 </div>
-                <h1 className="text-base font-extrabold uppercase tracking-wide text-slate-900">
-                  MotoCare Workshop & Service Hub
-                </h1>
+                <p className="text-[8.5pt] text-slate-600">
+                  Santa Maria Service Branch • Bulacan, Philippines • Contact: (044) 791-MOTO
+                </p>
+                <p className="text-[7.5pt] text-slate-500 font-mono">
+                  Official Vehicle Preventive Maintenance Registry
+                </p>
               </div>
-              <p className="text-[9pt] text-slate-600">
-                Santa Maria Service Branch • Bulacan, Philippines • Contact: (044) 791-MOTO
-              </p>
-              <p className="text-[8pt] text-slate-500 font-mono">
-                Official Vehicle Preventive Maintenance Registry
-              </p>
-            </div>
 
-            <div className="text-right space-y-0.5">
-              <span className="text-[8pt] font-bold uppercase tracking-wider text-slate-500 block">
-                Official Document
-              </span>
-              <div className="text-xs font-bold text-slate-900 uppercase">
-                {activeSelectedBike
-                  ? `Service Record: ${activeSelectedBike.model}`
-                  : 'Fleet Service History Ledger'}
-              </div>
-              <div className="text-[8.5pt] text-slate-600">
-                Date Printed: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              <div className="text-right space-y-0.5">
+                <span className="text-[7.5pt] font-bold uppercase tracking-wider text-slate-500 block">
+                  Official Document
+                </span>
+                <div className="text-[9.5pt] font-bold text-slate-900 uppercase">
+                  {activeSelectedBike
+                    ? `Service Record: ${activeSelectedBike.model}`
+                    : 'Fleet Service History Ledger'}
+                </div>
+                <div className="text-[8pt] text-slate-600">
+                  Date Printed: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Customer & Target Vehicle Information Box */}
-          <div className="border border-slate-300 rounded p-2.5 bg-slate-50/60 grid grid-cols-2 gap-4 text-[9pt]">
-            <div>
-              <span className="text-[7.5pt] font-bold text-slate-500 uppercase tracking-wider block">
-                Customer Name / Account
-              </span>
-              <span className="font-bold text-slate-900 text-[10pt] block">
-                {userProfile?.full_name || 'Rider Customer'}
-              </span>
-              <span className="text-slate-600 text-[8pt] block mt-0.5">
-                Contact: {userProfile?.phone_number || 'N/A'} • {userProfile?.email || ''}
-              </span>
+            {/* Customer & Target Vehicle Information Box */}
+            <div className="border border-slate-300 rounded p-2.5 bg-slate-50/70 grid grid-cols-2 gap-4 text-[8.5pt]">
+              <div>
+                <span className="text-[7pt] font-bold text-slate-500 uppercase tracking-wider block">
+                  Customer Name / Account
+                </span>
+                <span className="font-bold text-slate-900 text-[9.5pt] block capitalize">
+                  {userProfile?.full_name || 'Rider Customer'}
+                </span>
+                <span className="text-slate-600 text-[8pt] block mt-0.5">
+                  Contact: {userProfile?.phone_number || 'N/A'} • {userProfile?.email || ''}
+                </span>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[7pt] font-bold text-slate-500 uppercase tracking-wider block">
+                  Vehicle Coverage
+                </span>
+                <span className="font-bold text-slate-900 text-[9.5pt] block">
+                  {activeSelectedBike
+                    ? `${activeSelectedBike.model} (${activeSelectedBike.plate_number})`
+                    : `All Registered Fleet Units (${uniqueBikes.length} Motorcycles)`}
+                </span>
+                <span className="text-slate-600 text-[8pt] block mt-0.5">
+                  Total Logs Printed: {filteredHistory.length} completed {filteredHistory.length === 1 ? 'service' : 'services'}
+                </span>
+              </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-[7.5pt] font-bold text-slate-500 uppercase tracking-wider block">
-                Vehicle Coverage
-              </span>
-              <span className="font-bold text-slate-900 text-[10pt] block">
-                {activeSelectedBike
-                  ? `${activeSelectedBike.model} (${activeSelectedBike.plate_number})`
-                  : `All Registered Fleet Units (${uniqueBikes.length} Motorcycles)`}
-              </span>
-              <span className="text-slate-600 text-[8pt] block mt-0.5">
-                Total Logs Printed: {filteredHistory.length} completed {filteredHistory.length === 1 ? 'service' : 'services'}
-              </span>
-            </div>
-          </div>
+            {/* Official Maintenance Table (Tight, Proportional, No Wrapping Bugs) */}
+            <div className="border border-slate-300 rounded overflow-hidden">
+              <table className="w-full text-left border-collapse" style={{ fontSize: '8.5pt' }}>
+                <thead>
+                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[7.5pt]">
+                    <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '15%' }}>
+                      Ticket Ref
+                    </th>
+                    <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '14%' }}>
+                      Date Done
+                    </th>
+                    <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '26%' }}>
+                      Motorcycle Unit
+                    </th>
+                    <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '24%' }}>
+                      Work Rendered
+                    </th>
+                    <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '11%' }}>
+                      Lead Mechanic
+                    </th>
+                    <th className="py-2 px-2.5 text-right whitespace-nowrap" style={{ width: '10%' }}>
+                      Amount
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 text-slate-800">
+                  {filteredHistory.map((item) => {
+                    const cleanRef = item.ticket_code.replace(/^#+/, '');
+                    const mechanicName =
+                      item.assigned_mechanic && item.assigned_mechanic !== 'Queued for Assignment'
+                        ? item.assigned_mechanic
+                        : 'Workshop Tech';
 
-          {/* Official Maintenance Table (Tight, Proportional, No Wrapping Bugs) */}
-          <div className="border border-slate-300 rounded overflow-hidden">
-            <table className="w-full text-left border-collapse" style={{ fontSize: '8.5pt' }}>
-              <thead>
-                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[7.5pt]">
-                  <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '14%' }}>
-                    Ticket Ref
-                  </th>
-                  <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '13%' }}>
-                    Date Done
-                  </th>
-                  <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '23%' }}>
-                    Motorcycle Unit
-                  </th>
-                  <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '27%' }}>
-                    Work Rendered
-                  </th>
-                  <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '13%' }}>
-                    Lead Mechanic
-                  </th>
-                  <th className="py-2 px-2.5 text-right whitespace-nowrap" style={{ width: '10%' }}>
-                    Amount
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 text-slate-800">
-                {filteredHistory.map((item) => (
-                  <tr key={item.id}>
-                    <td className="py-1.5 px-2.5 border-r border-slate-300 font-mono font-bold whitespace-nowrap">
-                      #{item.ticket_code}
+                    return (
+                      <tr key={item.id}>
+                        <td className="py-1.5 px-2.5 border-r border-slate-300 font-mono font-bold whitespace-nowrap">
+                          #{cleanRef}
+                        </td>
+                        <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
+                          {new Date(item.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </td>
+                        <td className="py-1.5 px-2.5 border-r border-slate-300">
+                          <div className="font-bold leading-tight text-slate-900">
+                            {item.motorcycles?.model || 'Motorcycle Unit'}
+                          </div>
+                          <div className="text-[7.5pt] text-slate-600 font-mono mt-0.5">
+                            {item.motorcycles?.plate_number || 'N/A'}
+                          </div>
+                        </td>
+                        <td className="py-1.5 px-2.5 border-r border-slate-300 leading-tight">
+                          {item.service_type}
+                        </td>
+                        <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
+                          {mechanicName}
+                        </td>
+                        <td className="py-1.5 px-2.5 text-right font-bold whitespace-nowrap">
+                          {item.total_estimate}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-slate-50 border-t border-slate-300 font-bold text-[8.5pt]">
+                    <td colSpan={5} className="py-2 px-2.5 text-right uppercase text-slate-600 border-r border-slate-300">
+                      Total Records Logged:
                     </td>
-                    <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
-                      {new Date(item.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </td>
-                    <td className="py-1.5 px-2.5 border-r border-slate-300">
-                      <span className="font-bold block leading-tight">{item.motorcycles?.model || 'Motorcycle'}</span>
-                      <span className="text-[7.5pt] text-slate-600 font-mono block">{item.motorcycles?.plate_number || 'N/A'}</span>
-                    </td>
-                    <td className="py-1.5 px-2.5 border-r border-slate-300 leading-tight">
-                      {item.service_type}
-                    </td>
-                    <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
-                      {item.assigned_mechanic}
-                    </td>
-                    <td className="py-1.5 px-2.5 text-right font-bold whitespace-nowrap">
-                      {item.total_estimate}
+                    <td className="py-2 px-2.5 text-right text-slate-900 font-bold whitespace-nowrap">
+                      {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
                     </td>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-slate-50 border-t border-slate-300 font-bold text-[8.5pt]">
-                  <td colSpan={5} className="py-2 px-2.5 text-right uppercase text-slate-600 border-r border-slate-300">
-                    Total Records Logged:
-                  </td>
-                  <td className="py-2 px-2.5 text-right text-slate-900 font-bold whitespace-nowrap">
-                    {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+                </tfoot>
+              </table>
+            </div>
           </div>
 
-          {/* Verification & Sign-off Footer */}
-          <div className="pt-4 border-t border-slate-200 grid grid-cols-2 gap-6 text-[8pt]">
-            <div>
+          {/* Bottom Section: Verification & Sign-off Footer (Pinned at the very bottom of the page) */}
+          <div className="print-footer pt-3 border-t border-slate-300 grid grid-cols-12 gap-6 text-[8pt] items-end mt-auto">
+            <div className="col-span-7">
               <p className="text-slate-500 leading-relaxed text-[7.5pt]">
                 This document is an authentic certified record of preventive maintenance, mechanical service, and certified fluids replacement conducted at MotoCare Workshop & Service Hub. Valid for warranty documentation and motorcycle resale valuation.
               </p>
             </div>
 
-            <div className="flex justify-end gap-8 text-center">
-              <div className="space-y-6">
-                <div className="w-32 border-b border-slate-400 pb-0.5 font-bold text-slate-800 text-[8.5pt]">
+            <div className="col-span-5 flex justify-end gap-6 text-center">
+              <div className="space-y-1">
+                <div className="w-28 sm:w-32 border-b border-slate-400 pb-1 font-bold text-slate-900 text-[8.5pt]">
                   Service Desk
                 </div>
-                <span className="text-[7pt] text-slate-500 block uppercase">
+                <span className="text-[7pt] text-slate-500 block uppercase font-medium">
                   Prepared & Certified By
                 </span>
               </div>
-              <div className="space-y-6">
-                <div className="w-32 border-b border-slate-400 pb-0.5 font-bold text-slate-800 text-[8.5pt]">
+              <div className="space-y-1">
+                <div className="w-28 sm:w-32 border-b border-slate-400 pb-1 font-bold text-slate-900 text-[8.5pt]">
                   Lead Technician
                 </div>
-                <span className="text-[7pt] text-slate-500 block uppercase">
+                <span className="text-[7pt] text-slate-500 block uppercase font-medium">
                   Verified Technical Staff
                 </span>
               </div>
