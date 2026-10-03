@@ -287,6 +287,7 @@ export default function CustomerDashboard() {
               serviceHistory={serviceHistory} 
               userProfile={userProfile} 
               onNavigateTab={(tab) => setActiveTab(tab)}
+              onOpenHelpdesk={() => setIsMessagesModalOpen(true)}
             />
           )}
 

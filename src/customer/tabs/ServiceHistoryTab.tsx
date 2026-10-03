@@ -3,27 +3,29 @@ import { ServiceTicket, UserProfile, TabType } from '../../types/dashboard';
 import {
   Inbox,
   CheckCircle2,
-  Download,
   Printer,
-  ShieldCheck,
   Search,
   FileText,
   X,
   Wrench,
   Bike,
-  Calendar
+  Calendar,
+  MessageSquare,
+  ShieldCheck
 } from 'lucide-react';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
   userProfile: UserProfile | null;
   onNavigateTab?: (tab: TabType) => void;
+  onOpenHelpdesk?: () => void;
 }
 
 export default function ServiceHistoryTab({
   serviceHistory,
   userProfile,
   onNavigateTab,
+  onOpenHelpdesk,
 }: ServiceHistoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
@@ -34,339 +36,504 @@ export default function ServiceHistoryTab({
       item.ticket_code.toLowerCase().includes(q) ||
       (item.motorcycles?.model && item.motorcycles.model.toLowerCase().includes(q)) ||
       (item.motorcycles?.plate_number && item.motorcycles.plate_number.toLowerCase().includes(q)) ||
-      item.service_type.toLowerCase().includes(q)
+      item.service_type.toLowerCase().includes(q) ||
+      (item.assigned_mechanic && item.assigned_mechanic.toLowerCase().includes(q))
     );
   });
-
-  const exportToCSV = () => {
-    if (serviceHistory.length === 0) return;
-
-    const headers = [
-      'Ticket Code',
-      'Customer Name',
-      'Contact Number',
-      'Motorcycle Model',
-      'Plate Number',
-      'Service Rendered',
-      'Assigned Bay',
-      'Lead Mechanic',
-      'Drop-off Date',
-      'Date Completed',
-      'Total Amount Paid',
-      'Status',
-      'Customer Notes'
-    ];
-
-    const rows = serviceHistory.map((ticket) => [
-      `"${ticket.ticket_code}"`,
-      `"${userProfile?.full_name || 'Rider Customer'}"`,
-      `"${userProfile?.phone_number || 'N/A'}"`,
-      `"${ticket.motorcycles?.model || 'N/A'}"`,
-      `"${ticket.motorcycles?.plate_number || 'N/A'}"`,
-      `"${ticket.service_type.replace(/"/g, '""')}"`,
-      `"${ticket.assigned_bay || 'N/A'}"`,
-      `"${ticket.assigned_mechanic || 'N/A'}"`,
-      `"${ticket.dropoff_date || new Date(ticket.created_at).toLocaleDateString()}"`,
-      `"${new Date(ticket.created_at).toLocaleDateString()}"`,
-      `"${ticket.total_estimate}"`,
-      `"${ticket.status}"`,
-      `"${(ticket.notes || 'None').replace(/"/g, '""')}"`
-    ]);
-
-    const csvContent =
-      '\uFEFF' +
-      [
-        `"MOTOCARE WORKSHOP MANAGEMENT SYSTEM - OFFICIAL MAINTENANCE LOG"`,
-        `"Exported Date:","${new Date().toLocaleString()}"`,
-        `"Account Owner:","${userProfile?.full_name || 'Rider'}"`,
-        `"Registered Contact:","${userProfile?.phone_number || 'N/A'}"`,
-        '',
-        headers.join(','),
-        ...rows.map((r) => r.join(','))
-      ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const cleanDate = new Date().toISOString().split('T')[0];
-    link.download = `MotoCare_Service_Ledger_${cleanDate}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const handlePrint = () => {
     window.print();
   };
 
+  const primaryMotorcycle = serviceHistory.length > 0 ? serviceHistory[0].motorcycles : null;
+
   return (
     <div className="space-y-4 sm:space-y-5">
-      {/* 1. Top Action & Export Header Hero Card */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3.5">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Verified Audit Ledger</span>
-            </span>
+      {/* =========================================================================
+          SCREEN UI (Hidden when printing to ensure a 100% clean paper document)
+         ========================================================================= */}
+      <div className="print:hidden space-y-4 sm:space-y-5">
+        {/* 1. Header Hero Card */}
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
+              Service History & Records
+            </h2>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Official completed maintenance logs verified by MotoCare workshop technicians.
+            </p>
           </div>
-          <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
-            Service History & Records
-          </h2>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Tamper-proof maintenance records verified by workshop mechanics.
-          </p>
+
+          {serviceHistory.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+              {onOpenHelpdesk && (
+                <button
+                  type="button"
+                  onClick={onOpenHelpdesk}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
+                  title="Inquire or request certified stamped record copy from Workshop Admin"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-orange-500" />
+                  <span>Request Copy from Admin</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                title="Print Official Service Ledger"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print / PDF</span>
+              </button>
+            </div>
+          )}
         </div>
 
+        {/* 2. Quick Summary Stats Bar (3 Cards) */}
         {serviceHistory.length > 0 && (
-          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-            <button
-              type="button"
-              onClick={exportToCSV}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5 text-orange-500" />
-              <span>Export CSV</span>
-            </button>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
+                Total Completed Services
+              </span>
+              <div className="text-xl sm:text-2xl font-bold text-slate-900">
+                {serviceHistory.length} {serviceHistory.length === 1 ? 'Record' : 'Records'}
+              </div>
+              <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                Verified by Workshop
+              </span>
+            </div>
 
-            <button
-              type="button"
-              onClick={handlePrint}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              <span>Print / PDF</span>
-            </button>
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
+                Primary Serviced Vehicle
+              </span>
+              <div className="text-base sm:text-lg font-bold text-slate-900 truncate">
+                {primaryMotorcycle?.model || 'Motorcycle Unit'}
+              </div>
+              <span className="text-[11px] font-mono text-slate-500 block">
+                {primaryMotorcycle?.plate_number || 'Registered Garage'}
+              </span>
+            </div>
+
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
+              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
+                Latest Completed Service
+              </span>
+              <div className="text-base sm:text-lg font-bold text-slate-900">
+                {serviceHistory[0]
+                  ? new Date(serviceHistory[0].created_at).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })
+                  : 'None Yet'}
+              </div>
+              <span className="text-[11px] text-slate-500 truncate block">
+                {serviceHistory[0]?.service_type || 'Preventive Maintenance'}
+              </span>
+            </div>
           </div>
+        )}
+
+        {/* 3. Compact Search Input */}
+        {serviceHistory.length > 0 && (
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by ticket code (e.g. MC-9113), plate, or service type..."
+              className="w-full bg-white border border-slate-200/80 rounded-full pl-10 pr-4 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 shadow-xs transition"
+            />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+        )}
+
+        {/* 4. Data Records View (Empty State or Records Table) */}
+        {serviceHistory.length === 0 ? (
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 text-center space-y-4 shadow-xs">
+              <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center mx-auto text-orange-600 shadow-xs">
+                <Inbox className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <div className="text-base font-bold text-slate-900">No Past Service Records Yet</div>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  Once your ongoing service ticket is marked as completed by the mechanic, official logs and downloadable receipts will appear here automatically.
+                </p>
+              </div>
+
+              {onNavigateTab && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => onNavigateTab('book')}
+                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full py-2.5 px-6 font-semibold text-xs inline-flex items-center gap-2 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Book a Service Appointment</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Helpful Bento Information Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900">Official Workshop Log</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  All maintenance records are recorded directly from your workshop technician's release clearance.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900">Printable Official Slips</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Generate verified maintenance slips anytime for insurance compliance or motorcycle resale records.
+                </p>
+              </div>
+
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Wrench className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900">Helpdesk Support</h4>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Need a stamped certified copy of your records? Inquire directly with our Service Advisor anytime.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-8 text-center text-xs text-slate-500 shadow-xs">
+            No service records matching &quot;{searchQuery}&quot;.
+          </div>
+        ) : (
+          <>
+            {/* Mobile Card List (< sm screens) */}
+            <div className="sm:hidden space-y-3">
+              {filteredHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200/80 px-2.5 py-0.5 rounded-lg text-xs">
+                      #{item.ticket_code}
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      {item.status}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="font-bold text-sm text-slate-900">{item.service_type}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      <Bike className="w-3.5 h-3.5 text-slate-400" />
+                      <span>{item.motorcycles?.model || 'Motorcycle'} ({item.motorcycles?.plate_number || 'N/A'})</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Date Completed</span>
+                      <span className="font-medium text-slate-800">
+                        {new Date(item.created_at).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[10px] block">Amount Paid</span>
+                      <span className="font-bold text-slate-900">{item.total_estimate}</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTicket(item)}
+                    className="w-full py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>View Official Slip</span>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop Table (>= sm screens) */}
+            <div className="hidden sm:block bg-white border border-slate-200/80 rounded-[2rem] overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
+                    <tr>
+                      <th className="py-3.5 px-4 whitespace-nowrap">Ticket</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap">Date Completed</th>
+                      <th className="py-3.5 px-4">Motorcycle Unit</th>
+                      <th className="py-3.5 px-4">Work Rendered</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap">Lead Mechanic</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap">Amount Paid</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap text-center">Status</th>
+                      <th className="py-3.5 px-4 whitespace-nowrap text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
+                    {filteredHistory.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200/80 px-2.5 py-1 rounded-lg text-xs inline-block">
+                            #{item.ticket_code}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap font-medium text-slate-600">
+                          {new Date(item.created_at).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </td>
+                        <td className="py-4 px-4 min-w-[180px]">
+                          <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                            <Bike className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{item.motorcycles?.model || 'Motorcycle Unit'}</span>
+                          </div>
+                          <span className="text-[11px] text-slate-400 font-mono font-medium block pl-5">
+                            {item.motorcycles?.plate_number || 'N/A'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 min-w-[200px] text-slate-600 font-medium">
+                          {item.service_type}
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap text-slate-700">
+                          <span className="font-medium">{item.assigned_mechanic}</span>
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap">
+                          <span className="font-bold text-slate-900 text-xs">
+                            {item.total_estimate}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap text-center">
+                          <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            {item.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap text-right">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTicket(item)}
+                            className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200/80 px-3.5 py-1.5 rounded-full transition cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>View Slip</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
-      {/* 2. Pill Search Input */}
-      {serviceHistory.length > 0 && (
-        <div className="relative">
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by ticket code (e.g. MC-2326), motorcycle, or service type..."
-            className="w-full bg-white border border-slate-200/80 rounded-full pl-10 pr-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-orange-500 shadow-xs transition"
-          />
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-        </div>
-      )}
-
-      {/* 3. Data Records View (Empty State with CTA or Records) */}
-      {serviceHistory.length === 0 ? (
-        <div className="space-y-4">
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 text-center space-y-4 shadow-xs">
-            <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center mx-auto text-orange-600 shadow-xs">
-              <Inbox className="w-7 h-7" />
-            </div>
+      {/* =========================================================================
+          DEDICATED PRINT-ONLY OFFICIAL SERVICE HISTORY DOCUMENT
+          (Activates only when printing from the main screen, ensuring ZERO web junk)
+         ========================================================================= */}
+      {!selectedTicket && (
+        <div className="hidden print:block print-document space-y-6 text-black bg-white p-2">
+          {/* Official Letterhead Header */}
+          <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
             <div className="space-y-1">
-              <div className="text-base font-bold text-slate-900">No Past Service Records Yet</div>
-              <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Once your ongoing service ticket is marked as completed by the mechanic, official logs and downloadable receipts will appear here automatically.
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-black text-sm">
+                  MC
+                </div>
+                <h1 className="text-xl font-black uppercase tracking-wider text-slate-900">
+                  MotoCare Workshop & Service Hub
+                </h1>
+              </div>
+              <p className="text-xs text-slate-700">
+                Santa Maria Service Branch • Bulacan, Philippines • Contact: (044) 791-MOTO
+              </p>
+              <p className="text-xs text-slate-500 font-mono">
+                Official Workshop Management & Vehicle Maintenance Registry
               </p>
             </div>
 
-            {onNavigateTab && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('book')}
-                  className="bg-orange-500 hover:bg-orange-600 text-white rounded-full py-2.5 px-6 font-semibold text-xs inline-flex items-center gap-2 shadow-sm shadow-orange-500/20 transition cursor-pointer"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>Book a Service Appointment</span>
-                </button>
+            <div className="text-right space-y-0.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                Document Classification
+              </span>
+              <div className="text-sm font-bold text-slate-900 uppercase">
+                Official Service History Ledger
               </div>
-            )}
+              <div className="text-xs text-slate-600">
+                Date Printed: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+              </div>
+            </div>
           </div>
 
-          {/* Helpful Information Bento Cards for Mobile Riders */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-bold text-slate-900">7-Day Service Warranty</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                All maintenance and parts replacements are tracked under our official labor warranty policy.
-              </p>
+          {/* Customer & Vehicle Information Box */}
+          <div className="border border-slate-300 rounded-lg p-3.5 bg-slate-50 grid grid-cols-2 gap-4 text-xs">
+            <div>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                Customer Account
+              </span>
+              <span className="font-bold text-slate-900 text-sm block">
+                {userProfile?.full_name || 'Rider Customer'}
+              </span>
+              <span className="text-slate-600 block mt-0.5">
+                Contact: {userProfile?.phone_number || 'N/A'} • {userProfile?.email || ''}
+              </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
-              <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
-                <FileText className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-bold text-slate-900">Official Downloadable Slips</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Export verified maintenance ledgers anytime for insurance compliance or motorcycle resale value.
-              </p>
-            </div>
-
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <Wrench className="w-4 h-4" />
-              </div>
-              <h4 className="text-xs font-bold text-slate-900">OEM Parts & Fluids Registry</h4>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                Every oil brand, viscosity, and component installed is cataloged directly to your motorcycle's plate.
-              </p>
+            <div className="text-right">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                Vehicle Fleet Registry
+              </span>
+              <span className="font-bold text-slate-900 text-sm block">
+                {primaryMotorcycle ? `${primaryMotorcycle.model} (${primaryMotorcycle.plate_number})` : 'All Registered Units'}
+              </span>
+              <span className="text-slate-600 block mt-0.5">
+                Total Recorded Visits: {serviceHistory.length} completed
+              </span>
             </div>
           </div>
-        </div>
-      ) : filteredHistory.length === 0 ? (
-        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-8 text-center text-xs text-slate-500 shadow-xs">
-          No records matching &quot;{searchQuery}&quot;.
-        </div>
-      ) : (
-        <>
-          {/* Mobile Card List (< sm screens) */}
-          <div className="sm:hidden space-y-3">
-            {filteredHistory.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-orange-600 bg-orange-50 border border-orange-200/80 px-2.5 py-0.5 rounded-lg text-xs">
-                    {item.ticket_code}
-                  </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                    {item.status}
-                  </span>
-                </div>
 
-                <div className="space-y-1">
-                  <div className="font-bold text-sm text-slate-900">{item.service_type}</div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Bike className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{item.motorcycles?.model || 'Motorcycle'} ({item.motorcycles?.plate_number || 'N/A'})</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
-                  <div>
-                    <span className="text-slate-400 text-[10px] block">Date</span>
-                    <span className="font-medium text-slate-800">{new Date(item.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 text-[10px] block">Amount Paid</span>
-                    <span className="font-bold text-slate-900">{item.total_estimate}</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedTicket(item)}
-                  className="w-full py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>View Official Slip</span>
-                </button>
-              </div>
-            ))}
-          </div>
-
-          {/* Desktop Table (>= sm screens) */}
-          <div className="hidden sm:block bg-white border border-slate-200/80 rounded-[2rem] overflow-hidden shadow-xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
-                  <tr>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Ticket</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Date Completed</th>
-                    <th className="py-3.5 px-4">Motorcycle Unit</th>
-                    <th className="py-3.5 px-4">Work Rendered</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Lead Mechanic</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Amount Paid</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap text-center">Status</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap text-right">Action</th>
+          {/* Official Maintenance Table */}
+          <div>
+            <table className="w-full text-left text-xs border border-slate-300 border-collapse">
+              <thead>
+                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[10px]">
+                  <th className="py-2.5 px-3 border-r border-slate-300">Ticket Ref</th>
+                  <th className="py-2.5 px-3 border-r border-slate-300">Date Completed</th>
+                  <th className="py-2.5 px-3 border-r border-slate-300">Motorcycle Unit</th>
+                  <th className="py-2.5 px-3 border-r border-slate-300">Work Rendered</th>
+                  <th className="py-2.5 px-3 border-r border-slate-300">Lead Mechanic</th>
+                  <th className="py-2.5 px-3 border-r border-slate-300 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-right">Amount Paid</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 text-slate-800">
+                {serviceHistory.map((item) => (
+                  <tr key={item.id} className="text-xs">
+                    <td className="py-2.5 px-3 border-r border-slate-300 font-mono font-bold">
+                      #{item.ticket_code}
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300 whitespace-nowrap">
+                      {new Date(item.created_at).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300">
+                      <span className="font-bold block">{item.motorcycles?.model || 'Motorcycle'}</span>
+                      <span className="text-[10px] text-slate-600 font-mono">{item.motorcycles?.plate_number || 'N/A'}</span>
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300">
+                      {item.service_type}
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300 whitespace-nowrap">
+                      {item.assigned_mechanic}
+                    </td>
+                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-bold uppercase text-[10px] text-emerald-800">
+                      {item.status}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold whitespace-nowrap">
+                      {item.total_estimate}
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {filteredHistory.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-semibold text-orange-600 bg-orange-50 border border-orange-200/80 px-2.5 py-1 rounded-lg text-xs inline-block">
-                          {item.ticket_code}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap font-medium text-slate-600">
-                        {new Date(item.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="py-4 px-4 min-w-[180px]">
-                        <div className="font-semibold text-slate-900">
-                          {item.motorcycles?.model || 'Motorcycle Unit'}
-                        </div>
-                        <span className="text-[11px] text-slate-400 font-medium">
-                          {item.motorcycles?.plate_number || 'N/A'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 min-w-[200px] text-slate-600">
-                        {item.service_type}
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap text-slate-700 font-medium">
-                        {item.assigned_mechanic}
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        <span className="font-bold text-slate-900 text-xs">
-                          {item.total_estimate}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap text-center">
-                        <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4 whitespace-nowrap text-right">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedTicket(item)}
-                          className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200/80 px-3.5 py-1.5 rounded-full transition cursor-pointer"
-                        >
-                          <FileText className="w-3.5 h-3.5" />
-                          <span>View Slip</span>
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold">
+                  <td colSpan={6} className="py-2.5 px-3 text-right text-xs uppercase text-slate-600 border-r border-slate-300">
+                    Total Completed Records:
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-xs text-slate-900 font-bold">
+                    {serviceHistory.length} {serviceHistory.length === 1 ? 'Service' : 'Services'}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          {/* Verification & Sign-off Footer */}
+          <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs">
+            <div>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                This document is an authentic certified record of preventive maintenance, repair work, and OEM parts installation conducted at MotoCare Workshop & Service Hub. Valid for insurance verification and motorcycle transfer of ownership.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-10 text-center text-xs">
+              <div className="space-y-10">
+                <div className="w-36 border-b border-slate-400 pb-1 font-bold text-slate-800">
+                  Service Desk Officer
+                </div>
+                <span className="text-[10px] text-slate-500 block uppercase">
+                  Prepared & Certified By
+                </span>
+              </div>
+              <div className="space-y-10">
+                <div className="w-36 border-b border-slate-400 pb-1 font-bold text-slate-800">
+                  Workshop Lead Tech
+                </div>
+                <span className="text-[10px] text-slate-500 block uppercase">
+                  Verified Technician
+                </span>
+              </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Slip Modal */}
+      {/* =========================================================================
+          SLIP MODAL (Also prints cleanly as a receipt if opened)
+         ========================================================================= */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:inset-auto">
           <div className="print-slip-modal bg-white border border-slate-200 rounded-[2rem] max-w-lg w-full p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:border-b-2 print:border-slate-900">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
                   <Wrench className="w-4 h-4" />
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Official Service Slip</h3>
-                  <p className="text-[10px] text-slate-400">
-                    TICKET REF: {selectedTicket.ticket_code}
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    TICKET REF: #{selectedTicket.ticket_code}
                   </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedTicket(null)}
                 className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 print-hide cursor-pointer"
+                title="Close Slip"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-3.5 text-xs text-slate-700 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 font-sans">
+            <div className="space-y-3.5 text-xs text-slate-700 bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 font-sans print:bg-white print:border print:border-slate-300">
               <div className="text-center pb-2 border-b border-dashed border-slate-200">
                 <div className="font-bold text-slate-900 text-sm">MotoCare Workshop Dispatch</div>
                 <div className="text-[11px] text-slate-500">Santa Maria Service Hub • Bulacan</div>

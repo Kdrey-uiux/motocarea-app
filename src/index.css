@@ -17,26 +17,56 @@
 }
 
 /* =========================================================================
-   PRINT / PDF OFFICIAL SERVICE SLIP FORMATTING
+/* =========================================================================
+   PRINT / PDF OFFICIAL SERVICE SLIP & HISTORY LEDGER FORMATTING
    ========================================================================= */
 @media print {
+  @page {
+    size: auto;
+    margin: 12mm 15mm;
+  }
+
   body {
     background: #ffffff !important;
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
-  /* Itago ang sidebars, headers, floating menus, at action buttons */
+  /* Hide app navigation chrome, header, sidebar, FABs, and screen-only controls */
   header,
   aside,
   nav,
   button,
+  input,
   .print-hide {
     display: none !important;
   }
 
-  /* Siguraduhing visible at malinis ang resibo */
+  /* Ensure official document is rendered clearly on paper */
+  .print-document {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .print-document table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  .print-document tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  /* Siguraduhing visible at malinis ang resibo modal */
   .print-slip-modal {
     position: static !important;
     background: transparent !important;
