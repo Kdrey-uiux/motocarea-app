@@ -208,7 +208,7 @@ export default function OverviewTab({
 
         {/* Card 2: Interactive Workshop Progress (Clickable Stages & Booked Motorcycle Display) */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                 <Wrench className="w-4 h-4" />
@@ -223,7 +223,7 @@ export default function OverviewTab({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0">
               <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-[11px] font-medium text-slate-600">
                 <span className="px-2.5 py-0.5 rounded-full">Stages</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-semibold shadow-xs">
@@ -233,9 +233,9 @@ export default function OverviewTab({
             </div>
           </div>
 
-          {/* Interactive Striped Pillars (Clickable!) */}
+          {/* Interactive Milestone Pillars (Clickable!) */}
           <div className="pt-2 sm:pt-3">
-            <div className="flex items-end justify-between gap-1 sm:gap-2.5 h-38 sm:h-40 px-0.5 sm:px-2 pb-2">
+            <div className="flex items-end justify-between gap-1.5 sm:gap-2.5 h-36 sm:h-40 px-0.5 sm:px-2 pb-2">
               {stages.map((st) => {
                 const isActivePillar = activeTicket
                   ? st.step === currentStage
@@ -251,29 +251,38 @@ export default function OverviewTab({
                     className="flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer focus:outline-none min-w-0"
                     title={`Click to inspect Stage ${st.step}: ${st.name}`}
                   >
-                    {/* Active Floating Badge */}
+                    {/* Active Floating Badge (Centered perfectly) */}
                     {isActivePillar && (
-                      <div className="absolute -top-3.5 sm:-top-4 px-1.5 sm:px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md z-10 flex items-center gap-1 whitespace-nowrap">
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md z-10 flex items-center gap-1 whitespace-nowrap animate-bounce">
                         <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
                         <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
                       </div>
                     )}
 
-                    {/* Striped Pillar */}
+                    {/* Milestone Pillar Container */}
                     <div
-                      className={`w-full rounded-2xl transition-all duration-300 relative overflow-hidden ${
+                      className={`w-full rounded-2xl transition-all duration-300 relative flex flex-col justify-between items-center py-2 ${
                         isActivePillar
-                          ? 'bg-orange-500 shadow-md shadow-orange-500/25 h-30 sm:h-32'
+                          ? 'bg-gradient-to-b from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 h-28 sm:h-32 ring-2 ring-orange-500 ring-offset-2'
                           : isPassedPillar
-                          ? 'bg-emerald-400 h-26 sm:h-28'
-                          : `${st.height} bg-slate-100 hover:bg-slate-200`
-                      } ${isInspected ? 'ring-2 ring-orange-500 ring-offset-2' : ''}`}
-                      style={{
-                        backgroundImage: !isActivePillar && !isPassedPillar
-                          ? 'repeating-linear-gradient(45deg, rgba(16,185,129,0.15), rgba(16,185,129,0.15) 4px, transparent 4px, transparent 8px)'
-                          : undefined,
-                      }}
-                    />
+                          ? 'bg-emerald-500 text-white shadow-xs h-24 sm:h-28'
+                          : isInspected
+                          ? 'bg-slate-200 text-slate-700 h-24 sm:h-28 ring-2 ring-slate-400 ring-offset-1'
+                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-400 border border-slate-200/70 h-24 sm:h-28'
+                      }`}
+                    >
+                      {/* Top Stage Step Indicator */}
+                      <span className={`text-[10px] font-bold ${
+                        isActivePillar || isPassedPillar ? 'text-white' : 'text-slate-400'
+                      }`}>
+                        {isPassedPillar ? '✓' : st.step}
+                      </span>
+
+                      {/* Faint subtle pillar accent */}
+                      <div className={`w-3 sm:w-4 h-1 rounded-full ${
+                        isActivePillar || isPassedPillar ? 'bg-white/40' : 'bg-slate-300/60'
+                      }`} />
+                    </div>
 
                     {/* Stage Label Below Pillar (No Truncate, Guaranteed to show READY) */}
                     <span className={`text-[8px] sm:text-[10px] md:text-xs font-bold uppercase mt-2 tracking-tight text-center leading-none transition ${
