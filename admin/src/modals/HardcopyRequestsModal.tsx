@@ -45,8 +45,8 @@ export default function HardcopyRequestsModal({
   const claimedCount = requests.filter((r) => r.status === 'CLAIMED').length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-[2rem] max-w-2xl w-full p-5 sm:p-7 shadow-2xl space-y-5 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="my-auto bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] max-w-2xl w-full p-5 sm:p-7 shadow-2xl space-y-4 flex flex-col max-h-[90vh] overflow-hidden">
         
         {/* Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-4 shrink-0">

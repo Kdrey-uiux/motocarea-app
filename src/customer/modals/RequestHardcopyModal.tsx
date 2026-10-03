@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { 
-  FileText, 
   X, 
   Bike, 
   CheckCircle2, 
@@ -9,7 +8,8 @@ import {
   MapPin, 
   Clock, 
   Stamp,
-  AlertCircle
+  AlertCircle,
+  ChevronDown
 } from 'lucide-react';
 import { UserProfile } from '../../types/dashboard';
 import { createHardcopyRequest, HardcopyRequest } from '../../lib/hardcopyService';
@@ -28,22 +28,22 @@ const PURPOSES = [
   {
     id: 'resale',
     title: 'Motorcycle Resale / Transfer of Ownership',
-    desc: 'Official proof of regular maintenance & service history for prospective buyer.',
+    desc: 'Official proof of maintenance history for prospective buyer.',
   },
   {
     id: 'warranty',
     title: 'Warranty or Insurance Claim',
-    desc: 'Certified record of genuine fluid changes & technical inspections.',
+    desc: 'Certified record of genuine fluid changes & inspections.',
   },
   {
     id: 'financing',
     title: 'Bank / Financing / Loan Documentation',
-    desc: 'Formal vehicle valuation and maintenance verification ledger.',
+    desc: 'Formal vehicle valuation and maintenance verification.',
   },
   {
     id: 'personal',
     title: 'Personal Rider Archive',
-    desc: 'Physical stamped record copy for personal vehicle logbook safekeeping.',
+    desc: 'Physical stamped record copy for personal logbook.',
   },
 ];
 
@@ -112,26 +112,26 @@ export default function RequestHardcopyModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 rounded-[2rem] max-w-lg w-full p-5 sm:p-7 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="my-auto bg-white border border-slate-200/90 rounded-2xl sm:rounded-[2rem] max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Header */}
-        <div className="flex items-start justify-between border-b border-slate-100 pb-4">
+        {/* Sticky Header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 border border-orange-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 border border-orange-200/80 flex items-center justify-center shrink-0 shadow-2xs">
               <Stamp className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-slate-900 leading-tight">
-                  Request Official Hardcopy
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
+                  Request Certified Hardcopy
                 </h3>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800">
                   Certified
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Physical stamped record with Lead Tech sign-off from Santa Maria Hub.
+              <p className="text-[11px] text-slate-500 leading-normal mt-0.5">
+                Physical stamped record with Lead Tech sign-off • Santa Maria Hub
               </p>
             </div>
           </div>
@@ -146,16 +146,17 @@ export default function RequestHardcopyModal({
           </button>
         </div>
 
-        {errorMsg && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
+        {/* Scrollable Form Body */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 text-xs">
+          {errorMsg && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           {/* 1. Vehicle Selection */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label className="font-bold text-slate-800 flex items-center gap-1.5">
               <Bike className="w-3.5 h-3.5 text-orange-500" />
               <span>Select Motorcycle Record to Print:</span>
@@ -169,9 +170,9 @@ export default function RequestHardcopyModal({
                     key={bike.plate_number}
                     type="button"
                     onClick={() => setSelectedPlate(bike.plate_number)}
-                    className={`p-3 rounded-xl text-left border transition cursor-pointer flex flex-col justify-between ${
+                    className={`p-2.5 rounded-xl text-left border transition cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? 'border-orange-500 bg-orange-50/50 shadow-xs ring-1 ring-orange-500'
+                        ? 'border-orange-500 bg-orange-50/60 shadow-xs ring-1 ring-orange-500'
                         : 'border-slate-200 hover:border-slate-300 bg-slate-50/60'
                     }`}
                   >
@@ -189,9 +190,9 @@ export default function RequestHardcopyModal({
                 <button
                   type="button"
                   onClick={() => setSelectedPlate('all')}
-                  className={`p-3 rounded-xl text-left border transition cursor-pointer flex flex-col justify-between ${
+                  className={`p-2.5 rounded-xl text-left border transition cursor-pointer flex flex-col justify-between ${
                     selectedPlate === 'all'
-                      ? 'border-orange-500 bg-orange-50/50 shadow-xs ring-1 ring-orange-500'
+                      ? 'border-orange-500 bg-orange-50/60 shadow-xs ring-1 ring-orange-500'
                       : 'border-slate-200 hover:border-slate-300 bg-slate-50/60'
                   }`}
                 >
@@ -199,57 +200,42 @@ export default function RequestHardcopyModal({
                     All Fleet Units
                   </span>
                   <span className="text-[11px] text-slate-500 mt-0.5">
-                    Complete Fleet History Ledger
+                    Complete History Ledger
                   </span>
                 </button>
               )}
             </div>
           </div>
 
-          {/* 2. Purpose Selection */}
-          <div className="space-y-2">
-            <label className="font-bold text-slate-800 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-blue-500" />
+          {/* 2. Purpose Selection Dropdown / Selector */}
+          <div className="space-y-1.5">
+            <label className="font-bold text-slate-800 flex items-center justify-between">
               <span>Purpose / Documentation Need:</span>
             </label>
 
-            <div className="space-y-1.5">
-              {PURPOSES.map((p) => {
-                const isChecked = selectedPurpose === p.title;
-                return (
-                  <label
-                    key={p.id}
-                    onClick={() => setSelectedPurpose(p.title)}
-                    className={`flex items-start gap-2.5 p-2.5 rounded-xl border transition cursor-pointer ${
-                      isChecked
-                        ? 'border-blue-500 bg-blue-50/50 shadow-2xs'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="purpose"
-                      checked={isChecked}
-                      onChange={() => setSelectedPurpose(p.title)}
-                      className="mt-0.5 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div>
-                      <span className="font-semibold text-slate-900 block text-xs">
-                        {p.title}
-                      </span>
-                      <span className="text-[11px] text-slate-500 block leading-tight mt-0.5">
-                        {p.desc}
-                      </span>
-                    </div>
-                  </label>
-                );
-              })}
+            <div className="relative">
+              <select
+                value={selectedPurpose}
+                onChange={(e) => setSelectedPurpose(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium appearance-none focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/10 cursor-pointer pr-10"
+              >
+                {PURPOSES.map((p) => (
+                  <option key={p.id} value={p.title}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
             </div>
+
+            <p className="text-[11px] text-slate-500 pl-1 leading-normal">
+              {PURPOSES.find((p) => p.title === selectedPurpose)?.desc}
+            </p>
           </div>
 
-          {/* Optional Notes */}
+          {/* 3. Special Instructions / Notes */}
           <div className="space-y-1.5">
-            <label className="font-bold text-slate-800 flex items-center justify-between text-xs">
+            <label className="font-bold text-slate-800 flex items-center justify-between">
               <span>Special Instructions / Notes (Optional):</span>
               <span className="text-[10px] text-slate-400 font-normal">e.g. Dry seal needed</span>
             </label>
@@ -257,61 +243,69 @@ export default function RequestHardcopyModal({
               type="text"
               value={customNotes}
               onChange={(e) => setCustomNotes(e.target.value)}
-              placeholder="e.g. Please stamp with workshop dry seal for transfer of ownership..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white transition"
+              placeholder="e.g. Stamped with official dry seal for LTO transfer..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/10 transition"
             />
           </div>
 
-          {/* 3. Workshop Notice & Pickup Counter Info */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-slate-600">
+          {/* 4. Workshop Notice & Pickup Counter Info */}
+          <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2 text-slate-600">
             <div className="flex items-center gap-2 text-slate-900 font-bold text-xs">
-              <MapPin className="w-4 h-4 text-emerald-600" />
+              <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Claim Location: Santa Maria Front Desk Reception</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500 pt-1 border-t border-slate-200/60">
+
+            <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-500 pt-1.5 border-t border-slate-200/60">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                <span>Dry Seal & Certified Sign-off</span>
+                <span>Dry Seal & Sign-off</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-orange-600 shrink-0" />
-                <span>Est. Ready: 1-2 Hours</span>
+                <span>Est. 1-2 Hours</span>
               </div>
             </div>
-            <p className="text-[10.5pt] text-slate-500 leading-tight">
-              A real-time notification alert will pop up on your dashboard as soon as the Admin prepares and certifies your physical copy.
+
+            <p className="text-[11px] text-slate-500 leading-relaxed pt-0.5">
+              An instant notification alert will pop up on your dashboard as soon as the Admin finishes certifying your copy.
             </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2.5 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 py-2.5 rounded-full border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Submitting Request...</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Submit Hardcopy Request</span>
-                </>
-              )}
-            </button>
-          </div>
+          {/* Spacer to guarantee scroll padding */}
+          <div className="h-1" />
         </form>
+
+        {/* Sticky Footer Action Bar */}
+        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50/80 flex items-center gap-2.5 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-full border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Submit Hardcopy Request</span>
+              </>
+            )}
+          </button>
+        </div>
+
       </div>
     </div>
   );

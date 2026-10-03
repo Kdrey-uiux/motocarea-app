@@ -113,28 +113,28 @@ export default function ServiceHistoryTab({
           </div>
 
           {serviceHistory.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+            <div className="grid grid-cols-1 sm:flex sm:items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setIsRequestModalOpen(true)}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
                 title="Request official certified hardcopy with workshop dry seal and Lead Tech sign-off"
               >
-                <Stamp className="w-3.5 h-3.5 text-orange-500" />
+                <Stamp className="w-3.5 h-3.5 text-orange-500 shrink-0" />
                 <span>Request Certified Hardcopy</span>
               </button>
 
               <button
                 type="button"
                 onClick={handlePrint}
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
                 title={
                   activeSelectedBike
                     ? `Print official history for ${activeSelectedBike.model}`
                     : 'Print complete fleet service history'
                 }
               >
-                <Printer className="w-3.5 h-3.5" />
+                <Printer className="w-3.5 h-3.5 shrink-0" />
                 <span>
                   {activeSelectedBike
                     ? `Print (${activeSelectedBike.plate_number})`
