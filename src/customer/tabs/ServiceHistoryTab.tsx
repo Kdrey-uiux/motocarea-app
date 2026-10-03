@@ -101,32 +101,33 @@ export default function ServiceHistoryTab({
          ========================================================================= */}
       <div className="print:hidden space-y-4 sm:space-y-5">
         {/* 1. Header Hero Card */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <h2 className="text-base sm:text-2xl font-bold text-slate-900 tracking-tight">
               Service History & Records
             </h2>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">
               Official completed maintenance logs verified by MotoCare workshop technicians.
             </p>
           </div>
 
           {serviceHistory.length > 0 && (
-            <div className="grid grid-cols-1 sm:flex sm:items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setIsRequestModalOpen(true)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold shadow-2xs transition cursor-pointer active:scale-95"
                 title="Request official certified hardcopy with workshop dry seal and Lead Tech sign-off"
               >
                 <Stamp className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                <span>Request Certified Hardcopy</span>
+                <span className="sm:hidden">Request Copy</span>
+                <span className="hidden sm:inline">Request Certified Hardcopy</span>
               </button>
 
               <button
                 type="button"
                 onClick={handlePrint}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer active:scale-95"
                 title={
                   activeSelectedBike
                     ? `Print official history for ${activeSelectedBike.model}`
@@ -146,11 +147,11 @@ export default function ServiceHistoryTab({
 
         {/* Live Hardcopy Request Status Banner (Matches MotoCare White & Neutral Design System) */}
         {latestActiveHardcopy && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3.5">
+          <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-start gap-3">
               {/* Static, elegant icon matching MotoCare theme (No loading / No spinning) */}
               <div
-                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 ${
                   latestActiveHardcopy.status === 'READY_FOR_PICKUP'
                     ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                     : 'bg-orange-50 text-orange-600 border border-orange-200/80'
@@ -163,15 +164,15 @@ export default function ServiceHistoryTab({
                 )}
               </div>
 
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
+              <div className="space-y-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                   <span className="text-xs font-bold text-slate-900">
                     {latestActiveHardcopy.status === 'READY_FOR_PICKUP'
                       ? 'Official Hardcopy Ready for Pickup'
                       : 'Certified Hardcopy Request in Progress'}
                   </span>
                   <span
-                    className={`font-mono font-bold px-2 py-0.5 rounded-lg text-[11px] ${
+                    className={`font-mono font-bold px-1.5 py-0.5 rounded-md text-[10px] sm:text-[11px] ${
                       latestActiveHardcopy.status === 'READY_FOR_PICKUP'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : 'bg-orange-50 text-orange-600 border border-orange-200/80'
@@ -180,7 +181,7 @@ export default function ServiceHistoryTab({
                     #{latestActiveHardcopy.id}
                   </span>
                   <span
-                    className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${
+                    className={`inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       latestActiveHardcopy.status === 'READY_FOR_PICKUP'
                         ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         : 'bg-slate-100 text-slate-600 border border-slate-200'
@@ -197,19 +198,19 @@ export default function ServiceHistoryTab({
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-600">
+                <p className="text-[11px] sm:text-xs text-slate-600">
                   Motorcycle: <span className="font-semibold text-slate-900">{latestActiveHardcopy.bikeModel}</span>{' '}
                   <span className="text-slate-400 font-mono">({latestActiveHardcopy.plateNumber})</span> • Purpose:{' '}
                   <span className="text-slate-700">{latestActiveHardcopy.purpose}</span>
                 </p>
 
                 {latestActiveHardcopy.status === 'READY_FOR_PICKUP' ? (
-                  <p className="text-xs text-emerald-700 font-medium flex items-center gap-1.5 pt-0.5">
+                  <p className="text-[11px] sm:text-xs text-emerald-700 font-medium flex items-center gap-1.5 pt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>Stamped & signed. Available for claim at Santa Maria Main Workshop Front Desk.</span>
                   </p>
                 ) : (
-                  <p className="text-xs text-slate-500 pt-0.5">
+                  <p className="text-[11px] sm:text-xs text-slate-500 pt-0.5">
                     Our Service Advisor and Lead Technician are preparing and certifying your physical copy. You will be notified once ready.
                   </p>
                 )}
@@ -228,55 +229,56 @@ export default function ServiceHistoryTab({
           </div>
         )}
 
-        {/* 2. Quick Summary Stats Bar (No more 'Primary' label!) */}
+        {/* 2. Quick Summary Stats Bar (Compact 3-column row on mobile!) */}
         {serviceHistory.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
-                Completed Services
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+                Completed
               </span>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900">
-                {filteredHistory.length} {filteredHistory.length === 1 ? 'Record' : 'Records'}
+              <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
+                {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
               </div>
-              <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {selectedBikePlate === 'all'
-                  ? 'All Fleet Units Verified'
-                  : `Filtered for ${activeSelectedBike?.model || 'Unit'}`}
+              <span className="text-[10px] sm:text-[11px] text-emerald-600 font-semibold flex items-center gap-1 truncate">
+                <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+                <span className="truncate">
+                  {selectedBikePlate === 'all'
+                    ? 'All Verified'
+                    : 'Filtered'}
+                </span>
               </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
-                Serviced Garage Fleet
+            <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+                Garage Fleet
               </span>
-              <div className="text-base sm:text-lg font-bold text-slate-900 truncate">
+              <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
                 {selectedBikePlate === 'all'
-                  ? `${uniqueBikes.length} ${uniqueBikes.length === 1 ? 'Motorcycle' : 'Motorcycles'}`
-                  : activeSelectedBike?.model || 'Motorcycle'}
+                  ? `${uniqueBikes.length} ${uniqueBikes.length === 1 ? 'Bike' : 'Bikes'}`
+                  : activeSelectedBike?.model?.split(' ')[0] || 'Unit'}
               </div>
-              <span className="text-[11px] font-mono text-slate-500 block truncate">
+              <span className="text-[10px] sm:text-[11px] font-mono text-slate-500 block truncate">
                 {selectedBikePlate === 'all'
                   ? uniqueBikes.map((b) => b.plate_number).join(' • ') || 'Fleet Units'
                   : activeSelectedBike?.plate_number || 'Selected Vehicle'}
               </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
-              <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
-                Latest Completed Service
+            <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex flex-col justify-between">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+                Latest Done
               </span>
-              <div className="text-base sm:text-lg font-bold text-slate-900">
+              <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
                 {filteredHistory[0]
                   ? new Date(filteredHistory[0].created_at).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
-                      year: 'numeric',
                     })
                   : 'None Yet'}
               </div>
-              <span className="text-[11px] text-slate-500 truncate block">
-                {filteredHistory[0]?.service_type || 'Preventive Maintenance'}
+              <span className="text-[10px] sm:text-[11px] text-slate-500 truncate block">
+                {filteredHistory[0]?.service_type || 'Preventive'}
               </span>
             </div>
           </div>
@@ -284,24 +286,24 @@ export default function ServiceHistoryTab({
 
         {/* 3. Vehicle Filter Selector (Allows filtering & printing a specific bike like Yamaha Mio i 125!) */}
         {uniqueBikes.length > 1 && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 shadow-2xs space-y-2">
+          <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-2xs space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Bike className="w-4 h-4 text-orange-500" />
+                <Bike className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
                 <span>Select Motorcycle to View or Print:</span>
               </span>
               {activeSelectedBike && (
-                <span className="text-[11px] text-slate-500 font-medium">
+                <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
                   Showing {filteredHistory.length} logs for {activeSelectedBike.plate_number}
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-1">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <button
                 type="button"
                 onClick={() => setSelectedBikePlate('all')}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
+                className={`px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                   selectedBikePlate === 'all'
                     ? 'bg-orange-500 text-white shadow-xs'
                     : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
@@ -321,7 +323,7 @@ export default function ServiceHistoryTab({
                     key={bike.plate_number}
                     type="button"
                     onClick={() => setSelectedBikePlate(bike.plate_number)}
-                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                       isSelected
                         ? 'bg-orange-500 text-white shadow-xs'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
@@ -329,7 +331,7 @@ export default function ServiceHistoryTab({
                   >
                     <span>{bike.model}</span>
                     <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
+                      className={`text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded-md ${
                         isSelected ? 'bg-orange-600 text-white' : 'bg-slate-200/70 text-slate-600'
                       }`}
                     >
@@ -349,10 +351,10 @@ export default function ServiceHistoryTab({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by ticket code (e.g. MC-9113), plate, or service type..."
-              className="w-full bg-white border border-slate-200/80 rounded-full pl-10 pr-4 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 shadow-xs transition"
+              placeholder="Search by ticket code (e.g. MC-9113), plate, or service..."
+              className="w-full bg-white border border-slate-200/80 rounded-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 shadow-2xs transition"
             />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
         )}
 
@@ -375,7 +377,7 @@ export default function ServiceHistoryTab({
                   <button
                     type="button"
                     onClick={() => onNavigateTab('book')}
-                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full py-2.5 px-6 font-semibold text-xs inline-flex items-center gap-2 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full py-2.5 px-6 font-semibold text-xs inline-flex items-center gap-2 shadow-sm shadow-orange-500/20 transition cursor-pointer active:scale-95"
                   >
                     <Calendar className="w-4 h-4" />
                     <span>Book a Service Appointment</span>
@@ -386,7 +388,7 @@ export default function ServiceHistoryTab({
 
             {/* Helpful Bento Information Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 space-y-1.5 shadow-2xs">
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
@@ -396,7 +398,7 @@ export default function ServiceHistoryTab({
                 </p>
               </div>
 
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 space-y-1.5 shadow-2xs">
                 <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
                   <FileText className="w-4 h-4" />
                 </div>
@@ -406,7 +408,7 @@ export default function ServiceHistoryTab({
                 </p>
               </div>
 
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 space-y-1.5 shadow-2xs">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                   <Wrench className="w-4 h-4" />
                 </div>
@@ -424,27 +426,27 @@ export default function ServiceHistoryTab({
         ) : (
           <>
             {/* Mobile Card List (< sm screens) */}
-            <div className="sm:hidden space-y-3">
+            <div className="sm:hidden space-y-3 pb-6">
               {filteredHistory.map((item) => (
                 <div
                   key={item.id}
-                  className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3"
+                  className="bg-white border border-slate-200/80 rounded-xl p-3.5 shadow-2xs space-y-2.5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200/80 px-2.5 py-0.5 rounded-lg text-xs">
+                    <span className="font-mono font-bold text-orange-600 bg-orange-50 border border-orange-200/80 px-2 py-0.5 rounded-md text-xs">
                       #{item.ticket_code}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                       {item.status}
                     </span>
                   </div>
 
-                  <div className="space-y-1">
-                    <div className="font-bold text-sm text-slate-900">{item.service_type}</div>
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-sm text-slate-900 leading-snug">{item.service_type}</div>
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <Bike className="w-3.5 h-3.5 text-slate-400" />
-                      <span>
+                      <Bike className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">
                         {item.motorcycles?.model || 'Motorcycle'} ({item.motorcycles?.plate_number || 'N/A'})
                       </span>
                     </div>
@@ -453,7 +455,7 @@ export default function ServiceHistoryTab({
                   <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs text-slate-600">
                     <div>
                       <span className="text-slate-400 text-[10px] block">Date Completed</span>
-                      <span className="font-medium text-slate-800">
+                      <span className="font-semibold text-slate-800">
                         {new Date(item.created_at).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
@@ -470,7 +472,7 @@ export default function ServiceHistoryTab({
                   <button
                     type="button"
                     onClick={() => setSelectedTicket(item)}
-                    className="w-full py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    className="w-full py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.99]"
                   >
                     <FileText className="w-3.5 h-3.5" />
                     <span>View Official Slip</span>
@@ -741,8 +743,8 @@ export default function ServiceHistoryTab({
           SLIP MODAL (Prints cleanly as a receipt if opened)
          ========================================================================= */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:inset-auto">
-          <div className="print-slip-modal bg-white border border-slate-200 rounded-[2rem] max-w-lg w-full p-6 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 print:p-0 print:bg-white print:static print:inset-auto">
+          <div className="print-slip-modal bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] max-w-lg w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:border-b-2 print:border-slate-900">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
