@@ -10,9 +10,7 @@ import {
   ArrowDown,
   Bike,
   Info,
-  XCircle,
-  ChevronLeft,
-  ChevronRight
+  XCircle
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -53,22 +51,6 @@ export default function OverviewTab({
   const activeTicket =
     activeTickets.find((t) => t.id === selectedTicketId) ||
     (activeTickets.length > 0 ? activeTickets[0] : null);
-
-  const currentTicketIndex = activeTicket
-    ? activeTickets.findIndex((t) => t.id === activeTicket.id)
-    : 0;
-
-  const handlePrevTicket = () => {
-    if (activeTickets.length <= 1) return;
-    const newIndex = (currentTicketIndex - 1 + activeTickets.length) % activeTickets.length;
-    setSelectedTicketId(activeTickets[newIndex].id);
-  };
-
-  const handleNextTicket = () => {
-    if (activeTickets.length <= 1) return;
-    const newIndex = (currentTicketIndex + 1) % activeTickets.length;
-    setSelectedTicketId(activeTickets[newIndex].id);
-  };
 
   const primaryBike = motorcycles.length > 0 ? motorcycles[0] : null;
 
@@ -281,39 +263,14 @@ export default function OverviewTab({
                 {activeTicket ? 'Vehicle currently in repair' : 'Registered in garage fleet'}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              {activeTickets.length > 1 && (
-                <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-xs font-semibold text-slate-700">
-                  <button
-                    type="button"
-                    onClick={handlePrevTicket}
-                    className="w-6 h-6 rounded-full hover:bg-white flex items-center justify-center transition cursor-pointer text-slate-600 hover:text-slate-900 shadow-2xs"
-                    title="Previous motorcycle unit"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5" />
-                  </button>
-                  <span className="px-1.5 text-[10px] font-bold text-slate-800">
-                    {currentTicketIndex + 1}/{activeTickets.length}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleNextTicket}
-                    className="w-6 h-6 rounded-full hover:bg-white flex items-center justify-center transition cursor-pointer text-slate-600 hover:text-slate-900 shadow-2xs"
-                    title="Next motorcycle unit"
-                  >
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => onBookClick(primaryBike?.id)}
-                className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer"
-                title="Book for this vehicle"
-              >
-                <ArrowUpRight className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => onBookClick(primaryBike?.id)}
+              className="w-8 h-8 rounded-full bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-800 transition cursor-pointer shrink-0"
+              title="Book for this vehicle"
+            >
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Digital Motorcycle Garage Card */}
