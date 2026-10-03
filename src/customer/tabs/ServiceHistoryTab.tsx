@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ServiceTicket, UserProfile, TabType } from '../../types/dashboard';
 import {
   Inbox,
@@ -29,23 +29,51 @@ export default function ServiceHistoryTab({
 }: ServiceHistoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
+  const [selectedBikePlate, setSelectedBikePlate] = useState<string>('all');
 
-  const filteredHistory = serviceHistory.filter((item) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      item.ticket_code.toLowerCase().includes(q) ||
-      (item.motorcycles?.model && item.motorcycles.model.toLowerCase().includes(q)) ||
-      (item.motorcycles?.plate_number && item.motorcycles.plate_number.toLowerCase().includes(q)) ||
-      item.service_type.toLowerCase().includes(q) ||
-      (item.assigned_mechanic && item.assigned_mechanic.toLowerCase().includes(q))
-    );
-  });
+  // Extract all unique motorcycles from service history for vehicle filtering
+  const uniqueBikes = useMemo(() => {
+    const map = new Map<string, { model: string; plate_number: string }>();
+    serviceHistory.forEach((item) => {
+      if (item.motorcycles?.plate_number) {
+        map.set(item.motorcycles.plate_number, {
+          model: item.motorcycles.model || 'Motorcycle Unit',
+          plate_number: item.motorcycles.plate_number,
+        });
+      }
+    });
+    return Array.from(map.values());
+  }, [serviceHistory]);
+
+  const activeSelectedBike = useMemo(() => {
+    if (selectedBikePlate === 'all') return null;
+    return uniqueBikes.find((b) => b.plate_number.toLowerCase() === selectedBikePlate.toLowerCase()) || null;
+  }, [selectedBikePlate, uniqueBikes]);
+
+  const filteredHistory = useMemo(() => {
+    return serviceHistory.filter((item) => {
+      const matchesBike =
+        selectedBikePlate === 'all' ||
+        item.motorcycles?.plate_number?.toLowerCase() === selectedBikePlate.toLowerCase();
+
+      if (!matchesBike) return false;
+
+      if (!searchQuery.trim()) return true;
+
+      const q = searchQuery.toLowerCase();
+      return (
+        item.ticket_code.toLowerCase().includes(q) ||
+        (item.motorcycles?.model && item.motorcycles.model.toLowerCase().includes(q)) ||
+        (item.motorcycles?.plate_number && item.motorcycles.plate_number.toLowerCase().includes(q)) ||
+        item.service_type.toLowerCase().includes(q) ||
+        (item.assigned_mechanic && item.assigned_mechanic.toLowerCase().includes(q))
+      );
+    });
+  }, [serviceHistory, selectedBikePlate, searchQuery]);
 
   const handlePrint = () => {
     window.print();
   };
-
-  const primaryMotorcycle = serviceHistory.length > 0 ? serviceHistory[0].motorcycles : null;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -82,40 +110,54 @@ export default function ServiceHistoryTab({
                 type="button"
                 onClick={handlePrint}
                 className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/20 transition cursor-pointer"
-                title="Print Official Service Ledger"
+                title={
+                  activeSelectedBike
+                    ? `Print official history for ${activeSelectedBike.model}`
+                    : 'Print complete fleet service history'
+                }
               >
                 <Printer className="w-3.5 h-3.5" />
-                <span>Print / PDF</span>
+                <span>
+                  {activeSelectedBike
+                    ? `Print (${activeSelectedBike.plate_number})`
+                    : 'Print / PDF'}
+                </span>
               </button>
             </div>
           )}
         </div>
 
-        {/* 2. Quick Summary Stats Bar (3 Cards) */}
+        {/* 2. Quick Summary Stats Bar (No more 'Primary' label!) */}
         {serviceHistory.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
-                Total Completed Services
+                Completed Services
               </span>
               <div className="text-xl sm:text-2xl font-bold text-slate-900">
-                {serviceHistory.length} {serviceHistory.length === 1 ? 'Record' : 'Records'}
+                {filteredHistory.length} {filteredHistory.length === 1 ? 'Record' : 'Records'}
               </div>
               <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Verified by Workshop
+                {selectedBikePlate === 'all'
+                  ? 'All Fleet Units Verified'
+                  : `Filtered for ${activeSelectedBike?.model || 'Unit'}`}
               </span>
             </div>
 
             <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs space-y-1">
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wide block">
-                Primary Serviced Vehicle
+                Serviced Garage Fleet
               </span>
               <div className="text-base sm:text-lg font-bold text-slate-900 truncate">
-                {primaryMotorcycle?.model || 'Motorcycle Unit'}
+                {selectedBikePlate === 'all'
+                  ? `${uniqueBikes.length} ${uniqueBikes.length === 1 ? 'Motorcycle' : 'Motorcycles'}`
+                  : activeSelectedBike?.model || 'Motorcycle'}
               </div>
-              <span className="text-[11px] font-mono text-slate-500 block">
-                {primaryMotorcycle?.plate_number || 'Registered Garage'}
+              <span className="text-[11px] font-mono text-slate-500 block truncate">
+                {selectedBikePlate === 'all'
+                  ? uniqueBikes.map((b) => b.plate_number).join(' • ') || 'Fleet Units'
+                  : activeSelectedBike?.plate_number || 'Selected Vehicle'}
               </span>
             </div>
 
@@ -124,8 +166,8 @@ export default function ServiceHistoryTab({
                 Latest Completed Service
               </span>
               <div className="text-base sm:text-lg font-bold text-slate-900">
-                {serviceHistory[0]
-                  ? new Date(serviceHistory[0].created_at).toLocaleDateString('en-US', {
+                {filteredHistory[0]
+                  ? new Date(filteredHistory[0].created_at).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
@@ -133,13 +175,73 @@ export default function ServiceHistoryTab({
                   : 'None Yet'}
               </div>
               <span className="text-[11px] text-slate-500 truncate block">
-                {serviceHistory[0]?.service_type || 'Preventive Maintenance'}
+                {filteredHistory[0]?.service_type || 'Preventive Maintenance'}
               </span>
             </div>
           </div>
         )}
 
-        {/* 3. Compact Search Input */}
+        {/* 3. Vehicle Filter Selector (Allows filtering & printing a specific bike like Yamaha Mio i 125!) */}
+        {uniqueBikes.length > 1 && (
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 shadow-2xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                <Bike className="w-4 h-4 text-orange-500" />
+                <span>Select Motorcycle to View or Print:</span>
+              </span>
+              {activeSelectedBike && (
+                <span className="text-[11px] text-slate-500 font-medium">
+                  Showing {filteredHistory.length} logs for {activeSelectedBike.plate_number}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none pt-1">
+              <button
+                type="button"
+                onClick={() => setSelectedBikePlate('all')}
+                className={`px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
+                  selectedBikePlate === 'all'
+                    ? 'bg-orange-500 text-white shadow-xs'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+                }`}
+              >
+                All Vehicles ({serviceHistory.length})
+              </button>
+
+              {uniqueBikes.map((bike) => {
+                const isSelected = selectedBikePlate.toLowerCase() === bike.plate_number.toLowerCase();
+                const bikeCount = serviceHistory.filter(
+                  (t) => t.motorcycles?.plate_number?.toLowerCase() === bike.plate_number.toLowerCase()
+                ).length;
+
+                return (
+                  <button
+                    key={bike.plate_number}
+                    type="button"
+                    onClick={() => setSelectedBikePlate(bike.plate_number)}
+                    className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
+                      isSelected
+                        ? 'bg-orange-500 text-white shadow-xs'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
+                    }`}
+                  >
+                    <span>{bike.model}</span>
+                    <span
+                      className={`text-[10px] font-mono px-2 py-0.5 rounded-md ${
+                        isSelected ? 'bg-orange-600 text-white' : 'bg-slate-200/70 text-slate-600'
+                      }`}
+                    >
+                      {bike.plate_number} ({bikeCount})
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* 4. Compact Search Input */}
         {serviceHistory.length > 0 && (
           <div className="relative">
             <input
@@ -153,7 +255,7 @@ export default function ServiceHistoryTab({
           </div>
         )}
 
-        {/* 4. Data Records View (Empty State or Records Table) */}
+        {/* 5. Data Records View (Empty State or Records Table) */}
         {serviceHistory.length === 0 ? (
           <div className="space-y-4">
             <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-10 text-center space-y-4 shadow-xs">
@@ -216,7 +318,7 @@ export default function ServiceHistoryTab({
           </div>
         ) : filteredHistory.length === 0 ? (
           <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-8 text-center text-xs text-slate-500 shadow-xs">
-            No service records matching &quot;{searchQuery}&quot;.
+            No service records matching your search or vehicle filter.
           </div>
         ) : (
           <>
@@ -241,7 +343,9 @@ export default function ServiceHistoryTab({
                     <div className="font-bold text-sm text-slate-900">{item.service_type}</div>
                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
                       <Bike className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{item.motorcycles?.model || 'Motorcycle'} ({item.motorcycles?.plate_number || 'N/A'})</span>
+                      <span>
+                        {item.motorcycles?.model || 'Motorcycle'} ({item.motorcycles?.plate_number || 'N/A'})
+                      </span>
                     </div>
                   </div>
 
@@ -353,122 +457,134 @@ export default function ServiceHistoryTab({
 
       {/* =========================================================================
           DEDICATED PRINT-ONLY OFFICIAL SERVICE HISTORY DOCUMENT
-          (Activates only when printing from the main screen, ensuring ZERO web junk)
+          (Professional dealership-grade typography, compact, zero text-wrapping bugs)
          ========================================================================= */}
       {!selectedTicket && (
-        <div className="hidden print:block print-document space-y-6 text-black bg-white p-2">
+        <div className="hidden print:block print-document space-y-4 text-black bg-white p-1">
           {/* Official Letterhead Header */}
-          <div className="border-b-2 border-slate-900 pb-4 flex items-start justify-between">
-            <div className="space-y-1">
+          <div className="border-b-2 border-slate-900 pb-2.5 flex items-start justify-between">
+            <div className="space-y-0.5">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-orange-500 text-white flex items-center justify-center font-black text-sm">
+                <div className="w-7 h-7 rounded bg-orange-500 text-white flex items-center justify-center font-black text-xs">
                   MC
                 </div>
-                <h1 className="text-xl font-black uppercase tracking-wider text-slate-900">
+                <h1 className="text-base font-extrabold uppercase tracking-wide text-slate-900">
                   MotoCare Workshop & Service Hub
                 </h1>
               </div>
-              <p className="text-xs text-slate-700">
+              <p className="text-[9pt] text-slate-600">
                 Santa Maria Service Branch • Bulacan, Philippines • Contact: (044) 791-MOTO
               </p>
-              <p className="text-xs text-slate-500 font-mono">
-                Official Workshop Management & Vehicle Maintenance Registry
+              <p className="text-[8pt] text-slate-500 font-mono">
+                Official Vehicle Preventive Maintenance Registry
               </p>
             </div>
 
             <div className="text-right space-y-0.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
-                Document Classification
+              <span className="text-[8pt] font-bold uppercase tracking-wider text-slate-500 block">
+                Official Document
               </span>
-              <div className="text-sm font-bold text-slate-900 uppercase">
-                Official Service History Ledger
+              <div className="text-xs font-bold text-slate-900 uppercase">
+                {activeSelectedBike
+                  ? `Service Record: ${activeSelectedBike.model}`
+                  : 'Fleet Service History Ledger'}
               </div>
-              <div className="text-xs text-slate-600">
+              <div className="text-[8.5pt] text-slate-600">
                 Date Printed: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </div>
             </div>
           </div>
 
-          {/* Customer & Vehicle Information Box */}
-          <div className="border border-slate-300 rounded-lg p-3.5 bg-slate-50 grid grid-cols-2 gap-4 text-xs">
+          {/* Customer & Target Vehicle Information Box */}
+          <div className="border border-slate-300 rounded p-2.5 bg-slate-50/60 grid grid-cols-2 gap-4 text-[9pt]">
             <div>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                Customer Account
+              <span className="text-[7.5pt] font-bold text-slate-500 uppercase tracking-wider block">
+                Customer Name / Account
               </span>
-              <span className="font-bold text-slate-900 text-sm block">
+              <span className="font-bold text-slate-900 text-[10pt] block">
                 {userProfile?.full_name || 'Rider Customer'}
               </span>
-              <span className="text-slate-600 block mt-0.5">
+              <span className="text-slate-600 text-[8pt] block mt-0.5">
                 Contact: {userProfile?.phone_number || 'N/A'} • {userProfile?.email || ''}
               </span>
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                Vehicle Fleet Registry
+              <span className="text-[7.5pt] font-bold text-slate-500 uppercase tracking-wider block">
+                Vehicle Coverage
               </span>
-              <span className="font-bold text-slate-900 text-sm block">
-                {primaryMotorcycle ? `${primaryMotorcycle.model} (${primaryMotorcycle.plate_number})` : 'All Registered Units'}
+              <span className="font-bold text-slate-900 text-[10pt] block">
+                {activeSelectedBike
+                  ? `${activeSelectedBike.model} (${activeSelectedBike.plate_number})`
+                  : `All Registered Fleet Units (${uniqueBikes.length} Motorcycles)`}
               </span>
-              <span className="text-slate-600 block mt-0.5">
-                Total Recorded Visits: {serviceHistory.length} completed
+              <span className="text-slate-600 text-[8pt] block mt-0.5">
+                Total Logs Printed: {filteredHistory.length} completed {filteredHistory.length === 1 ? 'service' : 'services'}
               </span>
             </div>
           </div>
 
-          {/* Official Maintenance Table */}
-          <div>
-            <table className="w-full text-left text-xs border border-slate-300 border-collapse">
+          {/* Official Maintenance Table (Tight, Proportional, No Wrapping Bugs) */}
+          <div className="border border-slate-300 rounded overflow-hidden">
+            <table className="w-full text-left border-collapse" style={{ fontSize: '8.5pt' }}>
               <thead>
-                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[10px]">
-                  <th className="py-2.5 px-3 border-r border-slate-300">Ticket Ref</th>
-                  <th className="py-2.5 px-3 border-r border-slate-300">Date Completed</th>
-                  <th className="py-2.5 px-3 border-r border-slate-300">Motorcycle Unit</th>
-                  <th className="py-2.5 px-3 border-r border-slate-300">Work Rendered</th>
-                  <th className="py-2.5 px-3 border-r border-slate-300">Lead Mechanic</th>
-                  <th className="py-2.5 px-3 border-r border-slate-300 text-center">Status</th>
-                  <th className="py-2.5 px-3 text-right">Amount Paid</th>
+                <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[7.5pt]">
+                  <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '14%' }}>
+                    Ticket Ref
+                  </th>
+                  <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '13%' }}>
+                    Date Done
+                  </th>
+                  <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '23%' }}>
+                    Motorcycle Unit
+                  </th>
+                  <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '27%' }}>
+                    Work Rendered
+                  </th>
+                  <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '13%' }}>
+                    Lead Mechanic
+                  </th>
+                  <th className="py-2 px-2.5 text-right whitespace-nowrap" style={{ width: '10%' }}>
+                    Amount
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 text-slate-800">
-                {serviceHistory.map((item) => (
-                  <tr key={item.id} className="text-xs">
-                    <td className="py-2.5 px-3 border-r border-slate-300 font-mono font-bold">
+                {filteredHistory.map((item) => (
+                  <tr key={item.id}>
+                    <td className="py-1.5 px-2.5 border-r border-slate-300 font-mono font-bold whitespace-nowrap">
                       #{item.ticket_code}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300 whitespace-nowrap">
+                    <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
                       {new Date(item.created_at).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
                       })}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300">
-                      <span className="font-bold block">{item.motorcycles?.model || 'Motorcycle'}</span>
-                      <span className="text-[10px] text-slate-600 font-mono">{item.motorcycles?.plate_number || 'N/A'}</span>
+                    <td className="py-1.5 px-2.5 border-r border-slate-300">
+                      <span className="font-bold block leading-tight">{item.motorcycles?.model || 'Motorcycle'}</span>
+                      <span className="text-[7.5pt] text-slate-600 font-mono block">{item.motorcycles?.plate_number || 'N/A'}</span>
                     </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300">
+                    <td className="py-1.5 px-2.5 border-r border-slate-300 leading-tight">
                       {item.service_type}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300 whitespace-nowrap">
+                    <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
                       {item.assigned_mechanic}
                     </td>
-                    <td className="py-2.5 px-3 border-r border-slate-300 text-center font-bold uppercase text-[10px] text-emerald-800">
-                      {item.status}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-bold whitespace-nowrap">
+                    <td className="py-1.5 px-2.5 text-right font-bold whitespace-nowrap">
                       {item.total_estimate}
                     </td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
-                <tr className="bg-slate-50 border-t-2 border-slate-300 font-bold">
-                  <td colSpan={6} className="py-2.5 px-3 text-right text-xs uppercase text-slate-600 border-r border-slate-300">
-                    Total Completed Records:
+                <tr className="bg-slate-50 border-t border-slate-300 font-bold text-[8.5pt]">
+                  <td colSpan={5} className="py-2 px-2.5 text-right uppercase text-slate-600 border-r border-slate-300">
+                    Total Records Logged:
                   </td>
-                  <td className="py-2.5 px-3 text-right text-xs text-slate-900 font-bold">
-                    {serviceHistory.length} {serviceHistory.length === 1 ? 'Service' : 'Services'}
+                  <td className="py-2 px-2.5 text-right text-slate-900 font-bold whitespace-nowrap">
+                    {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
                   </td>
                 </tr>
               </tfoot>
@@ -476,28 +592,28 @@ export default function ServiceHistoryTab({
           </div>
 
           {/* Verification & Sign-off Footer */}
-          <div className="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs">
+          <div className="pt-4 border-t border-slate-200 grid grid-cols-2 gap-6 text-[8pt]">
             <div>
-              <p className="text-[11px] text-slate-500 leading-relaxed">
-                This document is an authentic certified record of preventive maintenance, repair work, and OEM parts installation conducted at MotoCare Workshop & Service Hub. Valid for insurance verification and motorcycle transfer of ownership.
+              <p className="text-slate-500 leading-relaxed text-[7.5pt]">
+                This document is an authentic certified record of preventive maintenance, mechanical service, and certified fluids replacement conducted at MotoCare Workshop & Service Hub. Valid for warranty documentation and motorcycle resale valuation.
               </p>
             </div>
 
-            <div className="flex justify-end gap-10 text-center text-xs">
-              <div className="space-y-10">
-                <div className="w-36 border-b border-slate-400 pb-1 font-bold text-slate-800">
-                  Service Desk Officer
+            <div className="flex justify-end gap-8 text-center">
+              <div className="space-y-6">
+                <div className="w-32 border-b border-slate-400 pb-0.5 font-bold text-slate-800 text-[8.5pt]">
+                  Service Desk
                 </div>
-                <span className="text-[10px] text-slate-500 block uppercase">
+                <span className="text-[7pt] text-slate-500 block uppercase">
                   Prepared & Certified By
                 </span>
               </div>
-              <div className="space-y-10">
-                <div className="w-36 border-b border-slate-400 pb-1 font-bold text-slate-800">
-                  Workshop Lead Tech
+              <div className="space-y-6">
+                <div className="w-32 border-b border-slate-400 pb-0.5 font-bold text-slate-800 text-[8.5pt]">
+                  Lead Technician
                 </div>
-                <span className="text-[10px] text-slate-500 block uppercase">
-                  Verified Technician
+                <span className="text-[7pt] text-slate-500 block uppercase">
+                  Verified Technical Staff
                 </span>
               </div>
             </div>
@@ -506,7 +622,7 @@ export default function ServiceHistoryTab({
       )}
 
       {/* =========================================================================
-          SLIP MODAL (Also prints cleanly as a receipt if opened)
+          SLIP MODAL (Prints cleanly as a receipt if opened)
          ========================================================================= */}
       {selectedTicket && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:inset-auto">
