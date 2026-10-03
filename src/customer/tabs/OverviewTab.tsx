@@ -179,14 +179,14 @@ export default function OverviewTab({
         <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-4 shadow-xs space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
                 <Bike className="w-4 h-4" />
               </div>
               <div className="flex items-center gap-2">
                 <h3 className="text-xs sm:text-sm font-bold text-slate-900">
                   Ongoing Service Units
                 </h3>
-                <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] sm:text-xs font-bold border border-slate-200/60">
+                <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[10px] sm:text-xs font-bold border border-emerald-200/60">
                   {activeTickets.length} Active
                 </span>
               </div>
@@ -219,15 +219,15 @@ export default function OverviewTab({
                   onClick={() => setSelectedTicketId(t.id)}
                   className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-all duration-200 cursor-pointer border text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink ${
                     isSelected
-                      ? 'bg-gradient-to-r from-orange-500 via-amber-500 to-orange-600 text-white border-orange-500 shadow-md shadow-orange-500/25 ring-2 ring-orange-500/50 ring-offset-1'
-                      : 'bg-white hover:bg-orange-50/40 border-slate-200/90 text-slate-700 hover:border-orange-300 shadow-2xs'
+                      ? 'bg-gradient-to-r from-emerald-800 via-teal-900 to-slate-950 text-white border-emerald-700/80 shadow-md shadow-emerald-950/20 ring-2 ring-emerald-500/50 ring-offset-1'
+                      : 'bg-white hover:bg-emerald-50/30 border-slate-200/90 text-slate-700 hover:border-emerald-300 shadow-2xs'
                   }`}
                 >
                   <div
                     className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                       isSelected
-                        ? 'bg-white/20 backdrop-blur-xs text-white shadow-xs border border-white/25'
-                        : 'bg-orange-50 text-orange-600 border border-orange-100 shadow-2xs'
+                        ? 'bg-emerald-500/25 backdrop-blur-xs text-emerald-200 border border-emerald-400/30 shadow-xs'
+                        : 'bg-emerald-50 text-emerald-600 border border-emerald-100 shadow-2xs'
                     }`}
                   >
                     <Bike className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -244,12 +244,10 @@ export default function OverviewTab({
                       <span
                         className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors ${
                           isTicketReady
-                            ? isSelected
-                              ? 'bg-emerald-950/40 text-emerald-200 border border-emerald-300/40'
-                              : 'bg-emerald-500 text-white shadow-xs'
+                            ? 'bg-emerald-400 text-slate-950 font-extrabold shadow-xs'
                             : isSelected
-                            ? 'bg-white text-orange-600 font-extrabold shadow-xs'
-                            : 'bg-orange-50 text-orange-700 border border-orange-200/60'
+                            ? 'bg-emerald-500 text-white font-extrabold shadow-xs'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/70'
                         }`}
                       >
                         {isTicketReady ? 'Ready' : `Stage ${t.stage}`}
@@ -257,7 +255,7 @@ export default function OverviewTab({
                     </div>
                     <div
                       className={`text-[10px] sm:text-[11px] font-mono truncate mt-0.5 ${
-                        isSelected ? 'text-white/85' : 'text-slate-400'
+                        isSelected ? 'text-emerald-100/90' : 'text-slate-400'
                       }`}
                     >
                       {plateLabel} • #{t.ticket_code}
@@ -318,7 +316,7 @@ export default function OverviewTab({
             </div>
           </div>
 
-          {/* VIP Garage Card */}
+          {/* Digital Motorcycle Garage Card */}
           <div className={`rounded-2xl p-5 text-white shadow-md relative overflow-hidden space-y-4 ${
             activeTicket
               ? 'bg-gradient-to-br from-orange-600 via-amber-700 to-slate-900'
@@ -327,9 +325,15 @@ export default function OverviewTab({
             <div className="flex items-center justify-between relative z-10">
               <span className="text-xs font-bold tracking-wider uppercase text-white/90 flex items-center gap-1.5">
                 <Bike className="w-3.5 h-3.5" />
-                {activeTicket ? 'Service Bay Pass' : 'MotoCare VIP Pass'}
+                {activeTicket ? 'Service Bay Pass' : 'Garage Vehicle Pass'}
               </span>
-              <Radio className="w-4 h-4 text-white/80 rotate-90" />
+              {activeTicket ? (
+                <Radio className="w-4 h-4 text-white/80 rotate-90" />
+              ) : (
+                <span className="text-[10px] bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-emerald-100 border border-white/20">
+                  {primaryBike?.year_model ? `${primaryBike.year_model} Model` : 'Garage Unit'}
+                </span>
+              )}
             </div>
 
             <div className="relative z-10 space-y-0.5">
@@ -342,8 +346,16 @@ export default function OverviewTab({
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-white/90 pt-1 border-t border-white/20 relative z-10">
-              <span className="font-mono">{activeTicket ? `REF: ${activeTicket.ticket_code}` : '•••• 909090'}</span>
-              <span>{activeTicket ? activeTicket.assigned_bay : (primaryBike?.next_service || 'PMS: 3,000 KM')}</span>
+              <span className="font-mono">
+                {activeTicket
+                  ? `REF: #${activeTicket.ticket_code}`
+                  : `ODO: ${primaryBike?.odometer || '0 km'}`}
+              </span>
+              <span>
+                {activeTicket
+                  ? (activeTicket.assigned_bay || 'Bay Pending')
+                  : `NEXT DUE: ${primaryBike?.next_service || '3,000 km'}`}
+              </span>
             </div>
           </div>
 
