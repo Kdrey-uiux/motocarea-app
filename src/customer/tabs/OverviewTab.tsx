@@ -251,11 +251,13 @@ export default function OverviewTab({
                     className="flex-1 flex flex-col items-center justify-end h-full relative group cursor-pointer focus:outline-none min-w-0"
                     title={`Click to inspect Stage ${st.step}: ${st.name}`}
                   >
-                    {/* Active Floating Badge (Centered perfectly) */}
+                    {/* Active Floating Badge (Centered perfectly via Flexbox wrapper) */}
                     {isActivePillar && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md z-10 flex items-center gap-1 whitespace-nowrap animate-bounce">
-                        <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                        <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
+                      <div className="absolute -top-4 left-0 right-0 flex justify-center pointer-events-none z-10">
+                        <div className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md flex items-center gap-1 whitespace-nowrap animate-bounce">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                          <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
+                        </div>
                       </div>
                     )}
 
@@ -265,7 +267,9 @@ export default function OverviewTab({
                         isActivePillar
                           ? 'bg-gradient-to-b from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 h-28 sm:h-32 ring-2 ring-orange-500 ring-offset-2'
                           : isPassedPillar
-                          ? 'bg-emerald-500 text-white shadow-xs h-24 sm:h-28'
+                          ? isInspected
+                            ? 'bg-orange-500 text-white shadow-xs h-24 sm:h-28 ring-2 ring-orange-400 ring-offset-1'
+                            : 'bg-orange-500 text-white shadow-xs h-24 sm:h-28'
                           : isInspected
                           ? 'bg-slate-200 text-slate-700 h-24 sm:h-28 ring-2 ring-slate-400 ring-offset-1'
                           : 'bg-slate-100 hover:bg-slate-200/80 text-slate-400 border border-slate-200/70 h-24 sm:h-28'
@@ -308,9 +312,9 @@ export default function OverviewTab({
               <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full shrink-0 w-fit self-start sm:self-auto ${
                 activeTicket
                   ? inspectedStage.step < currentStage
-                    ? 'bg-emerald-100 text-emerald-800'
+                    ? 'bg-orange-100 text-orange-800 border border-orange-200/60'
                     : inspectedStage.step === currentStage
-                    ? 'bg-orange-100 text-orange-800 animate-pulse'
+                    ? 'bg-orange-500 text-white shadow-xs animate-pulse'
                     : 'bg-slate-200 text-slate-600'
                   : 'bg-slate-200 text-slate-600'
               }`}>
