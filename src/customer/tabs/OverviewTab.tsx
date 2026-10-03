@@ -217,14 +217,14 @@ export default function OverviewTab({
                   key={t.id}
                   type="button"
                   onClick={() => setSelectedTicketId(t.id)}
-                  className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-all duration-200 cursor-pointer text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink bg-white ${
+                  className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-colors duration-150 cursor-pointer text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink bg-white border-2 shadow-xs ${
                     isSelected
-                      ? 'border-2 border-orange-500 shadow-md shadow-orange-500/10 ring-4 ring-orange-500/15'
-                      : 'border border-slate-200/90 hover:bg-slate-50/80 hover:border-slate-300 text-slate-700 shadow-2xs'
+                      ? 'border-orange-500'
+                      : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50 text-slate-700'
                   }`}
                 >
                   <div
-                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors duration-150 ${
                       isSelected
                         ? 'bg-orange-500 text-white shadow-xs'
                         : 'bg-slate-100 text-slate-500 border border-slate-200/60 shadow-2xs'
@@ -242,7 +242,7 @@ export default function OverviewTab({
                         {bikeLabel}
                       </span>
                       <span
-                        className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors ${
+                        className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors duration-150 ${
                           isTicketReady
                             ? 'bg-emerald-500 text-white shadow-xs'
                             : isSelected
