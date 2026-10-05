@@ -1,4 +1,5 @@
-import { Wrench, Phone, Mail, MapPin } from 'lucide-react';
+import { Wrench, Phone, Mail, MapPin, Shield } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Footer() {
   return (
@@ -28,6 +29,12 @@ export default function Footer() {
             <li><a href="#how-it-works" className="hover:text-orange-400 transition">How It Works</a></li>
             <li><a href="#why-us" className="hover:text-orange-400 transition">Why Choose Us</a></li>
             <li><a href="#team" className="hover:text-orange-400 transition">Development Team</a></li>
+            <li className="pt-1">
+              <Link to="/admin" className="text-orange-400 hover:text-orange-300 transition flex items-center gap-1.5 font-semibold">
+                <Shield className="w-3.5 h-3.5" />
+                <span>Staff & Admin Portal</span>
+              </Link>
+            </li>
           </ul>
         </div>
 
