@@ -36,6 +36,7 @@ import {
 
 interface BookServiceTabProps {
   userId: string | null;
+  userProfile?: { full_name?: string; phone_number?: string; email?: string } | null;
   motorcycles: Motorcycle[];
   selectedBikeId: string;
   setSelectedBikeId: (id: string) => void;
@@ -182,6 +183,7 @@ const COMMON_SYMPTOMS = [
 
 export default function BookServiceTab({
   userId,
+  userProfile,
   motorcycles,
   selectedBikeId,
   setSelectedBikeId,
@@ -474,7 +476,34 @@ export default function BookServiceTab({
     setErrorMsg(null);
 
     try {
+      let customerName = userProfile?.full_name?.trim() || '';
+      let customerPhone = userProfile?.phone_number?.trim() || '';
+
+      if (!customerName || !customerPhone || customerPhone === 'N/A') {
+        try {
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('full_name, phone_number')
+            .eq('id', userId)
+            .maybeSingle();
+          if (prof) {
+            if (!customerName && prof.full_name) customerName = prof.full_name;
+            if ((!customerPhone || customerPhone === 'N/A') && prof.phone_number) customerPhone = prof.phone_number;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const customerPrefix = [
+        customerName ? `Customer: ${customerName}` : '',
+        customerPhone && customerPhone !== 'N/A' ? `Contact: ${customerPhone}` : '',
+      ]
+        .filter(Boolean)
+        .join(' | ');
+
       const combinedNotes = [
+        customerPrefix,
         selectedSymptoms.length > 0 ? `Reported Symptoms: ${selectedSymptoms.join(', ')}` : '',
         notes.trim() ? `Instructions: ${notes.trim()}` : '',
         `Arrival Window: ${selectedTimeWindow}`,
@@ -500,6 +529,19 @@ export default function BookServiceTab({
       });
 
       if (ticketError) throw ticketError;
+
+      // Broadcast real-time new booking to Admin and Staff consoles live
+      if (typeof window !== 'undefined') {
+        try {
+          supabase.channel('motocare_dispatch_realtime').send({
+            type: 'broadcast',
+            event: 'TICKET_DISPATCH_SYNC',
+            payload: { action: 'NEW_BOOKING', ticket_code: randomCode },
+          });
+        } catch {
+          // ignore
+        }
+      }
 
       // Reset
       setNewBikeModel('');

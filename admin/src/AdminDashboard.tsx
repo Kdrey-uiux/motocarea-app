@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from './lib/supabase';
 import { AdminTab, AdminTicket, UserRole } from './types/admin';
-import { getAuditLogs } from './utils/auditLogger';
+import { getAuditLogs, syncAuditFromTickets } from './utils/auditLogger';
 import { canAccessTab } from './utils/permissions';
 
 // Modular Components
@@ -132,18 +132,40 @@ export default function AdminDashboard() {
         }
       }
 
-      // 3. Attach profile info to each ticket
+      // 3. Attach profile info to each ticket (supporting profiles table AND notes metadata fallback)
       const populatedTickets: AdminTicket[] = rawTickets.map((t: any) => {
         const prof = t.user_id ? profileMap.get(t.user_id) : undefined;
+
+        let noteCustomer = '';
+        let notePhone = '';
+        if (t.notes) {
+          const matchName = t.notes.match(/Customer:\s*([^|]+)/i);
+          const matchPhone = t.notes.match(/Contact:\s*([^|]+)/i);
+          if (matchName) noteCustomer = matchName[1].trim();
+          if (matchPhone) notePhone = matchPhone[1].trim();
+        }
+
+        const resolvedName = (prof?.full_name && prof.full_name !== 'Rider Member' && prof.full_name !== 'Rider Customer')
+          ? prof.full_name
+          : (noteCustomer || prof?.full_name || 'Rider Member');
+
+        const resolvedPhone = (prof?.phone_number && prof.phone_number !== 'N/A')
+          ? prof.phone_number
+          : (notePhone || prof?.phone_number || 'N/A');
+
         return {
           ...t,
-          customer_name: prof?.full_name || 'Rider Member',
-          customer_phone: prof?.phone_number || 'N/A',
-          profiles: prof || null,
+          customer_name: resolvedName,
+          customer_phone: resolvedPhone,
+          profiles: {
+            full_name: resolvedName,
+            phone_number: resolvedPhone,
+          },
         };
       });
 
       setTickets(populatedTickets);
+      syncAuditFromTickets(populatedTickets);
     } catch (err) {
       console.error('Failed to load tickets:', err);
     } finally {
@@ -247,10 +269,29 @@ export default function AdminDashboard() {
       )
       .subscribe();
 
+    // Realtime broadcast channel for ticket dispatch / status updates across all tabs & devices
+    const dispatchBroadcastChannel = supabase
+      .channel('motocare_dispatch_realtime')
+      .on(
+        'broadcast',
+        { event: 'TICKET_DISPATCH_SYNC' },
+        () => {
+          fetchTickets();
+        }
+      )
+      .subscribe();
+
+    const handleLocalDispatch = () => {
+      fetchTickets();
+    };
+    window.addEventListener('motocare_ticket_dispatched', handleLocalDispatch);
+
     return () => {
       supabase.removeChannel(ticketChannel);
       supabase.removeChannel(messageChannel);
       supabase.removeChannel(hardcopyBroadcastChannel);
+      supabase.removeChannel(dispatchBroadcastChannel);
+      window.removeEventListener('motocare_ticket_dispatched', handleLocalDispatch);
     };
   }, [fetchTickets, fetchMessagesCount, loadHardcopyData]);
 

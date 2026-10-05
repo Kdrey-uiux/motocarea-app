@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '../lib/supabase';
 import { getAuditLogs } from '../utils/auditLogger';
 import { AuditLogEntry } from '../types/admin';
 import { 
@@ -22,6 +23,23 @@ export default function AdminAuditTab() {
 
   useEffect(() => {
     loadLogs();
+
+    // Listen to local audit updates
+    const handleUpdate = () => loadLogs();
+    window.addEventListener('motocare_audit_updated', handleUpdate);
+
+    // Listen to cross-browser Supabase realtime broadcast
+    const auditChannel = supabase
+      .channel('motocare_audit_realtime')
+      .on('broadcast', { event: 'AUDIT_LOG_ADDED' }, () => {
+        loadLogs();
+      })
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('motocare_audit_updated', handleUpdate);
+      supabase.removeChannel(auditChannel);
+    };
   }, []);
 
   const handleExportCSV = () => {
@@ -67,9 +85,9 @@ export default function AdminAuditTab() {
   const getActionBadge = (action: string) => {
     switch (action) {
       case 'STAGE_CHANGE':
-        return { label: 'Stage Progression', color: 'bg-blue-50 text-blue-700 border-blue-200' };
+        return { label: 'Stage Progression', color: 'bg-orange-50 text-orange-700 border-orange-200' };
       case 'BAY_ASSIGNMENT':
-        return { label: 'Bay Assignment', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+        return { label: 'Bay Assignment', color: 'bg-blue-50 text-blue-700 border-blue-200' };
       case 'MECHANIC_ASSIGNMENT':
         return { label: 'Mechanic Assigned', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
       case 'TICKET_COMPLETED':
@@ -91,11 +109,13 @@ export default function AdminAuditTab() {
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ShieldCheck className="w-5 h-5 text-purple-600" />
+            <div className="w-8 h-8 rounded-lg bg-orange-50 border border-orange-200 flex items-center justify-center text-orange-600">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
             <h2 className="text-base font-bold text-slate-900">Workshop Operations Audit Trail</h2>
           </div>
           <p className="text-xs text-slate-500">
-            Immutable tracking of ticket dispatching, stage advancements, bay relocations, and mechanic assignments.
+            Immutable tracking of ticket dispatching, stage advancements, bay relocations, and technician assignments.
           </p>
         </div>
 
@@ -134,7 +154,7 @@ export default function AdminAuditTab() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search audit trail by ticket code, mechanic, advisor, or action details..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 transition"
           />
         </div>
 
@@ -146,7 +166,7 @@ export default function AdminAuditTab() {
               onClick={() => setActionFilter(action)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 actionFilter === action
-                  ? 'bg-blue-600 text-white font-bold shadow-2xs'
+                  ? 'bg-orange-500 text-white font-bold shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -194,7 +214,7 @@ export default function AdminAuditTab() {
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4 font-mono font-bold text-blue-700 whitespace-nowrap">
+                      <td className="py-3.5 px-4 font-mono font-bold text-orange-600 whitespace-nowrap">
                         #{log.ticketCode}
                       </td>
 

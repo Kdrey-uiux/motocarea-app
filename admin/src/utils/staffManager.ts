@@ -5,7 +5,24 @@ import { supabase } from '../lib/supabase';
 const STAFF_STORAGE_KEY = 'motocare_workshop_staff_roster';
 const ADMIN_STORAGE_KEY = 'motocare_workshop_admin_accounts';
 const SYNC_CHANNEL = 'motocare_admin_sync_bus';
+const STAFF_REALTIME_CHANNEL = 'motocare_staff_realtime';
 
+// Setup Supabase Realtime channel for cross-device staff sync
+if (typeof window !== 'undefined') {
+  try {
+    supabase
+      .channel(STAFF_REALTIME_CHANNEL)
+      .on('broadcast', { event: 'STAFF_SYNC' }, (payload) => {
+        if (payload.payload && Array.isArray(payload.payload.data)) {
+          localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(payload.payload.data));
+          window.dispatchEvent(new CustomEvent('motocare_staff_updated'));
+        }
+      })
+      .subscribe();
+  } catch {
+    // ignore
+  }
+}
 export const DEFAULT_INITIAL_ADMINS: WorkshopAdminAccount[] = [
   {
     id: 'adm-001',
@@ -198,9 +215,43 @@ export function getStaffMembers(): WorkshopStaffMember[] {
 export function saveStaffMembers(members: WorkshopStaffMember[]): void {
   try {
     localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(members));
+    
+    // Broadcast across all open tabs & devices via Supabase
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('motocare_staff_updated'));
+      try {
+        supabase.channel(STAFF_REALTIME_CHANNEL).send({
+          type: 'broadcast',
+          event: 'STAFF_SYNC',
+          payload: { data: members },
+        });
+      } catch {
+        // ignore network error
+      }
+    }
   } catch (err) {
     console.error('Error saving staff members:', err);
   }
+}
+
+/**
+ * Returns all active workshop crew/technicians for Bay assignment and Dispatching
+ */
+export function getTechnicianStaffList(): Array<{ name: string; position: string; phone?: string }> {
+  const staff = getStaffMembers().filter((s) => s.status === 'active');
+  if (staff.length === 0) {
+    return [
+      { name: 'Kuya Jun (Lead Tech)', position: 'Master Tech & Engine Specialist', phone: '0917-882-9102' },
+      { name: 'Mark (CVT Specialist)', position: 'Transmission & CVT Tuning', phone: '0928-554-1923' },
+      { name: 'Arnel (Electrical Specialist)', position: 'Wiring & FI Diagnostics', phone: '0995-123-8871' },
+      { name: 'Rolly (Lube Technician)', position: 'Fast Lube & Routine PMS', phone: '0939-771-4402' },
+    ];
+  }
+  return staff.map((s) => ({
+    name: s.fullName,
+    position: s.position,
+    phone: s.phone,
+  }));
 }
 
 export function isStaffEmailDisabled(email: string): boolean {

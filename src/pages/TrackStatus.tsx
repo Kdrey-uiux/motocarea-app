@@ -117,6 +117,46 @@ export default function TrackStatus() {
     }
   }, [ticketCode]);
 
+  // Live real-time updates for customers tracking their active service
+  useEffect(() => {
+    if (!ticket?.id && !ticket?.ticket_code) return;
+
+    const currentTicketCode = ticket.ticket_code;
+    const currentTicketId = ticket.id;
+
+    const channel = supabase
+      .channel(`public_track_realtime_${currentTicketCode}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_tickets',
+          filter: `id=eq.${currentTicketId}`,
+        },
+        () => {
+          fetchTicket(currentTicketCode);
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'TICKET_DISPATCH_SYNC' },
+        (payload: any) => {
+          if (
+            payload?.payload?.ticket_code === currentTicketCode ||
+            payload?.payload?.id === currentTicketId
+          ) {
+            fetchTicket(currentTicketCode);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [ticket?.id, ticket?.ticket_code]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputCode.trim()) return;

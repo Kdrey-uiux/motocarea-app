@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { recordAuditLog } from '../utils/auditLogger';
+import { getTechnicianStaffList } from '../utils/staffManager';
 import { AdminTicket } from '../types/admin';
 import { 
   X, 
@@ -28,13 +29,6 @@ const BAYS = [
   { id: 'Bay 04', label: 'Bay 04 - Final Safety QA & Electrical Station (Bay D)' },
 ];
 
-const MECHANICS = [
-  { name: 'Kuya Jun (Lead Tech)', role: 'Master Tech & Engine Specialist' },
-  { name: 'Mark (CVT Specialist)', role: 'Drivetrain & Transmission' },
-  { name: 'Arnel (Electrical Specialist)', role: 'Wiring & FI Diagnostics' },
-  { name: 'Rolly (Lube Technician)', role: 'Routine PMS & Brake Overhaul' },
-];
-
 const STAGES = [
   { stage: 1, label: 'Stage 1: Intake & Check-in' },
   { stage: 2, label: 'Stage 2: Diagnosis & Tear-down' },
@@ -59,10 +53,24 @@ export default function DispatchTicketModal({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Live mechanics list from Staff Roster
+  const availableMechanics = useMemo(() => {
+    const list = getTechnicianStaffList();
+    const result: Array<{ name: string; role: string }> = list.map((s) => ({
+      name: s.name,
+      role: s.position,
+    }));
+    // If ticket has assigned mechanic not in list, keep it as option
+    if (ticket?.assigned_mechanic && !result.some((m) => m.name === ticket.assigned_mechanic)) {
+      result.unshift({ name: ticket.assigned_mechanic, role: 'Assigned Tech' });
+    }
+    return result;
+  }, [ticket]);
+
   useEffect(() => {
     if (ticket) {
       setAssignedBay(ticket.assigned_bay || 'Bay 01');
-      setAssignedMechanic(ticket.assigned_mechanic || 'Kuya Jun (Lead Tech)');
+      setAssignedMechanic(ticket.assigned_mechanic || availableMechanics[0]?.name || 'Kuya Jun');
       setStage(ticket.stage || 1);
       setStatus(ticket.status || 'IN_PROGRESS');
       setEstimatedPickup(ticket.estimated_pickup || 'Today, 4:00 PM');
@@ -70,7 +78,7 @@ export default function DispatchTicketModal({
       setNotes(ticket.notes || '');
       setErrorMsg(null);
     }
-  }, [ticket]);
+  }, [ticket, availableMechanics]);
 
   if (!isOpen || !ticket) return null;
 
@@ -103,6 +111,24 @@ export default function DispatchTicketModal({
 
       if (error) throw error;
 
+      // Broadcast real-time update to all open tabs and devices (customer tracker, dashboard, admin queue)
+      if (typeof window !== 'undefined') {
+        try {
+          supabase.channel('motocare_dispatch_realtime').send({
+            type: 'broadcast',
+            event: 'TICKET_DISPATCH_SYNC',
+            payload: { id: ticket.id, ticket_code: ticket.ticket_code, ...updates },
+          });
+          window.dispatchEvent(
+            new CustomEvent('motocare_ticket_dispatched', {
+              detail: { id: ticket.id, ...updates },
+            })
+          );
+        } catch {
+          // ignore
+        }
+      }
+
       // Mag-record ng Audit Logs para sa mga nabago
       if (ticket.stage !== Number(stage)) {
         await recordAuditLog({
@@ -131,7 +157,7 @@ export default function DispatchTicketModal({
           ticketCode: ticket.ticket_code,
           action: 'MECHANIC_ASSIGNMENT',
           actor: 'Service Advisor (Admin)',
-          details: `Reassigned mechanic in-charge`,
+          details: `Reassigned mechanic in-charge to ${assignedMechanic}`,
           previousValue: ticket.assigned_mechanic || 'Unassigned',
           newValue: assignedMechanic,
         });
@@ -165,13 +191,13 @@ export default function DispatchTicketModal({
         {/* Header */}
         <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center font-bold">
+            <div className="w-9 h-9 rounded-xl bg-orange-50 border border-orange-200 text-orange-600 flex items-center justify-center font-bold">
               <Wrench className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-sm text-slate-900">Workshop Dispatch Console</span>
-                <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-200">
+                <span className="font-mono text-xs px-2 py-0.5 rounded-md bg-orange-50 text-orange-600 font-bold border border-orange-200">
                   #{ticket.ticket_code}
                 </span>
               </div>
@@ -212,20 +238,20 @@ export default function DispatchTicketModal({
             </div>
             <div className="text-right">
               <span className="text-[10px] text-slate-400 uppercase font-semibold block">Requested Package</span>
-              <span className="font-bold text-blue-600">{ticket.service_type}</span>
+              <span className="font-bold text-orange-600">{ticket.service_type}</span>
             </div>
           </div>
 
           {/* Bay Assignment */}
           <div>
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">
-              <Wrench className="w-3.5 h-3.5 text-blue-600" />
+              <Wrench className="w-3.5 h-3.5 text-orange-500" />
               Workshop Bay Assignment
             </label>
             <select
               value={assignedBay}
               onChange={(e) => setAssignedBay(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-orange-500 transition"
             >
               {BAYS.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -244,9 +270,9 @@ export default function DispatchTicketModal({
             <select
               value={assignedMechanic}
               onChange={(e) => setAssignedMechanic(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-orange-500 transition"
             >
-              {MECHANICS.map((m) => (
+              {availableMechanics.map((m) => (
                 <option key={m.name} value={m.name}>
                   {m.name} — {m.role}
                 </option>
@@ -257,7 +283,7 @@ export default function DispatchTicketModal({
           {/* Service Stage */}
           <div>
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">
-              <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+              <CheckCircle className="w-3.5 h-3.5 text-orange-500" />
               Current Workflow Stage
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -268,12 +294,12 @@ export default function DispatchTicketModal({
                   onClick={() => setStage(s.stage)}
                   className={`p-2.5 rounded-xl border text-left text-xs transition flex items-center justify-between ${
                     stage === s.stage
-                      ? 'bg-blue-50 border-blue-500 text-blue-700 font-bold shadow-2xs'
+                      ? 'bg-orange-50 border-orange-500 text-orange-700 font-bold shadow-2xs'
                       : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   }`}
                 >
                   <span>{s.label}</span>
-                  {stage === s.stage && <span className="w-2 h-2 rounded-full bg-blue-600" />}
+                  {stage === s.stage && <span className="w-2 h-2 rounded-full bg-orange-600" />}
                 </button>
               ))}
             </div>
@@ -288,7 +314,7 @@ export default function DispatchTicketModal({
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-orange-500 transition"
               >
                 <option value="IN_PROGRESS">IN_PROGRESS (Under Service)</option>
                 <option value="READY_FOR_PICKUP">READY_FOR_PICKUP (Completed QA)</option>
@@ -307,7 +333,7 @@ export default function DispatchTicketModal({
                 value={totalEstimate}
                 onChange={(e) => setTotalEstimate(e.target.value)}
                 placeholder="₱500 - ₱850"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-orange-500 transition"
               />
             </div>
           </div>
@@ -315,7 +341,7 @@ export default function DispatchTicketModal({
           {/* Estimated Pickup */}
           <div>
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5 mb-1.5">
-              <Clock className="w-3.5 h-3.5 text-blue-600" />
+              <Clock className="w-3.5 h-3.5 text-orange-500" />
               Estimated Pickup Time / Release Date
             </label>
             <input
@@ -323,7 +349,7 @@ export default function DispatchTicketModal({
               value={estimatedPickup}
               onChange={(e) => setEstimatedPickup(e.target.value)}
               placeholder="e.g. Today, 4:30 PM"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-orange-500 transition"
             />
             {/* Quick Presets */}
             <div className="flex flex-wrap gap-1.5 mt-2">
@@ -351,7 +377,7 @@ export default function DispatchTicketModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Detail observations (e.g. Front brake pads worn down to 15%, belt deglazed, oil changed to 10W-40 full synthetic)..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-blue-600 transition"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 focus:bg-white focus:outline-none focus:border-orange-500 transition"
             />
           </div>
 
@@ -368,7 +394,7 @@ export default function DispatchTicketModal({
             <button
               type="submit"
               disabled={saving}
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+              className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm shadow-orange-500/20 active:scale-95"
             >
               {saving ? (
                 <>

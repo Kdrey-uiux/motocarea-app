@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { AdminTicket, WorkshopBay, WorkshopMechanic } from '../types/admin';
+import { getTechnicianStaffList } from '../utils/staffManager';
 import { 
   Wrench, 
   CheckCircle2, 
@@ -45,46 +46,39 @@ const STATIC_BAYS = [
   },
 ];
 
-const MECHANICS: WorkshopMechanic[] = [
-  {
-    id: 'mech-1',
-    name: 'Kuya Jun Santos',
-    nickname: 'Kuya Jun',
-    specialty: 'Master Tech & Engine / Valve Adjustments',
-    status: 'ON_DUTY',
-    phone: '0917-882-9102',
-    completedJobsToday: 3,
-  },
-  {
-    id: 'mech-2',
-    name: 'Mark Reyes',
-    nickname: 'Mark',
-    specialty: 'CVT Tuning, Pulley Deglazing & Belts',
-    status: 'ON_DUTY',
-    phone: '0928-554-1923',
-    completedJobsToday: 2,
-  },
-  {
-    id: 'mech-3',
-    name: 'Arnel Mendoza',
-    nickname: 'Arnel',
-    specialty: 'Electrical, FI ECU Scan & Stator Rewind',
-    status: 'ON_DUTY',
-    phone: '0995-123-8871',
-    completedJobsToday: 2,
-  },
-  {
-    id: 'mech-4',
-    name: 'Rolly Castro',
-    nickname: 'Rolly',
-    specialty: 'Fast Lube, Caliper Bleeding & Brake Pads',
-    status: 'ON_DUTY',
-    phone: '0939-771-4402',
-    completedJobsToday: 4,
-  },
-];
-
 export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabProps) {
+  const [staffVersion, setStaffVersion] = useState(0);
+
+  useEffect(() => {
+    const handleStaffUpdate = () => setStaffVersion((v) => v + 1);
+    window.addEventListener('motocare_staff_updated', handleStaffUpdate);
+    return () => window.removeEventListener('motocare_staff_updated', handleStaffUpdate);
+  }, []);
+
+  // Live technicians dynamically computed from registered staff roster
+  const liveMechanics: WorkshopMechanic[] = useMemo(() => {
+    const techStaff = getTechnicianStaffList();
+    return techStaff.map((staff, idx) => {
+      const staffFirstName = staff.name.split(' ')[0].toLowerCase();
+      const completedToday = tickets.filter(
+        (t) =>
+          t.status === 'COMPLETED' &&
+          t.assigned_mechanic &&
+          t.assigned_mechanic.toLowerCase().includes(staffFirstName)
+      ).length;
+
+      return {
+        id: `mech-live-${idx}`,
+        name: staff.name,
+        nickname: staff.name.split(' ')[0],
+        specialty: staff.position,
+        status: 'ON_DUTY',
+        phone: staff.phone || 'N/A',
+        completedJobsToday: completedToday,
+      };
+    });
+  }, [tickets, staffVersion]);
+
   // Map tickets to Bays
   const baysData: Array<WorkshopBay & { activeTicket?: AdminTicket }> = useMemo(() => {
     return STATIC_BAYS.map((staticBay) => {
@@ -128,7 +122,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Wrench className="w-5 h-5 text-blue-600" />
+            <Wrench className="w-5 h-5 text-orange-600" />
             <h2 className="text-base font-bold text-slate-900">Workshop Bays & Station Dispatch</h2>
           </div>
           <p className="text-xs text-slate-500">
@@ -141,12 +135,12 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
           <div className="flex-1">
             <div className="flex justify-between text-xs mb-1.5 font-semibold">
               <span className="text-slate-600">Bay Occupancy:</span>
-              <span className="text-blue-700">{occupiedCount} of 4 Active ({occupancyPercentage}%)</span>
+              <span className="text-orange-700 font-bold">{occupiedCount} of 4 Active ({occupancyPercentage}%)</span>
             </div>
             <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-500 ${
-                  occupancyPercentage >= 75 ? 'bg-amber-500' : 'bg-blue-600'
+                  occupancyPercentage >= 75 ? 'bg-amber-500' : 'bg-orange-500'
                 }`}
                 style={{ width: `${occupancyPercentage}%` }}
               />
@@ -165,7 +159,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
               key={bay.id}
               className={`rounded-2xl border p-5 transition-all flex flex-col justify-between ${
                 isOccupied
-                  ? 'bg-white border-blue-300 shadow-xs'
+                  ? 'bg-white border-orange-300 shadow-xs'
                   : 'bg-white border-slate-200/90 hover:border-slate-300 shadow-2xs'
               }`}
             >
@@ -176,7 +170,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
                         isOccupied
-                          ? 'bg-blue-600 text-white font-black shadow-xs'
+                          ? 'bg-orange-500 text-white font-black shadow-xs shadow-orange-500/20'
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
@@ -191,13 +185,13 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
                   <span
                     className={`text-xs px-2.5 py-0.5 rounded-full font-bold border flex items-center gap-1.5 ${
                       isOccupied
-                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        ? 'bg-orange-50 text-orange-700 border-orange-200'
                         : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     }`}
                   >
                     <span
                       className={`w-2 h-2 rounded-full ${
-                        isOccupied ? 'bg-blue-600 animate-pulse' : 'bg-emerald-600'
+                        isOccupied ? 'bg-orange-500 animate-pulse' : 'bg-emerald-600'
                       }`}
                     />
                     {isOccupied ? 'In Service' : 'Vacant'}
@@ -210,7 +204,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
                     <>
                       <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-mono text-xs font-bold text-blue-700">
+                          <span className="font-mono text-xs font-bold text-orange-700">
                             #{bay.activeTicketCode}
                           </span>
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-white text-slate-700 border border-slate-200">
@@ -220,7 +214,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
 
                         <div>
                           <div className="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-                            <Bike className="w-3.5 h-3.5 text-blue-600" />
+                            <Bike className="w-3.5 h-3.5 text-orange-600" />
                             <span>{bay.bikeModel}</span>
                           </div>
                           <div className="text-xs font-mono text-slate-500 mt-0.5">
@@ -258,7 +252,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
                   <button
                     type="button"
                     onClick={() => onOpenDispatch(bay.activeTicket!)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-2xs"
+                    className="flex items-center gap-1.5 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-full transition shadow-xs shadow-orange-500/20 cursor-pointer"
                   >
                     <span>Manage Dispatch</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -274,24 +268,24 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
         })}
       </div>
 
-      {/* Workshop Mechanics Duty Roster */}
+      {/* Workshop Mechanics Duty Roster (Live from Staff Directory) */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-4 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-emerald-600" />
-            <h3 className="text-sm font-bold text-slate-900">Technician Duty Roster</h3>
+            <User className="w-4 h-4 text-orange-600" />
+            <h3 className="text-sm font-bold text-slate-900">Active Workshop Crew & Technicians</h3>
           </div>
-          <span className="text-xs text-slate-500 font-mono">Shift: 8:00 AM – 6:00 PM</span>
+          <span className="text-xs text-slate-500 font-mono">Shift: 8:00 AM – 6:00 PM • Real-time Active</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {MECHANICS.map((mech) => (
+          {liveMechanics.map((mech) => (
             <div
               key={mech.id}
               className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2 text-xs"
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-800">{mech.nickname}</span>
+                <span className="font-bold text-slate-800">{mech.name}</span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
                   On Duty
                 </span>
@@ -303,7 +297,7 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
                   {mech.phone}
                 </span>
                 <span className="text-emerald-700 font-semibold">
-                  {mech.completedJobsToday} jobs today
+                  {mech.completedJobsToday} jobs completed
                 </span>
               </div>
             </div>

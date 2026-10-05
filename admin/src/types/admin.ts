@@ -21,6 +21,7 @@ export interface ServiceTicket {
   total_estimate: string;
   status: string;
   created_at: string;
+  updated_at?: string;
   dropoff_date?: string;
   notes?: string;
   motorcycles?: {
@@ -86,6 +87,7 @@ export interface AuditLogEntry {
   timestamp: string;
   ticketCode: string;
   action:
+    | 'TICKET_CREATED'
     | 'STAGE_CHANGE'
     | 'BAY_ASSIGNMENT'
     | 'MECHANIC_ASSIGNMENT'

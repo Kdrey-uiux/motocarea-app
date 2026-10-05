@@ -118,13 +118,6 @@ export default function CustomerDashboard() {
             phone_number: profile?.phone_number || user.user_metadata?.phone_number || 'N/A',
           });
 
-          // Purge existing test bookings for this user as requested
-          const cleanupKey = `motocare_test_cleanup_done_${user.id}`;
-          if (localStorage.getItem(cleanupKey) !== 'true') {
-            await supabase.from('service_tickets').delete().eq('user_id', user.id);
-            localStorage.setItem(cleanupKey, 'true');
-          }
-
           await loadDashboardData(user.id);
           setIsCheckingAuth(false);
         }
@@ -148,10 +141,35 @@ export default function CustomerDashboard() {
     };
   }, [navigate]);
 
-  // Realtime subscription para sa hardcopy status updates
+  // Realtime subscription para sa ticket stage/dispatch updates at hardcopy status updates
   useEffect(() => {
     if (!userId) return;
 
+    // 1. Service tickets realtime (stage changes, bay moves, technician assignments from Admin/Staff)
+    const dispatchChannel = supabase
+      .channel(`customer_dispatch_realtime_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'service_tickets',
+          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          loadDashboardData(userId);
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'TICKET_DISPATCH_SYNC' },
+        () => {
+          loadDashboardData(userId);
+        }
+      )
+      .subscribe();
+
+    // 2. Hardcopy certified requests realtime
     const hardcopyChannel = supabase
       .channel(`customer_hardcopy_realtime_${userId}`)
       .on(
@@ -176,6 +194,7 @@ export default function CustomerDashboard() {
       .subscribe();
 
     return () => {
+      supabase.removeChannel(dispatchChannel);
       supabase.removeChannel(hardcopyChannel);
     };
   }, [userId]);
@@ -306,6 +325,7 @@ export default function CustomerDashboard() {
           {activeTab === 'book' && (
             <BookServiceTab
               userId={userId}
+              userProfile={userProfile}
               motorcycles={motorcycles}
               selectedBikeId={selectedBikeId}
               setSelectedBikeId={setSelectedBikeId}
