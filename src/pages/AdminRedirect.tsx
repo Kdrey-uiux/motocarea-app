@@ -1,77 +1,55 @@
-import { Shield, Wrench, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Wrench, ArrowRight, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function AdminRedirect() {
-  const adminUrl =
-    import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
-  const superAdminUrl =
-    import.meta.env.VITE_SUPERADMIN_URL || 'http://localhost:5175';
+  const adminUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:5174';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white flex flex-col items-center justify-center p-4">
-      <div className="max-w-md w-full bg-slate-800/80 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shadow-lg">
-          <Shield className="w-8 h-8" />
+    <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col items-center justify-center p-4 sm:p-6">
+      <div className="max-w-md w-full bg-white border border-slate-200/90 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-xs text-center space-y-6">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-orange-50 border border-orange-200/80 text-orange-600 flex items-center justify-center shadow-xs">
+          <Wrench className="w-7 h-7" />
         </div>
 
-        <div>
-          <h1 className="text-2xl font-black tracking-tight text-white">
-            Hiwalay na ang Admin Portals
+        <div className="space-y-2">
+          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-bold uppercase tracking-wider">
+            Workshop Operations
+          </span>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            MotoCare Staff & Admin Portal
           </h1>
-          <p className="text-xs text-slate-400 mt-2 leading-relaxed">
-            Upang mas maging mabilis at ligtas ang aplikasyon ng mga kustomer, ang pamamahala ng
-            workshop at mga may-ari ng shop ay inilipat sa sariling nakalaang mga sub-portal.
+          <p className="text-xs text-slate-500 leading-relaxed max-w-sm mx-auto">
+            Ang pamamahala sa intake, bay floor, dispatch, at customer service ay matatagpuan sa nakalaang workshop console para sa mga awtorisadong kawani at admin.
           </p>
         </div>
 
         <div className="space-y-3 text-left">
-          {/* Workshop Admin Portal Button */}
+          {/* Workshop Admin & Staff Console Button */}
           <a
             href={adminUrl}
-            className="flex items-center justify-between p-4 rounded-2xl bg-slate-700/60 hover:bg-slate-700 border border-slate-600 transition-colors group"
+            className="flex items-center justify-between p-4 rounded-xl sm:rounded-2xl bg-orange-50/70 hover:bg-orange-100/80 border border-orange-200/80 transition-all duration-150 group shadow-xs active:scale-[0.99]"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-400">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/20">
                 <Wrench className="w-5 h-5" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-white group-hover:text-blue-400 transition-colors">
-                  Workshop Admin Console
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900 group-hover:text-orange-600 transition-colors truncate">
+                  Buksan ang Workshop Console
                 </p>
-                <p className="text-[11px] text-slate-400">
-                  Para sa Service Advisor, Dispatch, at Bay Management
-                </p>
-              </div>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
-          </a>
-
-          {/* Super Admin Owner Portal Button */}
-          <a
-            href={superAdminUrl}
-            className="flex items-center justify-between p-4 rounded-2xl bg-slate-700/60 hover:bg-slate-700 border border-slate-600 transition-colors group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400">
-                <Shield className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-white group-hover:text-amber-400 transition-colors">
-                  Super Admin (Shop Owner)
-                </p>
-                <p className="text-[11px] text-slate-400">
-                  Para sa Financial Analytics at Admin Account Creation
+                <p className="text-[11px] text-slate-500 truncate">
+                  Para sa Service Advisor, Bay Leads, Staff & Admin
                 </p>
               </div>
             </div>
-            <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-400 group-hover:translate-x-1 transition-all" />
+            <ArrowRight className="w-4 h-4 text-orange-500 group-hover:translate-x-1 transition-transform shrink-0 ml-2" />
           </a>
         </div>
 
-        <div className="pt-2 border-t border-slate-700/60">
+        <div className="pt-3 border-t border-slate-100">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-600 font-medium transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Bumalik sa MotoCare Customer App</span>

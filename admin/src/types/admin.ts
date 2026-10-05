@@ -1,4 +1,4 @@
-export type UserRole = 'customer' | 'staff' | 'admin' | 'superadmin';
+export type UserRole = 'customer' | 'staff' | 'admin';
 
 export type AdminTab =
   | 'queue'

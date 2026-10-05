@@ -85,7 +85,7 @@ export default function Login() {
       .maybeSingle();
 
     const role = profile?.role?.toLowerCase();
-    if (['admin', 'staff', 'manager', 'owner', 'super_admin'].includes(role || '')) {
+    if (['admin', 'staff'].includes(role || '')) {
       navigate('/admin');
     } else {
       navigate('/dashboard');
@@ -155,17 +155,17 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/75 text-slate-900 flex items-center justify-center p-4 sm:p-6 selection:bg-blue-600 selection:text-white">
-      <div className="max-w-md w-full bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-sm">
+    <div className="min-h-screen bg-slate-100/60 text-slate-900 flex items-center justify-center p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
+      <div className="max-w-md w-full bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-xs">
         
         {/* Brand Logo */}
         <div className="flex justify-center mb-6">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm group-hover:scale-105 transition">
-              <Wrench className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-500/20 text-white group-hover:scale-105 transition-transform">
+              <Wrench className="w-5 h-5" />
             </div>
             <span className="text-2xl font-bold tracking-tight text-slate-900">
-              Moto<span className="text-blue-600">Care</span>
+              Moto<span className="text-orange-500">Care</span>
             </span>
           </Link>
         </div>
@@ -173,13 +173,13 @@ export default function Login() {
         {/* Verification Sent Screen */}
         {verificationSent ? (
           <div className="text-center py-4 space-y-4">
-            <div className="w-14 h-14 bg-blue-50 text-blue-600 border border-blue-200 rounded-full flex items-center justify-center mx-auto shadow-sm animate-pulse">
+            <div className="w-14 h-14 bg-orange-50 text-orange-600 border border-orange-200/80 rounded-full flex items-center justify-center mx-auto shadow-2xs animate-pulse">
               <Mail className="w-7 h-7" />
             </div>
             <h2 className="text-xl font-bold text-slate-900">Check Your Email</h2>
             <p className="text-slate-600 text-sm leading-relaxed">
               We sent a verification link to <br />
-              <span className="text-blue-600 font-semibold">{email}</span>
+              <span className="text-orange-600 font-semibold">{email}</span>
             </p>
             <p className="text-slate-500 text-xs">
               Click the link in your email. This page will automatically update once verified.
@@ -189,7 +189,7 @@ export default function Login() {
                 setVerificationSent(false);
                 setMode('signin');
               }}
-              className="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-xl text-sm transition"
+              className="mt-4 w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2.5 rounded-full text-xs sm:text-sm transition cursor-pointer"
             >
               Back to Sign In
             </button>
@@ -207,18 +207,18 @@ export default function Login() {
                       setErrorMessage(null);
                       setSuccessMessage(null);
                     }}
-                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 mx-auto mb-2 font-semibold"
+                    className="text-xs text-orange-600 hover:text-orange-700 flex items-center gap-1 mx-auto mb-2 font-semibold cursor-pointer"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
                   </button>
-                  <h2 className="text-2xl font-bold text-slate-900">Reset Password</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reset Password</h2>
                   <p className="text-slate-500 text-xs mt-1">
                     Enter your email to receive recovery instructions
                   </p>
                 </div>
               ) : (
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900">
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
                     {mode === 'register' ? 'Create an Account' : 'Welcome Back'}
                   </h2>
                   <p className="text-slate-500 text-xs mt-1">
@@ -233,7 +233,7 @@ export default function Login() {
             {/* Success Alert */}
             {successMessage && (
               <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2 text-emerald-700 text-xs font-medium">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
                 <span>{successMessage}</span>
               </div>
             )}
@@ -241,7 +241,7 @@ export default function Login() {
             {/* Error Alert */}
             {errorMessage && (
               <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-700 text-xs font-medium">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -252,7 +252,7 @@ export default function Login() {
               {/* REGISTER ONLY */}
               {mode === 'register' && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1">First Name</label>
                       <input
@@ -261,7 +261,7 @@ export default function Login() {
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
                         placeholder="Juan"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white text-xs sm:text-sm"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
                       />
                     </div>
                     <div>
@@ -272,7 +272,7 @@ export default function Login() {
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
                         placeholder="Dela Cruz"
-                        className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white text-xs sm:text-sm"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
                       />
                     </div>
                   </div>
@@ -285,7 +285,7 @@ export default function Login() {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="09171234567"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white text-xs sm:text-sm"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
                     />
                   </div>
                 </>
@@ -300,7 +300,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="rider@example.com"
-                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white text-xs sm:text-sm"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
                 />
               </div>
 
@@ -317,7 +317,7 @@ export default function Login() {
                           setErrorMessage(null);
                           setSuccessMessage(null);
                         }}
-                        className="text-[11px] text-blue-600 hover:text-blue-700 font-semibold hover:underline"
+                        className="text-[11px] text-orange-600 hover:text-orange-700 font-semibold hover:underline cursor-pointer"
                       >
                         Forgot password?
                       </button>
@@ -330,12 +330,12 @@ export default function Login() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white text-xs sm:text-sm"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                       tabIndex={-1}
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -355,12 +355,12 @@ export default function Login() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white text-xs sm:text-sm"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
                       tabIndex={-1}
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -373,7 +373,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full mt-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]"
+                className="w-full mt-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold py-3 rounded-full transition flex items-center justify-center gap-2 shadow-sm shadow-orange-500/20 active:scale-[0.98] cursor-pointer"
               >
                 {loading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -406,7 +406,7 @@ export default function Login() {
                         setErrorMessage(null);
                         setSuccessMessage(null);
                       }}
-                      className="text-blue-600 font-bold hover:underline ml-1"
+                      className="text-orange-600 font-bold hover:underline ml-1 cursor-pointer"
                     >
                       Sign In
                     </button>
@@ -421,7 +421,7 @@ export default function Login() {
                         setErrorMessage(null);
                         setSuccessMessage(null);
                       }}
-                      className="text-blue-600 font-bold hover:underline ml-1"
+                      className="text-orange-600 font-bold hover:underline ml-1 cursor-pointer"
                     >
                       Create Account
                     </button>

@@ -55,7 +55,7 @@ export default function AdminSidebar({
       sublabel: 'Active intake & progress',
       icon: ClipboardList,
       badge: queueCount,
-      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+      badgeColor: 'bg-orange-50 text-orange-700 border-orange-200',
     },
     {
       id: 'bays',
@@ -79,7 +79,7 @@ export default function AdminSidebar({
       sublabel: 'Accounts & access status',
       icon: Users,
       badge: staffCount > 0 ? `${staffCount} Staff` : undefined,
-      badgeColor: 'bg-blue-50 text-blue-700 border-blue-200',
+      badgeColor: 'bg-orange-50 text-orange-700 border-orange-200',
     },
     {
       id: 'analytics',
@@ -153,7 +153,7 @@ export default function AdminSidebar({
               className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider border ${
                 currentRole === 'staff'
                   ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                  : 'bg-orange-50 text-orange-700 border-orange-200'
               }`}
             >
               {currentRole === 'staff' ? 'Staff Level' : 'Admin Level'}
@@ -176,7 +176,7 @@ export default function AdminSidebar({
                   }}
                   className={`w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200/80 font-semibold shadow-2xs'
+                      ? 'bg-orange-50 text-orange-700 border border-orange-200/80 font-semibold shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 border border-transparent'
                   }`}
                 >
@@ -184,7 +184,7 @@ export default function AdminSidebar({
                     <div
                       className={`p-1.5 rounded-lg shrink-0 transition ${
                         isActive
-                          ? 'bg-blue-600 text-white font-bold shadow-xs'
+                          ? 'bg-orange-500 text-white font-bold shadow-xs'
                           : 'bg-slate-100 text-slate-500'
                       }`}
                     >
@@ -221,14 +221,14 @@ export default function AdminSidebar({
               </span>
             </div>
             <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
-              <UserCheck className="w-3 h-3 text-blue-600" />
+              <UserCheck className="w-3 h-3 text-orange-600" />
               <span className="capitalize">{currentRole}</span>
             </div>
           </div>
           <div className="text-[10px] text-slate-500 space-y-0.5">
             <div>Scope: {currentRole === 'staff' ? 'Queue & Floor Dispatch (No Analytics)' : 'Full Operations & Revenue'}</div>
             <div>Shift: Morning – Evening Active</div>
-            <div className="text-blue-600 font-medium">Supabase Realtime Synced</div>
+            <div className="text-orange-600 font-medium">Supabase Realtime Synced</div>
           </div>
         </div>
       </aside>

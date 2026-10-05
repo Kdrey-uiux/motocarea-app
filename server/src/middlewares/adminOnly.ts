@@ -7,7 +7,7 @@ export function requireAdmin(
   next: NextFunction
 ): void {
   const role = req.userRole?.toUpperCase();
-  if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
+  if (role !== 'ADMIN') {
     res.status(403).json({
       success: false,
       message: 'Access denied: Administrator privileges required.',

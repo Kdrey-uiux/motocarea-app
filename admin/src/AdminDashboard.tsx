@@ -71,14 +71,6 @@ export default function AdminDashboard() {
     }
   }, [currentRole, activeTab]);
 
-  // Quick toggle between Admin & Staff para sa pag-test
-  const handleToggleRole = () => {
-    setCurrentRole((prev) => {
-      const next = prev === 'admin' ? 'staff' : 'admin';
-      localStorage.setItem('motocare_workshop_auth_override', next);
-      return next;
-    });
-  };
 
   // Fetch all tickets with attached motorcycles and customer profiles
   const fetchTickets = useCallback(async () => {
@@ -264,6 +256,7 @@ export default function AdminDashboard() {
 
   const handleLogout = async () => {
     localStorage.removeItem('motocare_workshop_auth_override');
+    localStorage.removeItem('motocare_workshop_user_name');
     await supabase.auth.signOut();
     navigate('/admin/login', { replace: true });
   };
@@ -349,7 +342,7 @@ export default function AdminDashboard() {
   const staffCount = useMemo(() => getStaffMembers().length, [activeTab]);
 
   return (
-    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-slate-100/70 text-slate-800 flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white">
       {/* Top Operations Header */}
       <AdminHeader
         tickets={tickets}
@@ -358,7 +351,6 @@ export default function AdminDashboard() {
         onLogout={handleLogout}
         onToggleMobileMenu={() => setIsMobileSidebarOpen(true)}
         currentRole={currentRole}
-        onToggleRole={handleToggleRole}
         hardcopyPendingCount={hardcopyPendingCount}
         onOpenHardcopyRequests={() => setIsHardcopyModalOpen(true)}
       />

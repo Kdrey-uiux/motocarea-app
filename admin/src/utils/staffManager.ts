@@ -117,19 +117,6 @@ export function getAdminAccounts(): WorkshopAdminAccount[] {
     console.error('Error reading admin accounts:', err);
   }
 
-  // Merge with shared cookie from SuperAdmin
-  const cookieAccounts = getAccountsFromSharedCookie();
-  if (cookieAccounts.length > 0) {
-    for (const ca of cookieAccounts) {
-      const idx = accounts.findIndex((a) => a.email.toLowerCase() === ca.email.toLowerCase());
-      if (idx >= 0) {
-        accounts[idx] = { ...accounts[idx], ...ca };
-      } else {
-        accounts.push(ca);
-      }
-    }
-  }
-
   // Ensure default seed accounts exist
   for (const seed of DEFAULT_INITIAL_ADMINS) {
     const idx = accounts.findIndex((a) => a.email.toLowerCase() === seed.email.toLowerCase());
@@ -169,14 +156,14 @@ export function verifyAdminCredentials(
   if (!found) {
     return {
       success: false,
-      error: 'Account not found: Hindi rehistrado ang Admin account na ito. Tanging ang Super Admin (Owner) lamang ang may karapatang gumawa ng Admin account.',
+      error: 'Account not found: Hindi rehistrado ang Admin account na ito sa workshop.',
     };
   }
 
   if (found.status === 'disabled') {
     return {
       success: false,
-      error: 'Account Deactivated: Ang iyong Admin account ay na-deactivate ng Super Admin (Owner). Makipag-ugnayan sa pamunuan.',
+      error: 'Account Deactivated: Ang iyong Admin account ay naka-deactivate. Makipag-ugnayan sa pamunuan ng shop.',
     };
   }
 

@@ -82,7 +82,7 @@ export default function AdminLogin() {
         }
       }
 
-      // 3. Suriin kung ito ay Admin account na nilikha ng Super Admin
+      // 3. Suriin kung ito ay registered Workshop Admin account
       const adminCheck = verifyAdminCredentials(cleanEmail, password);
       if (adminCheck.success && adminCheck.admin) {
         localStorage.setItem('motocare_workshop_auth_override', 'admin');
@@ -95,7 +95,7 @@ export default function AdminLogin() {
 
       // 4. Kung walang tumugmang account
       throw new Error(
-        'Account not found: Hindi rehistrado ang account na ito sa workshop. Makipag-ugnayan sa Super Admin (Shop Owner) para sa Manager access, o sa Workshop Manager para sa Staff access.'
+        'Account not found: Hindi rehistrado ang account na ito sa workshop. Makipag-ugnayan sa Workshop Admin para gawan ka ng Staff account.'
       );
     } catch (err: unknown) {
       console.error('Workshop authentication error:', err);
@@ -106,21 +106,21 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/75 text-slate-800 flex items-center justify-center p-4 sm:p-6 selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-slate-100/75 text-slate-800 flex items-center justify-center p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
       <div className="max-w-md w-full bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
         
         {/* Top Header & Branding */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white mx-auto shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-orange-500 flex items-center justify-center text-white mx-auto shadow-sm shadow-orange-500/25">
             <Wrench className="w-6 h-6" />
           </div>
 
           <div>
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-[10px] font-bold uppercase tracking-wider mb-1">
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-[10px] font-bold uppercase tracking-wider mb-1">
               Workshop Operations Terminal
             </div>
             <h1 className="text-xl font-extrabold tracking-tight text-slate-900">
-              MotoCare Operations Console
+              Moto<span className="text-orange-500">Care</span> Operations Console
             </h1>
             <p className="text-xs text-slate-500">
               Santa Maria Hub • Workshop Managers & Staff Only
@@ -129,10 +129,10 @@ export default function AdminLogin() {
         </div>
 
         {/* Info Banner */}
-        <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-xl text-xs text-blue-900 flex items-start gap-2.5">
-          <Users className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <div className="p-3 bg-orange-50/70 border border-orange-200/80 rounded-xl text-xs text-orange-950 flex items-start gap-2.5">
+          <Users className="w-4 h-4 text-orange-600 shrink-0 mt-0.5" />
           <div className="leading-relaxed">
-            <strong>Workshop Personnel Sign In:</strong> Gamitin ang iyong ibinigay na account mula sa Super Admin (Shop Owner) o Workshop Manager.
+            <strong>Workshop Personnel Sign In:</strong> Gamitin ang account na ibinigay sa iyo ng Workshop Admin.
           </div>
         </div>
 
@@ -155,7 +155,7 @@ export default function AdminLogin() {
         <form onSubmit={handleSignIn} className="space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-              <Mail className="w-3.5 h-3.5 text-blue-600" />
+              <Mail className="w-3.5 h-3.5 text-orange-600" />
               Work Email Address
             </label>
             <input
@@ -164,13 +164,13 @@ export default function AdminLogin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="e.g. manager@motocare.ph o staff@motocare.ph"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition"
             />
           </div>
 
           <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-              <Lock className="w-3.5 h-3.5 text-blue-600" />
+              <Lock className="w-3.5 h-3.5 text-orange-600" />
               Terminal Password
             </label>
             <div className="relative">
@@ -180,7 +180,7 @@ export default function AdminLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="I-enter ang iyong password"
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-10 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition"
               />
               <button
                 type="button"
@@ -195,7 +195,7 @@ export default function AdminLogin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-xs mt-2 cursor-pointer"
+            className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold rounded-full text-xs transition flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 mt-2 cursor-pointer"
           >
             {loading ? (
               <>
