@@ -30,6 +30,7 @@ import {
   fetchHardcopyRequests, 
   updateHardcopyStatus 
 } from './utils/hardcopyService';
+import { adminEvaluateAndExpireMissedBookings } from './utils/bookingLifecycle';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -76,6 +77,9 @@ export default function AdminDashboard() {
   const fetchTickets = useCallback(async () => {
     try {
       setLoading(true);
+
+      // Auto-evaluate expired bookings in workshop queue
+      await adminEvaluateAndExpireMissedBookings();
 
       // 1. Fetch tickets with attached motorcycles
       const { data: ticketData, error: ticketError } = await supabase

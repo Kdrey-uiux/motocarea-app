@@ -46,13 +46,28 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-100/70 flex flex-col items-center justify-center p-4">
-        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white mb-3 shadow-xs animate-pulse">
-          <Wrench className="w-5 h-5" />
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-          <span>Verifying rider session...</span>
+      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-200">
+        <div className="flex flex-col items-center space-y-4">
+          {/* Animated MotoCare Emblem */}
+          <div className="relative">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
+              <Wrench className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="absolute -inset-1.5 rounded-3xl bg-orange-500/15 blur-sm -z-10 animate-pulse" />
+          </div>
+
+          {/* Brand Title & Loading Subtext */}
+          <div className="text-center space-y-1">
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+              <span>MotoCare</span>
+              <span className="w-1 h-1 rounded-full bg-orange-500" />
+              <span className="text-xs font-semibold text-slate-500">Rider Portal</span>
+            </h3>
+            <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500 pt-0.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
+              <span>Verifying rider session...</span>
+            </div>
+          </div>
         </div>
       </div>
     );

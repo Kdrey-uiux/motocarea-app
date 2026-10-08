@@ -165,7 +165,7 @@ export default function DashboardSidebar({
 
       {/* 2. DESKTOP FLOATING SLIM PILL SIDEBAR (hidden md:flex) */}
       <aside
-        className={`hidden md:flex sticky top-0 inset-y-0 left-0 z-40 flex-col justify-between h-screen transition-all duration-300 ease-in-out ${
+        className={`hidden md:flex fixed top-0 bottom-0 left-0 z-40 flex-col justify-between h-screen transition-all duration-300 ease-in-out ${
           isSidebarCollapsed
             ? 'w-0 p-0 opacity-0 pointer-events-none overflow-hidden'
             : 'w-24 py-6 pl-5 pr-0 opacity-100'

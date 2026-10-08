@@ -7,7 +7,9 @@ import {
   Clock,
   Bike,
   Info,
-  XCircle
+  XCircle,
+  AlertTriangle,
+  CalendarSync
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -18,6 +20,7 @@ interface OverviewTabProps {
   onBookClick: (bikeId?: string) => void;
   onViewHistoryClick?: () => void;
   onRequestCancelTicket?: (ticket: ServiceTicket) => void;
+  onRescheduleClick?: (ticket: ServiceTicket) => void;
 }
 
 export default function OverviewTab({
@@ -28,6 +31,7 @@ export default function OverviewTab({
   onBookClick,
   onViewHistoryClick,
   onRequestCancelTicket,
+  onRescheduleClick,
 }: OverviewTabProps) {
   // Support switching between multiple active booked motorcycles
   const [selectedTicketId, setSelectedTicketId] = useState<string>(
@@ -68,6 +72,13 @@ export default function OverviewTab({
       setInspectedStageStep(stage > 0 ? stage : 1);
     }
   }, [activeTicket?.id, activeTicket?.stage, activeTicket?.status]);
+
+  // Detect any missed drop-off bookings to prompt immediate rescheduling
+  const missedBookings = useMemo(() => {
+    return (serviceHistory || []).filter(
+      (t) => t.status === 'MISSED' || t.status === 'NO_SHOW'
+    );
+  }, [serviceHistory]);
 
   const stages = [
     {
@@ -113,34 +124,6 @@ export default function OverviewTab({
   ];
 
   const inspectedStage = stages.find((s) => s.step === inspectedStageStep) || stages[0];
-
-  // 6-Month Real Maintenance Activity Data computed from real serviceHistory
-  const serviceActivityData = useMemo(() => {
-    const months = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthLabel = d.toLocaleDateString('en-US', { month: 'short' });
-      const year = d.getFullYear();
-      const monthIdx = d.getMonth();
-      const count = serviceHistory.filter((item) => {
-        if (!item.created_at) return false;
-        const itemDate = new Date(item.created_at);
-        return itemDate.getFullYear() === year && itemDate.getMonth() === monthIdx;
-      }).length;
-      months.push({
-        label: monthLabel,
-        count,
-        isCurrent: i === 0,
-      });
-    }
-    return months;
-  }, [serviceHistory]);
-
-  const maxActivityCount = useMemo(() => {
-    const max = Math.max(...serviceActivityData.map((m) => m.count));
-    return max > 0 ? max : 1;
-  }, [serviceActivityData]);
 
   return (
     <div className="space-y-6 pb-8">
@@ -262,10 +245,43 @@ export default function OverviewTab({
         </div>
       )}
 
-      {/* 2. Top Bento Grid Row (3 Cards: VIP Pass, Interactive Stage Stepper, Wavy Chart) */}
+      {/* 1.8 Missed Drop-off Notice Banner */}
+      {missedBookings.length > 0 && (
+        <div className="bg-gradient-to-r from-rose-50 via-amber-50/40 to-white border border-rose-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-rose-950 uppercase tracking-wider">
+                  Missed Drop-off Window
+                </span>
+                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200/60">
+                  #{missedBookings[0].ticket_code}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 leading-snug">
+                Mukhang hindi mo nadala ang iyong motor ({missedBookings[0].motorcycles?.model || 'Motorcycle'}) sa itinakdang oras kanina. Naka-save ang iyong detalye — maaari mo itong i-reschedule agad sa bagong petsa at oras.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onRescheduleClick ? onRescheduleClick(missedBookings[0]) : onBookClick()}
+            className="w-full sm:w-auto shrink-0 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-full text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            <CalendarSync className="w-3.5 h-3.5" />
+            <span>Reschedule Appointment</span>
+          </button>
+        </div>
+      )}
+
+      {/* 2. Top Bento Grid Row: VIP Pass (5 cols) & Interactive Stage Stepper (7 cols) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
         {/* Card 1: Active Service Unit / Motorcycle Bay Pass */}
-        <div className="lg:col-span-4 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3.5">
+        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3.5">
           <div>
             <h3 className="text-sm font-bold text-slate-900">
               {activeTicket ? 'Active Service Unit' : 'Primary Motorcycle'}
@@ -367,7 +383,7 @@ export default function OverviewTab({
         </div>
 
         {/* Card 2: Interactive Workshop Progress (Clickable Stages & Booked Motorcycle Display) */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
+        <div id="tour-active-tracker" className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
@@ -550,99 +566,6 @@ export default function OverviewTab({
             </div>
           )}
         </div>
-
-        {/* Card 3: Service Records & Functional Activity Chart */}
-        <div className="lg:col-span-3 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">Service Records</h3>
-            <p className="text-xs text-slate-400">Official maintenance history</p>
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-xs text-slate-400 block font-medium">Completed Services</span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                {serviceHistory.length}
-              </span>
-              <span className="text-xs font-semibold text-slate-500">
-                {serviceHistory.length === 1 ? 'Record Logged' : 'Records Logged'}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              {serviceHistory.length === 0
-                ? 'No past services yet • Records log upon release'
-                : `Latest: ${serviceHistory[0]?.service_type || 'Maintenance'}`}
-            </p>
-          </div>
-
-          {/* Real Functional 6-Month Maintenance Activity Chart */}
-          <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-3 sm:p-3.5 space-y-2">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-semibold text-slate-700 text-[11px]">Monthly Visits</span>
-              <span className="text-[10px] text-slate-400">Past 6 Months</span>
-            </div>
-
-            <div className="flex items-end justify-between gap-1.5 sm:gap-2 h-16 pt-1 px-1">
-              {serviceActivityData.map((m, idx) => {
-                const heightPercent = m.count > 0 ? Math.max((m.count / maxActivityCount) * 100, 30) : 10;
-
-                return (
-                  <div
-                    key={idx}
-                    className="flex-1 flex flex-col items-center justify-end h-full group relative"
-                    title={`${m.label}: ${m.count} ${m.count === 1 ? 'service' : 'services'} completed`}
-                  >
-                    {/* Tooltip on hover */}
-                    <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-6 pointer-events-none z-10">
-                      <span className="bg-slate-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap">
-                        {m.count} done
-                      </span>
-                    </div>
-
-                    {/* Bar */}
-                    <div
-                      style={{ height: `${heightPercent}%` }}
-                      className={`w-full rounded-t transition-all duration-300 ${
-                        m.count > 0
-                          ? 'bg-orange-500 shadow-xs'
-                          : m.isCurrent
-                          ? 'bg-orange-200/80'
-                          : 'bg-slate-200/80'
-                      }`}
-                    />
-
-                    {/* Month Label */}
-                    <span
-                      className={`text-[9px] sm:text-[10px] font-bold uppercase mt-1 tracking-tight ${
-                        m.isCurrent ? 'text-orange-600' : 'text-slate-400'
-                      }`}
-                    >
-                      {m.label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1.5 border-t border-slate-200/60">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                <span>{serviceHistory.length} Completed Total</span>
-              </span>
-              <span>Workshop Log</span>
-            </div>
-          </div>
-
-          {/* Single Action Button: History Only (Light Green Theme) */}
-          <button
-            type="button"
-            onClick={onViewHistoryClick}
-            className="w-full bg-emerald-50 hover:bg-emerald-100/90 text-emerald-800 border border-emerald-200/90 rounded-full py-2.5 px-4 text-xs font-semibold shadow-2xs flex items-center justify-center gap-2 transition cursor-pointer"
-          >
-            <Clock className="w-3.5 h-3.5 text-emerald-600" />
-            <span>View Service Records</span>
-          </button>
-        </div>
       </div>
 
       {/* 3. Bottom Bento Grid Row (Service Records & Garage Fleet Milestone - NO FAKE SPECIALISTS) */}
@@ -677,10 +600,17 @@ export default function OverviewTab({
                     <span className="font-bold text-orange-600 bg-orange-50 border border-orange-200/80 px-2 py-0.5 rounded-lg text-[11px]">
                       {item.ticket_code}
                     </span>
-                    <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                      {item.status}
-                    </span>
+                    {item.status === 'MISSED' || item.status === 'NO_SHOW' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-semibold border border-rose-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                        Missed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                        {item.status}
+                      </span>
+                    )}
                   </div>
 
                   <div className="space-y-0.5">
@@ -688,11 +618,6 @@ export default function OverviewTab({
                     <div className="text-[11px] text-slate-500">
                       {new Date(item.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-[11px]">
-                    <span className="text-slate-400">Total Billed</span>
-                    <span className="font-bold text-slate-900">{item.total_estimate}</span>
                   </div>
                 </div>
               ))
@@ -712,9 +637,7 @@ export default function OverviewTab({
                 <tr className="text-slate-400 text-[11px] font-semibold border-b border-slate-100 pb-2">
                   <th className="py-2.5 font-normal">Service Name</th>
                   <th className="py-2.5 font-normal">Date</th>
-                  <th className="py-2.5 font-normal">Time</th>
-                  <th className="py-2.5 font-normal">Status</th>
-                  <th className="py-2.5 font-normal text-right">Amount</th>
+                  <th className="py-2.5 font-normal text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -725,28 +648,29 @@ export default function OverviewTab({
                         <div className="w-7 h-7 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs shrink-0">
                           <Wrench className="w-3.5 h-3.5" />
                         </div>
-                        <span className="truncate max-w-[160px] sm:max-w-xs">{item.service_type}</span>
+                        <span className="truncate max-w-[180px] sm:max-w-xs">{item.service_type}</span>
                       </td>
                       <td className="py-3.5 text-slate-500 whitespace-nowrap">
                         {new Date(item.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="py-3.5 text-slate-400 whitespace-nowrap font-mono text-[11px]">
-                        10:30 AM
-                      </td>
-                      <td className="py-3.5 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right font-bold text-slate-900 whitespace-nowrap">
-                        {item.total_estimate}
+                      <td className="py-3.5 whitespace-nowrap text-right">
+                        {item.status === 'MISSED' || item.status === 'NO_SHOW' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-600" />
+                            Missed
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                            {item.status}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-10 text-center">
+                    <td colSpan={3} className="py-10 text-center">
                       <div className="space-y-2 max-w-sm mx-auto">
                         <Clock className="w-8 h-8 text-slate-300 mx-auto" />
                         <div className="text-xs font-bold text-slate-700">No Past Service Records Yet</div>
@@ -792,19 +716,9 @@ export default function OverviewTab({
 
           {/* Sub-Card 2: Registered Garage Fleet Summary */}
           <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-xs font-bold text-slate-900">My Garage Fleet</h4>
-                <p className="text-[11px] text-slate-400">Registered motorcycles ({motorcycles.length})</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => onBookClick()}
-                className="w-7 h-7 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-600 flex items-center justify-center transition cursor-pointer"
-                title="Add Motorcycle via Booking"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+            <div>
+              <h4 className="text-xs font-bold text-slate-900">My Garage Fleet</h4>
+              <p className="text-[11px] text-slate-400">Registered motorcycles ({motorcycles.length})</p>
             </div>
 
             <div className="space-y-2 pt-1 max-h-36 overflow-y-auto pr-1">

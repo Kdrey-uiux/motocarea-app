@@ -25,6 +25,18 @@ if (typeof window !== 'undefined') {
 }
 export const DEFAULT_INITIAL_ADMINS: WorkshopAdminAccount[] = [
   {
+    id: 'adm-primary',
+    fullName: 'MotoCare Workshop Admin',
+    email: 'admin@motocare.ph',
+    phone: '+63 917 888 9900',
+    role: 'admin',
+    position: 'Workshop Operations Director',
+    status: 'active',
+    password: 'admin2026!',
+    createdAt: '2026-10-05T08:00:00.000Z',
+    createdBy: 'System Root',
+  },
+  {
     id: 'adm-001',
     fullName: 'Engr. Marco Santos',
     email: 'admin@motocare.com',

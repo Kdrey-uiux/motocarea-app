@@ -11,12 +11,15 @@ import {
   CheckCircle2,
   Clock,
   Stamp,
-  FileText
+  FileText,
+  BookOpen,
+  CheckCheck
 } from 'lucide-react';
 import { TabType, ServiceTicket, UserProfile } from '../../types/dashboard';
 import { HardcopyRequest } from '../../lib/hardcopyService';
 
 interface DashboardHeaderProps {
+  userId?: string | null;
   activeTab: TabType;
   setActiveTab?: (tab: TabType) => void;
   userProfile?: UserProfile | null;
@@ -29,9 +32,11 @@ interface DashboardHeaderProps {
   onOpenSettings?: () => void;
   onOpenPasswordModal: () => void;
   onLogout: () => void;
+  onOpenTutorial?: () => void;
 }
 
 export default function DashboardHeader({
+  userId,
   activeTab,
   setActiveTab,
   userProfile,
@@ -44,6 +49,7 @@ export default function DashboardHeader({
   onOpenSettings,
   onOpenPasswordModal,
   onLogout,
+  onOpenTutorial,
 }: DashboardHeaderProps) {
   // Only 3 Core Navigation Tabs (Eliminates redundant "Account Profile" in nav)
   const navTabs = [
@@ -54,7 +60,27 @@ export default function DashboardHeader({
 
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(true);
+
+  // Persistent read tracking keyed by authenticated user ID
+  const storageKey = userId ? `motocare_read_notifs_${userId}` : 'motocare_read_notifs_guest';
+  const [readNotifIds, setReadNotifIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Re-sync read state whenever account / userId changes
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      setReadNotifIds(saved ? JSON.parse(saved) : []);
+    } catch {
+      setReadNotifIds([]);
+    }
+  }, [storageKey]);
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -85,7 +111,7 @@ export default function DashboardHeader({
     }
   };
 
-  // Dynamic Notifications based on user DB state
+  // Dynamic Notifications with deterministic IDs & navigation targets
   const notificationsList = [
     ...(hardcopyRequests.length > 0
       ? hardcopyRequests
@@ -93,7 +119,7 @@ export default function DashboardHeader({
           .map((hr) => {
             const isReady = hr.status === 'READY_FOR_PICKUP';
             return {
-              id: `hardcopy-${hr.id}`,
+              id: `hardcopy-${hr.id}-${hr.status}`,
               title: isReady
                 ? `Ready for Pickup: Certified Records (${hr.bikeModel})`
                 : `Preparing Stamped Records: ${hr.bikeModel}`,
@@ -104,6 +130,7 @@ export default function DashboardHeader({
               isHighPriority: isReady,
               icon: isReady ? Stamp : FileText,
               color: isReady ? 'text-emerald-700 bg-emerald-100' : 'text-amber-700 bg-amber-100',
+              targetTab: 'history' as TabType,
             };
           })
       : []),
@@ -111,7 +138,7 @@ export default function DashboardHeader({
       ? activeTickets.map((t) => {
           const isTicketReady = t.status === 'READY_FOR_PICKUP';
           return {
-            id: `active-ticket-${t.id}`,
+            id: `active-ticket-${t.id}-${t.status}-${t.stage}`,
             title: isTicketReady
               ? `Ready for Pickup: ${t.motorcycles?.model || 'Motorcycle'}`
               : `${t.motorcycles?.model || 'Motorcycle'}: Stage ${t.stage} Service`,
@@ -122,36 +149,75 @@ export default function DashboardHeader({
             isHighPriority: isTicketReady,
             icon: isTicketReady ? CheckCircle2 : Wrench,
             color: isTicketReady ? 'text-emerald-600 bg-emerald-50' : 'text-orange-600 bg-orange-50',
+            targetTab: 'overview' as TabType,
           };
         })
       : []),
     ...(serviceHistory.length > 0
       ? [
           {
-            id: 'last-completed',
+            id: `history-${serviceHistory[0].id || serviceHistory[0].ticket_code}`,
             title: 'Maintenance Log Verified',
             desc: `Service #${serviceHistory[0].ticket_code} (${serviceHistory[0].service_type}) completed and logged to your digital warranty.`,
             time: new Date(serviceHistory[0].created_at).toLocaleDateString(),
             isHighPriority: false,
             icon: ShieldCheck,
             color: 'text-blue-600 bg-blue-50',
+            targetTab: 'history' as TabType,
           },
         ]
       : []),
     {
-      id: 'general-welcome',
+      id: 'general-welcome-guarantee',
       title: 'Workshop Guarantee Active',
       desc: 'All reservations enjoy our 7-day labor warranty and zero-advance-deposit policy.',
       time: 'MotoCare Policy',
       isHighPriority: false,
       icon: Clock,
       color: 'text-slate-600 bg-slate-100',
+      targetTab: 'settings' as TabType,
     },
   ];
 
+  // Calculate unread count strictly based on persistent read notification IDs
+  const unreadCount = notificationsList.filter((notif) => !readNotifIds.includes(notif.id)).length;
+  const hasUnreadNotifications = unreadCount > 0;
+
+  const handleMarkAllAsRead = () => {
+    const allIds = notificationsList.map((n) => n.id);
+    const merged = Array.from(new Set([...readNotifIds, ...allIds]));
+    setReadNotifIds(merged);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(merged));
+    } catch (e) {
+      console.error('Failed to save read notifications:', e);
+    }
+  };
+
+  const handleNotificationClick = (notif: typeof notificationsList[0]) => {
+    if (!readNotifIds.includes(notif.id)) {
+      const merged = Array.from(new Set([...readNotifIds, notif.id]));
+      setReadNotifIds(merged);
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+      } catch (e) {
+        console.error('Failed to save read notification:', e);
+      }
+    }
+    if (notif.targetTab && setActiveTab) {
+      setActiveTab(notif.targetTab);
+      setIsNotificationsOpen(false);
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-30 bg-[#f2f4f7]/95 backdrop-blur-md pt-2.5 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full transition-all">
-      <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
+    <header
+      className={`z-30 bg-[#f2f4f7]/95 backdrop-blur-md transition-all duration-300 sticky top-0 md:fixed md:top-0 md:right-0 ${
+        isSidebarCollapsed ? 'md:left-0' : 'md:left-24'
+      }`}
+    >
+      <div className="max-w-7xl mx-auto w-full pt-2.5 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8">
+        <div id="tour-header-bar" className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
         {/* Left: Brand Logo & Mobile Toggle */}
         <div className="flex items-center gap-3">
           <button
@@ -177,7 +243,7 @@ export default function DashboardHeader({
         </div>
 
         {/* Center: Clean 3-Tab Pill Navigation (Exactly Centered in Desktop Header) */}
-        <nav className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60 absolute left-1/2 -translate-x-1/2">
+        <nav id="tour-nav-tabs" className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60 absolute left-1/2 -translate-x-1/2">
           {navTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -199,6 +265,20 @@ export default function DashboardHeader({
 
         {/* Right: Functional Notification Bell & Interactive "K" Avatar Menu */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Quick Tutorial Launch Button */}
+          {onOpenTutorial && (
+            <button
+              id="tour-user-guide"
+              type="button"
+              onClick={onOpenTutorial}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200/80 text-xs font-bold transition shadow-2xs cursor-pointer group active:scale-95"
+              title="User Guide & System Walkthrough"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-orange-500 group-hover:scale-105 transition-transform" />
+              <span className="hidden sm:inline">User Guide</span>
+            </button>
+          )}
+
           {/* Functional Notification Dropdown */}
           <div className="relative" ref={notifRef}>
             <button
@@ -228,55 +308,68 @@ export default function DashboardHeader({
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5">
                       <h4 className="text-xs font-bold text-slate-900">Notifications</h4>
-                      {hasUnreadNotifications && (
+                      {hasUnreadNotifications ? (
                         <span className="px-1.5 py-0.5 rounded-full bg-orange-100 text-orange-700 text-[10px] font-bold">
-                          New
+                          {unreadCount} New
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                          <CheckCheck className="w-3 h-3 text-emerald-500" /> All caught up
                         </span>
                       )}
                     </div>
                     {hasUnreadNotifications && (
                       <button
                         type="button"
-                        onClick={() => setHasUnreadNotifications(false)}
-                        className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                        onClick={handleMarkAllAsRead}
+                        className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer transition active:scale-95"
                       >
                         Mark all as read
                       </button>
                     )}
                   </div>
 
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                  {notificationsList.map((notif) => {
-                    const Icon = notif.icon;
-                    return (
-                      <div
-                        key={notif.id}
-                        className={`p-3 rounded-2xl border transition text-xs space-y-1 ${
-                          notif.isHighPriority
-                            ? 'bg-emerald-50/60 border-emerald-200'
-                            : 'bg-slate-50/60 border-slate-100 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2.5">
-                          <div className={`p-1.5 rounded-xl ${notif.color} shrink-0 mt-0.5`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <span className="font-bold text-slate-900 block truncate">
-                              {notif.title}
-                            </span>
-                            <p className="text-[11px] text-slate-600 leading-snug mt-0.5">
-                              {notif.desc}
-                            </p>
-                            <span className="text-[10px] text-slate-400 block mt-1">
-                              {notif.time}
-                            </span>
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {notificationsList.map((notif) => {
+                      const Icon = notif.icon;
+                      const isUnread = !readNotifIds.includes(notif.id);
+                      return (
+                        <div
+                          key={notif.id}
+                          onClick={() => handleNotificationClick(notif)}
+                          className={`p-3 rounded-2xl border transition text-xs space-y-1 cursor-pointer ${
+                            isUnread
+                              ? notif.isHighPriority
+                                ? 'bg-emerald-50/70 border-emerald-300 shadow-2xs'
+                                : 'bg-white border-orange-200 shadow-2xs hover:border-orange-300'
+                              : 'bg-slate-50/50 border-slate-100/90 text-slate-500 opacity-75 hover:opacity-100 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            <div className={`p-1.5 rounded-xl ${notif.color} shrink-0 mt-0.5`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className={`block truncate ${isUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'}`}>
+                                  {notif.title}
+                                </span>
+                                {isUnread && (
+                                  <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Unread" />
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-snug mt-0.5">
+                                {notif.desc}
+                              </p>
+                              <span className="text-[10px] text-slate-400 block mt-1">
+                                {notif.time}
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
               </div>
             </>
           )}
@@ -359,6 +452,20 @@ export default function DashboardHeader({
                   <span>Settings & Policies</span>
                 </button>
 
+                {onOpenTutorial && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      onOpenTutorial();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-orange-700 bg-orange-50/60 hover:bg-orange-100/80 rounded-xl transition cursor-pointer"
+                  >
+                    <BookOpen className="w-4 h-4 text-orange-500" />
+                    <span>User Guide & Onboarding</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   onClick={() => {
@@ -389,6 +496,7 @@ export default function DashboardHeader({
           )}
           </div>
         </div>
+      </div>
       </div>
     </header>
   );

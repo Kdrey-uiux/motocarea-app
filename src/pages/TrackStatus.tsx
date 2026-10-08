@@ -11,7 +11,7 @@ import {
   Bike,
   ShieldCheck,
   Calendar,
-  Sparkles,
+  Radio,
   Loader2
 } from 'lucide-react';
 
@@ -25,7 +25,6 @@ interface PublicTicket {
   estimated_pickup: string;
   total_estimate: string;
   status: string;
-  notes?: string;
   dropoff_date?: string;
   created_at: string;
   motorcycles?: {
@@ -38,14 +37,17 @@ export default function TrackStatus() {
   const { ticketCode } = useParams<{ ticketCode?: string }>();
   const navigate = useNavigate();
 
-  const [inputCode, setInputCode] = useState(ticketCode || '');
+  const [ticketDigits, setTicketDigits] = useState('');
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchTicket = async (codeToSearch: string) => {
-    const cleanCode = codeToSearch.trim().toUpperCase();
+    let cleanCode = codeToSearch.trim().toUpperCase();
     if (!cleanCode) return;
+    if (!cleanCode.startsWith('MC-')) {
+      cleanCode = `MC-${cleanCode.replace(/\D/g, '')}`;
+    }
 
     setLoading(true);
     setErrorMsg(null);
@@ -63,7 +65,6 @@ export default function TrackStatus() {
           estimated_pickup,
           total_estimate,
           status,
-          notes,
           dropoff_date,
           created_at,
           motorcycles (
@@ -93,7 +94,6 @@ export default function TrackStatus() {
           estimated_pickup: data.estimated_pickup,
           total_estimate: data.total_estimate,
           status: data.status,
-          notes: data.notes,
           dropoff_date: data.dropoff_date,
           created_at: data.created_at,
           motorcycles: bikeObj || null,
@@ -112,8 +112,12 @@ export default function TrackStatus() {
 
   useEffect(() => {
     if (ticketCode) {
-      setInputCode(ticketCode.toUpperCase());
-      fetchTicket(ticketCode);
+      const cleanDigits = ticketCode.replace(/\D/g, '').slice(0, 6);
+      setTicketDigits(cleanDigits);
+      const normalizedCode = ticketCode.toUpperCase().startsWith('MC-')
+        ? ticketCode.toUpperCase()
+        : `MC-${cleanDigits}`;
+      fetchTicket(normalizedCode);
     }
   }, [ticketCode]);
 
@@ -159,18 +163,44 @@ export default function TrackStatus() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputCode.trim()) return;
-    const cleanCode = inputCode.trim().toUpperCase();
-    navigate(`/track/${cleanCode}`, { replace: true });
-    fetchTicket(cleanCode);
+    const cleanDigits = ticketDigits.trim();
+    if (!cleanDigits) return;
+    const fullCode = `MC-${cleanDigits}`;
+    navigate(`/track/${fullCode}`, { replace: true });
+    fetchTicket(fullCode);
   };
 
   const stages = [
-    { step: 1, name: 'Intake', desc: 'Unit Logged' },
-    { step: 2, name: 'Inspect', desc: 'Diagnostics' },
-    { step: 3, name: 'Service', desc: 'Repair Work' },
-    { step: 4, name: 'Test', desc: 'Road Test' },
-    { step: 5, name: 'Ready', desc: 'Released' },
+    {
+      step: 1,
+      name: 'Intake',
+      desc: 'Unit Logged',
+      guidance: 'Motorcycle checked in at MotoCare reception. Initial intake and mechanic inspection underway.',
+    },
+    {
+      step: 2,
+      name: 'Inspect',
+      desc: 'Diagnostics',
+      guidance: 'Comprehensive diagnostic scan and physical inspection underway. Advisor will prepare official parts estimate.',
+    },
+    {
+      step: 3,
+      name: 'Service',
+      desc: 'Repair Work',
+      guidance: 'Active service, parts replacement, and fluid replenishment currently in progress on the workshop bay.',
+    },
+    {
+      step: 4,
+      name: 'Test',
+      desc: 'Road Test',
+      guidance: 'Senior technician is conducting quality check, safety torquing, and calibration road testing.',
+    },
+    {
+      step: 5,
+      name: 'Ready',
+      desc: 'Released',
+      guidance: 'All workshop services completed! Motorcycle is cleaned and ready for counter collection at MotoCare reception.',
+    },
   ];
 
   const isCompleted = ticket?.status === 'COMPLETED';
@@ -212,7 +242,7 @@ export default function TrackStatus() {
         {/* Search Header */}
         <div className="text-center space-y-3">
           <span className="text-[11px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full inline-flex items-center gap-1.5 shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-orange-500" />
+            <Radio className="w-3.5 h-3.5 text-orange-500" />
             Live Workshop Dispatch Tracker
           </span>
           <h1 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">
@@ -223,20 +253,28 @@ export default function TrackStatus() {
           </p>
 
           <form onSubmit={handleSearch} className="max-w-md mx-auto pt-2">
-            <div className="relative flex items-center shadow-xs">
+            <div className="relative flex items-center bg-white border border-slate-200/90 rounded-full shadow-xs focus-within:border-orange-500 focus-within:ring-4 focus-within:ring-orange-500/10 transition p-1.5 pl-3 sm:pl-3.5">
+              <Search className="w-4 h-4 text-slate-400 shrink-0 mr-2" />
+              
+              {/* Permanent MC- Prefix Badge */}
+              <div className="px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-orange-700 font-bold font-mono text-xs select-none shrink-0 flex items-center mr-2">
+                MC-
+              </div>
+
               <input
                 type="text"
-                required
-                value={inputCode}
-                onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-                placeholder="Enter Ticket Code (e.g. MC-2026)..."
-                className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-24 py-3 text-xs sm:text-sm text-slate-900 font-mono uppercase tracking-wider focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={ticketDigits}
+                onChange={(e) => setTicketDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder=""
+                className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-mono font-bold tracking-wider focus:outline-none"
               />
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
               <button
                 type="submit"
-                disabled={loading || !inputCode.trim()}
-                className="absolute right-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-full transition flex items-center gap-1 shadow-sm shadow-orange-500/20 active:scale-95 cursor-pointer"
+                disabled={loading || !ticketDigits.trim()}
+                className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 sm:px-5 py-2 rounded-full transition flex items-center gap-1 shadow-sm shadow-orange-500/20 active:scale-95 cursor-pointer shrink-0"
               >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Track'}
               </button>
@@ -379,17 +417,28 @@ export default function TrackStatus() {
               </div>
             </div>
 
-            {/* Notes Section */}
-            {ticket.notes && (
-              <div className="p-4 bg-orange-50/50 border border-orange-200/70 rounded-2xl text-xs space-y-1">
-                <span className="text-[10px] font-bold text-orange-700 uppercase tracking-wider block">
-                  Rider Symptoms / Special Instructions
+            {/* Stage-Aware Workshop Status & Guidance (Privacy-Compliant) */}
+            <div className="p-4 bg-orange-50/60 border border-orange-200/70 rounded-2xl text-xs space-y-1.5 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                <span className="text-[10px] font-bold text-orange-800 uppercase tracking-wider">
+                  Current Workshop Phase
                 </span>
-                <p className="text-slate-700 italic leading-relaxed">
-                  "{ticket.notes}"
-                </p>
               </div>
-            )}
+              <p className="text-slate-700 font-medium leading-relaxed">
+                {isCompleted
+                  ? 'All services completed! Motorcycle was officially released to customer.'
+                  : stages[effectiveStage - 1]?.guidance}
+              </p>
+            </div>
+
+            {/* Privacy Shield & Public Telemetry Notice */}
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center gap-2.5 text-[11px] text-slate-500 shadow-2xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>
+                <strong>Public Workshop Telemetry:</strong> Customer personal contact details and private instructions are protected and hidden.
+              </span>
+            </div>
 
             {/* Footer Validation */}
             <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-slate-400 border-t border-slate-100">
@@ -399,7 +448,7 @@ export default function TrackStatus() {
               </span>
               <span className="flex items-center gap-1 font-mono">
                 <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                Santa Maria Service Hub
+                MotoCare Service Hub
               </span>
             </div>
           </div>

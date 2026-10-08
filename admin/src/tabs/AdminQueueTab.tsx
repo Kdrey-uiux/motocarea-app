@@ -2,6 +2,12 @@ import { useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { recordAuditLog } from '../utils/auditLogger';
 import { AdminTicket, UserRole } from '../types/admin';
+import {
+  adminLateCheckInOverride,
+  adminExtendGracePeriod,
+  adminAssistedReschedule,
+  TIME_SLOTS
+} from '../utils/bookingLifecycle';
 import { 
   Search, 
   Filter, 
@@ -15,7 +21,9 @@ import {
   Check, 
   Phone, 
   Bike,
-  Trash2
+  Trash2,
+  AlertCircle,
+  CalendarSync
 } from 'lucide-react';
 
 interface AdminQueueTabProps {
@@ -27,7 +35,7 @@ interface AdminQueueTabProps {
   currentRole?: UserRole;
 }
 
-type FilterStatus = 'ALL' | 'STAGE_1' | 'STAGE_ACTIVE' | 'STAGE_5' | 'COMPLETED';
+type FilterStatus = 'ALL' | 'STAGE_1' | 'STAGE_ACTIVE' | 'STAGE_5' | 'MISSED' | 'COMPLETED';
 
 export default function AdminQueueTab({
   tickets,
@@ -41,6 +49,12 @@ export default function AdminQueueTab({
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('ALL');
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Assisted Reschedule State
+  const [rescheduleTarget, setRescheduleTarget] = useState<AdminTicket | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleSlot, setRescheduleSlot] = useState(TIME_SLOTS[0].id);
+  const [isRescheduling, setIsRescheduling] = useState(false);
 
   // Copy helper
   const handleCopyCode = (code: string) => {
@@ -169,10 +183,13 @@ export default function AdminQueueTab({
   // Filtering
   const filteredTickets = useMemo(() => {
     return tickets.filter((t) => {
+      const isMissed = t.status === 'MISSED' || t.status === 'NO_SHOW';
+
       // 1. Status Filter
-      if (statusFilter === 'STAGE_1' && (t.stage !== 1 || t.status === 'COMPLETED')) return false;
-      if (statusFilter === 'STAGE_ACTIVE' && (t.stage < 2 || t.stage > 4 || t.status === 'COMPLETED')) return false;
-      if (statusFilter === 'STAGE_5' && (t.stage !== 5 || t.status === 'COMPLETED')) return false;
+      if (statusFilter === 'STAGE_1' && (t.stage !== 1 || t.status === 'COMPLETED' || isMissed)) return false;
+      if (statusFilter === 'STAGE_ACTIVE' && (t.stage < 2 || t.stage > 4 || t.status === 'COMPLETED' || isMissed)) return false;
+      if (statusFilter === 'STAGE_5' && (t.stage !== 5 || t.status === 'COMPLETED' || isMissed)) return false;
+      if (statusFilter === 'MISSED' && !isMissed) return false;
       if (statusFilter === 'COMPLETED' && t.status !== 'COMPLETED') return false;
 
       // 2. Search Query
@@ -193,6 +210,9 @@ export default function AdminQueueTab({
 
   // Stage Badge Helper
   const getStageLabel = (stage: number, status: string) => {
+    if (status === 'MISSED' || status === 'NO_SHOW') {
+      return { text: 'Stage 1: Missed Drop-off (No-Show)', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+    }
     if (status === 'COMPLETED') return { text: 'Stage 5: Completed & Released', color: 'bg-slate-100 text-slate-700 border-slate-200' };
     switch (stage) {
       case 1:
@@ -275,6 +295,17 @@ export default function AdminQueueTab({
             </button>
             <button
               type="button"
+              onClick={() => setStatusFilter('MISSED')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                statusFilter === 'MISSED'
+                  ? 'bg-rose-600 text-white font-bold shadow-2xs'
+                  : 'text-rose-700 hover:text-rose-900 bg-rose-50/80 border border-rose-200/70'
+              }`}
+            >
+              Missed ({tickets.filter((t) => t.status === 'MISSED' || t.status === 'NO_SHOW').length})
+            </button>
+            <button
+              type="button"
               onClick={() => setStatusFilter('COMPLETED')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
                 statusFilter === 'COMPLETED'
@@ -306,13 +337,16 @@ export default function AdminQueueTab({
           {filteredTickets.map((t) => {
             const stageInfo = getStageLabel(t.stage || 1, t.status);
             const isCompleted = t.status === 'COMPLETED';
+            const isMissed = t.status === 'MISSED' || t.status === 'NO_SHOW';
             const isUpdating = updatingId === t.id;
 
             return (
               <div
                 key={t.id}
                 className={`bg-white border rounded-2xl p-5 transition-all shadow-xs ${
-                  t.status === 'READY_FOR_PICKUP'
+                  isMissed
+                    ? 'border-rose-300 bg-rose-50/20 shadow-sm'
+                    : t.status === 'READY_FOR_PICKUP'
                     ? 'border-emerald-300 bg-emerald-50/20'
                     : 'border-slate-200/90 hover:border-slate-300'
                 }`}
@@ -343,7 +377,14 @@ export default function AdminQueueTab({
                     </span>
 
                     {/* Status Badge */}
-                    <span className="text-[11px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-medium">
+                    <span
+                      className={`text-[11px] px-2 py-0.5 rounded-md font-medium border ${
+                        isMissed
+                          ? 'bg-rose-100 text-rose-800 border-rose-200 font-bold flex items-center gap-1'
+                          : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}
+                    >
+                      {isMissed && <AlertCircle className="w-3 h-3 text-rose-600 shrink-0" />}
                       Status: {t.status}
                     </span>
 
@@ -454,8 +495,68 @@ export default function AdminQueueTab({
                   </div>
                 </div>
 
-                {/* 1-Click Stage Progression Bar */}
-                {!isCompleted && (
+                {/* 1-Click Stage Progression Bar OR Missed Override Action Bar */}
+                {isMissed ? (
+                  <div className="mt-4 pt-3 border-t border-rose-200 flex flex-wrap items-center justify-between gap-2.5 bg-rose-50/60 -mx-5 -mb-5 p-4 rounded-b-2xl">
+                    <div className="flex items-center gap-2 text-rose-800 text-xs font-semibold">
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                      <span>Missed Drop-off Override & Rider Assistance:</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={async () => {
+                          if (confirm(`Accept late arrival check-in for Ticket #${t.ticket_code} and advance to Stage 2 (Diagnostic)?`)) {
+                            setUpdatingId(t.id);
+                            await adminLateCheckInOverride(t, currentRole === 'staff' ? 'Workshop Staff' : 'Service Advisor (Admin)');
+                            setUpdatingId(null);
+                            onRefresh();
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                        title="Customer arrived physically after window - override and check-in"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Late Check-in (Grace)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={async () => {
+                          if (confirm(`Extend grace period by +1 hour for Ticket #${t.ticket_code}?`)) {
+                            setUpdatingId(t.id);
+                            await adminExtendGracePeriod(t, 1, currentRole === 'staff' ? 'Workshop Staff' : 'Service Advisor (Admin)');
+                            setUpdatingId(null);
+                            onRefresh();
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                        title="Customer called ahead delayed in traffic - extend grace window"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Extend Grace (+1h)</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => {
+                          setRescheduleTarget(t);
+                          setRescheduleDate(t.dropoff_date || new Date().toISOString().split('T')[0]);
+                          setRescheduleSlot(TIME_SLOTS[0].id);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-xs transition cursor-pointer"
+                        title="Move to new date and time slot for calling customer"
+                      >
+                        <CalendarSync className="w-3.5 h-3.5" />
+                        <span>Assist Reschedule</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : !isCompleted && (
                   <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                     <div className="text-[11px] font-semibold text-slate-500 flex items-center gap-1.5">
                       <Clock className="w-3.5 h-3.5 text-blue-600" />
@@ -528,6 +629,115 @@ export default function AdminQueueTab({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Assisted Reschedule Modal for Phone-in / Front Desk Riders */}
+      {rescheduleTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <CalendarSync className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    Assist Reschedule • #{rescheduleTarget.ticket_code}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    {rescheduleTarget.motorcycles?.model || 'Motorcycle'} ({rescheduleTarget.motorcycles?.plate_number || 'N/A'})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRescheduleTarget(null)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  New Drop-off Date:
+                </label>
+                <input
+                  type="date"
+                  value={rescheduleDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => setRescheduleDate(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:bg-white focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Preferred Arrival Time Slot:
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {TIME_SLOTS.map((slot) => {
+                    const isSelected = rescheduleSlot === slot.id;
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setRescheduleSlot(slot.id)}
+                        className={`text-left p-2.5 rounded-xl border text-xs transition cursor-pointer flex items-center justify-between ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50/60 font-semibold text-blue-900'
+                            : 'border-slate-200 hover:border-slate-300 text-slate-700'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-bold">{slot.label}</div>
+                          <div className="text-[11px] text-slate-500">{slot.id}</div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-blue-600" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                disabled={isRescheduling}
+                onClick={() => setRescheduleTarget(null)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isRescheduling || !rescheduleDate}
+                onClick={async () => {
+                  if (!rescheduleTarget || !rescheduleDate) return;
+                  setIsRescheduling(true);
+                  const success = await adminAssistedReschedule(
+                    rescheduleTarget,
+                    rescheduleDate,
+                    rescheduleSlot,
+                    currentRole === 'staff' ? 'Workshop Staff' : 'Service Advisor (Admin)'
+                  );
+                  setIsRescheduling(false);
+                  if (success) {
+                    setRescheduleTarget(null);
+                    onRefresh();
+                  } else {
+                    alert('Failed to reschedule ticket.');
+                  }
+                }}
+                className="px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-xs transition disabled:opacity-50 cursor-pointer"
+              >
+                {isRescheduling ? 'Saving...' : 'Save & Move Schedule'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

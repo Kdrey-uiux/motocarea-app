@@ -1,13 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ChatMessage, UserProfile } from '../../types/dashboard';
-import { Send, MessageSquare, Loader2, X, Wrench, ShieldCheck, Stamp, CheckCircle2 } from 'lucide-react';
+import {
+  Send,
+  MessageSquare,
+  Loader2,
+  X,
+  Wrench,
+  ShieldCheck,
+  Stamp,
+  CheckCircle2,
+  AlertTriangle,
+  Calendar,
+  CalendarSync
+} from 'lucide-react';
 
 interface MessagesModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string | null;
   userProfile: UserProfile | null;
+  onRescheduleTicket?: (ticketCode: string) => void;
 }
 
 function formatMessageTimestamp(dateStr: string): string {
@@ -74,6 +87,7 @@ export default function MessagesModal({
   onClose,
   userId,
   userProfile,
+  onRescheduleTicket,
 }: MessagesModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -207,6 +221,90 @@ export default function MessagesModal({
             </div>
             <div className="text-[10px] opacity-80 font-mono">
               Claim Ref: #{data.requestId}
+            </div>
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    if (text.startsWith('[MISSED_BOOKING_NOTICE]')) {
+      try {
+        const data = JSON.parse(text.replace('[MISSED_BOOKING_NOTICE]', '').trim());
+        return (
+          <div className="space-y-2 text-left p-1">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-rose-700">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>Missed Drop-off Window</span>
+            </div>
+            <p className="text-[11px] text-slate-700 leading-snug">
+              {data.message}
+            </p>
+            <div className="bg-rose-50/80 border border-rose-200/80 rounded-xl p-2 text-[10px] space-y-0.5 font-mono text-slate-600">
+              <div>Ref Ticket: <span className="font-bold text-rose-800">#{data.ticketCode}</span></div>
+              <div>Unit: <span className="font-semibold text-slate-800">{data.bikeModel}</span> ({data.plateNumber})</div>
+            </div>
+            {onRescheduleTicket && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onRescheduleTicket(data.ticketCode);
+                }}
+                className="w-full py-2 px-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95"
+              >
+                <CalendarSync className="w-3.5 h-3.5" />
+                <span>Reschedule Booking Now</span>
+              </button>
+            )}
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    if (text.startsWith('[BOOKING_REMINDER]')) {
+      try {
+        const data = JSON.parse(text.replace('[BOOKING_REMINDER]', '').trim());
+        return (
+          <div className="space-y-2 text-left p-1">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-amber-800">
+              <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>MotoCare Appointment Reminder</span>
+            </div>
+            <p className="text-[11px] text-slate-700 leading-snug">
+              {data.message}
+            </p>
+            <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-2 text-[10px] space-y-0.5 text-slate-600">
+              <div>Ref: <span className="font-mono font-bold text-slate-800">#{data.ticketCode}</span></div>
+              <div>Unit: <span className="font-semibold text-slate-800">{data.bikeModel}</span> ({data.plateNumber})</div>
+              <div>Window: <span className="font-semibold text-amber-900">{data.timeWindow}</span></div>
+            </div>
+          </div>
+        );
+      } catch {
+        return text;
+      }
+    }
+
+    if (text.startsWith('[RESCHEDULE_CONFIRMED]')) {
+      try {
+        const data = JSON.parse(text.replace('[RESCHEDULE_CONFIRMED]', '').trim());
+        return (
+          <div className="space-y-2 text-left p-1">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-800">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Appointment Rescheduled</span>
+            </div>
+            <p className="text-[11px] text-slate-700 leading-snug">
+              {data.message}
+            </p>
+            <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-xl p-2 text-[10px] space-y-0.5 text-slate-600">
+              <div>Ref: <span className="font-mono font-bold text-slate-800">#{data.ticketCode}</span></div>
+              <div>New Date: <span className="font-semibold text-slate-800">{data.newDropoffDate}</span></div>
+              <div>Window: <span className="font-semibold text-emerald-900">{data.newTimeWindow}</span></div>
             </div>
           </div>
         );

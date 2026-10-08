@@ -21,14 +21,14 @@ export default function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200/80">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-500/20 text-white">
+        <Link to="/" className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-500/20 text-white shrink-0">
             <Wrench className="w-4 h-4" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">
+          <span className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
             Moto<span className="text-orange-500">Care</span>
           </span>
         </Link>
@@ -50,18 +50,19 @@ export default function Navbar() {
         </nav>
 
         {/* Actions (Desktop & Mobile) */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           <Link
             to="/login"
-            className="text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900 px-3 py-2 rounded-full hover:bg-slate-100 transition flex items-center gap-1.5"
+            className="text-xs sm:text-sm font-semibold text-slate-700 hover:text-slate-900 p-2 sm:px-3 sm:py-2 rounded-full hover:bg-slate-100 transition flex items-center gap-1.5 whitespace-nowrap shrink-0"
+            title="Log In to Customer Dashboard"
           >
-            <User className="w-4 h-4 text-slate-500" />
-            <span>Log In</span>
+            <User className="w-4 h-4 text-slate-600" />
+            <span className="hidden sm:inline">Log In</span>
           </Link>
 
           <button
             onClick={() => scrollToSection('tracking-hero')}
-            className="bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold px-3.5 sm:px-4 py-2 rounded-full transition shadow-sm shadow-orange-500/20 active:scale-95 cursor-pointer whitespace-nowrap"
+            className="bg-orange-500 hover:bg-orange-600 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-1.5 sm:py-2 rounded-full transition shadow-sm shadow-orange-500/20 active:scale-95 cursor-pointer whitespace-nowrap shrink-0"
           >
             Track Status
           </button>
@@ -70,7 +71,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition"
+            className="md:hidden p-1.5 sm:p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition shrink-0"
             aria-label="Toggle navigation menu"
           >
             {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

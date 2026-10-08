@@ -29,8 +29,8 @@ export default function HowItWorksSection() {
   ];
 
   return (
-    <section id="how-it-works" className="py-16 sm:py-20 px-4 sm:px-6 lg:px-8 bg-slate-100/50 border-b border-slate-200/80">
-      <div className="max-w-7xl mx-auto space-y-10 sm:space-y-14">
+    <section id="how-it-works" className="scroll-mt-16 sm:scroll-mt-20 py-12 sm:py-20 px-3.5 sm:px-6 lg:px-8 bg-slate-100/50 border-b border-slate-200/80">
+      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
         <div className="text-center max-w-xl mx-auto space-y-2">
           <span className="text-orange-600 text-xs font-bold tracking-wider uppercase bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full">
             Simple Process
@@ -38,22 +38,31 @@ export default function HowItWorksSection() {
           <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight pt-1">
             How It Works
           </h2>
-          <p className="text-slate-600 text-xs sm:text-sm">
+          <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto">
             Servicing your motorcycle with full transparency and zero guesswork.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {steps.map((s, idx) => (
-            <div key={idx} className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 text-center space-y-3 shadow-2xs hover:shadow-sm transition">
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-orange-500 flex items-center justify-center mx-auto shadow-sm shadow-orange-500/25">
-                {s.icon}
+            <div
+              key={idx}
+              className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-6 text-center shadow-2xs hover:shadow-sm transition flex flex-col justify-between"
+            >
+              <div className="space-y-2 sm:space-y-3">
+                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center mx-auto shadow-sm shadow-orange-500/25">
+                  {s.icon}
+                </div>
+                <div className="text-[10px] sm:text-[11px] font-bold text-orange-600 tracking-wider uppercase">
+                  {s.step}
+                </div>
+                <h3 className="text-xs sm:text-base font-bold text-slate-900 leading-snug">
+                  {s.title}
+                </h3>
+                <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed max-w-xs mx-auto line-clamp-3 sm:line-clamp-none">
+                  {s.desc}
+                </p>
               </div>
-              <div className="text-[11px] font-bold text-orange-600 tracking-wider">{s.step}</div>
-              <h3 className="text-sm sm:text-base font-bold text-slate-900">{s.title}</h3>
-              <p className="text-slate-500 text-xs leading-relaxed max-w-xs mx-auto">
-                {s.desc}
-              </p>
             </div>
           ))}
         </div>

@@ -86,6 +86,8 @@ export default function AdminBaysTab({ tickets, onOpenDispatch }: AdminBaysTabPr
         (t) =>
           t.status !== 'COMPLETED' &&
           t.status !== 'CANCELLED' &&
+          t.status !== 'MISSED' &&
+          t.status !== 'NO_SHOW' &&
           t.assigned_bay &&
           t.assigned_bay.toLowerCase().includes(`bay ${staticBay.bayNumber.toLowerCase()}`)
       );

@@ -74,6 +74,19 @@ const PACKAGES = [
       'FI scanner error code reading & live sensor parameters log',
     ],
   },
+  {
+    name: 'Custom Modifications & Performance Tuning',
+    estimatedTime: '1.5 – 3 hrs',
+    priceRange: '₱600 - ₱1,500',
+    recommendedBay: 'Bay 03 or Bay 04',
+    description: 'Aftermarket exhaust, suspension shocks, crash guards, and cosmetic accessory installation.',
+    checklist: [
+      'Exhaust manifold gasket seal and hanger torque alignment',
+      'Front and rear suspension damper preload and rebound check',
+      'Handlebar, brake lever, and side mirror ergonomics calibration',
+      'Crash bar and top box bracket structural rigidity inspection',
+    ],
+  },
 ];
 
 export default function AdminServicesTab() {

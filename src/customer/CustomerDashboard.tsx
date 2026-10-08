@@ -17,9 +17,11 @@ import ChangePasswordModal from './modals/ChangePasswordModal';
 import MessagesModal from './modals/MessagesModal';
 import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
 import CancelBookingModal from './modals/CancelBookingModal';
+import SpotlightTour from '../components/tutorial/SpotlightTour';
 
 import { Wrench, Loader2, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
+import { evaluateAndExpireMissedBookings, checkAndSendBookingReminders } from '../utils/bookingLifecycle';
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
@@ -48,9 +50,20 @@ export default function CustomerDashboard() {
   const [isCancellingTicket, setIsCancellingTicket] = useState(false);
   const [cancelSuccessMsg, setCancelSuccessMsg] = useState<string | null>(null);
   const [selectedBikeId, setSelectedBikeId] = useState('');
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [rescheduleTicket, setRescheduleTicket] = useState<ServiceTicket | null>(null);
+
+  const handleOpenReschedule = (ticket: ServiceTicket) => {
+    setRescheduleTicket(ticket);
+    setActiveTab('book');
+  };
 
   const loadDashboardData = async (uid: string) => {
     try {
+      // Auto-evaluate expired bookings & deliver day-of-service reminders
+      await evaluateAndExpireMissedBookings();
+      await checkAndSendBookingReminders(uid);
+
       // 1. Kunin lahat ng motor sa garahe
       const { data: bikesData } = await supabase
         .from('motorcycles')
@@ -74,12 +87,12 @@ export default function CustomerDashboard() {
 
       setActiveTickets(ongoingTickets || []);
 
-      // 3. Kunin ang completed records
+      // 3. Kunin ang completed records at missed bookings
       const { data: historyTickets } = await supabase
         .from('service_tickets')
         .select(`*, motorcycles (model, plate_number)`)
         .eq('user_id', uid)
-        .eq('status', 'COMPLETED')
+        .in('status', ['COMPLETED', 'MISSED', 'NO_SHOW'])
         .order('created_at', { ascending: false });
 
       setServiceHistory(historyTickets || []);
@@ -199,6 +212,20 @@ export default function CustomerDashboard() {
     };
   }, [userId]);
 
+  // Automatically launch streamlined guided walkthrough for NEW USERS upon entering dashboard
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const hasCompleted = localStorage.getItem(`motocare_tour_seen_${userId}`);
+      if (!hasCompleted) {
+        // Brand new account detected: launch streamlined guided tab walkthrough
+        setIsTourOpen(true);
+      }
+    } catch {
+      // ignore
+    }
+  }, [userId]);
+
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
     if (isMobileMenuOpen) {
@@ -266,13 +293,28 @@ export default function CustomerDashboard() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-slate-100/70 flex flex-col items-center justify-center p-4">
-        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white mb-3 shadow-sm animate-pulse">
-          <Wrench className="w-5 h-5" />
-        </div>
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-          <span>Verifying account session...</span>
+      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-200">
+        <div className="flex flex-col items-center space-y-4">
+          {/* Animated MotoCare Emblem */}
+          <div className="relative">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
+              <Wrench className="w-6 h-6 animate-pulse" />
+            </div>
+            <div className="absolute -inset-1.5 rounded-3xl bg-orange-500/15 blur-sm -z-10 animate-pulse" />
+          </div>
+
+          {/* Brand Title & Loading Subtext */}
+          <div className="text-center space-y-1">
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+              <span>MotoCare</span>
+              <span className="w-1 h-1 rounded-full bg-orange-500" />
+              <span className="text-xs font-semibold text-slate-500">Rider Portal</span>
+            </h3>
+            <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500 pt-0.5">
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
+              <span>Verifying rider session...</span>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -290,8 +332,13 @@ export default function CustomerDashboard() {
         isSidebarCollapsed={isSidebarCollapsed}
       />
 
-      <div className="flex-1 flex flex-col min-w-0">
+      <div
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+          isSidebarCollapsed ? 'md:pl-0' : 'md:pl-24'
+        }`}
+      >
         <DashboardHeader
+          userId={userId}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           userProfile={userProfile}
@@ -304,9 +351,10 @@ export default function CustomerDashboard() {
           onOpenSettings={() => setActiveTab('settings')}
           onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
           onLogout={handleLogout}
+          onOpenTutorial={() => setIsTourOpen(true)}
         />
 
-        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-36 sm:pb-16">
+        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-36 sm:pb-32 md:pt-32 lg:pt-36">
           {activeTab === 'overview' && (
             <OverviewTab
               userProfile={userProfile}
@@ -315,10 +363,12 @@ export default function CustomerDashboard() {
               serviceHistory={serviceHistory}
               onBookClick={(bikeId) => {
                 if (bikeId) setSelectedBikeId(bikeId);
+                setRescheduleTicket(null);
                 setActiveTab('book');
               }}
               onViewHistoryClick={() => setActiveTab('history')}
               onRequestCancelTicket={handleRequestCancelTicket}
+              onRescheduleClick={handleOpenReschedule}
             />
           )}
 
@@ -331,7 +381,10 @@ export default function CustomerDashboard() {
               setSelectedBikeId={setSelectedBikeId}
               activeTickets={activeTickets}
               serviceHistory={serviceHistory}
+              rescheduleTicket={rescheduleTicket}
+              onCancelReschedule={() => setRescheduleTicket(null)}
               onBookingComplete={async () => {
+                setRescheduleTicket(null);
                 if (userId) await loadDashboardData(userId);
                 setActiveTab('overview');
               }}
@@ -352,6 +405,7 @@ export default function CustomerDashboard() {
               }}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenHelpdesk={() => setIsMessagesModalOpen(true)}
+              onRescheduleTicket={handleOpenReschedule}
             />
           )}
 
@@ -374,6 +428,7 @@ export default function CustomerDashboard() {
 
       {/* Floating Action Button (FAB) para sa Helpdesk Chat */}
       <button
+        id="tour-helpdesk-chat"
         type="button"
         onClick={() => setIsMessagesModalOpen(true)}
         className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 bg-orange-500 hover:bg-orange-600 text-white p-3 sm:px-4 sm:py-3 rounded-full shadow-lg shadow-orange-500/25 hover:shadow-xl items-center gap-2.5 transition-transform duration-150 hover:scale-105 active:scale-95 border-2 border-white/90 group transform-gpu ${
@@ -404,6 +459,16 @@ export default function CustomerDashboard() {
         onClose={() => setIsMessagesModalOpen(false)}
         userId={userId}
         userProfile={userProfile}
+        onRescheduleTicket={(code) => {
+          const match =
+            serviceHistory.find((t) => t.ticket_code === code) ||
+            activeTickets.find((t) => t.ticket_code === code);
+          if (match) {
+            handleOpenReschedule(match);
+          } else {
+            setActiveTab('book');
+          }
+        }}
       />
 
       <ChangePasswordModal
@@ -427,6 +492,18 @@ export default function CustomerDashboard() {
         onConfirm={executeCancelTicket}
         ticket={cancellingTicket}
         loading={isCancellingTicket}
+      />
+
+      {/* Streamlined Interactive Guided Tab Walkthrough */}
+      <SpotlightTour
+        isOpen={isTourOpen}
+        onClose={() => {
+          setIsTourOpen(false);
+          setActiveTab('overview');
+        }}
+        userId={userId}
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
       />
     </div>
   );
