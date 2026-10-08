@@ -41,6 +41,12 @@ const VALID_2_LETTER_FIRST_NAMES = new Set([
 // Common keyboard mashing / spam patterns
 const KEYBOARD_MASH_REGEX = /(?:asdf|wasd|qwer|zxcv|hjkl|dfgh|jkl;|poiu|poa|qwe|zxc|asd|fgh|jkl|lkj|mnb|poi)/i;
 
+const getAuthRedirectUrl = (path: string = '/login?verified=true') => {
+  const base = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${base}${cleanPath}`;
+};
+
 export default function Login() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -371,7 +377,7 @@ export default function Login() {
         type: 'signup',
         email: email.trim().toLowerCase(),
         options: {
-          emailRedirectTo: `${window.location.origin}/login?verified=true`,
+          emailRedirectTo: getAuthRedirectUrl('/login?verified=true'),
         },
       });
 
@@ -449,7 +455,7 @@ export default function Login() {
               full_name: fullName,
               phone_number: canonicalPhone,
             },
-            emailRedirectTo: `${window.location.origin}/login?verified=true`,
+            emailRedirectTo: getAuthRedirectUrl('/login?verified=true'),
           },
         });
 
@@ -572,7 +578,7 @@ export default function Login() {
         }
 
         const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: getAuthRedirectUrl('/reset-password'),
         });
 
         if (error) throw error;
