@@ -1,0 +1,59 @@
+# MotoCare App
+
+Workshop management system para sa isang motorcycle repair shop. May tatlong uri ng user:
+
+- **Customer (rider)** — nagbo-book ng service online, nagre-reschedule, nagta-track ng repair status, nakikipag-chat sa shop, nagre-request ng hardcopy ng receipt.
+- **Staff** — floor mechanics / service advisors; humahawak ng queue, bay assignment, stage updates.
+- **Admin** — shop owner; may access din sa analytics, audit log, staff management, services catalog.
+
+Tatlong role lang ang meron: `customer`, `staff`, `admin` (wala nang superadmin).
+
+## Tech stack
+
+- **Frontend:** React 19 + TypeScript + Vite + Tailwind CSS 3, React Router 7, `lucide-react` icons. Naka-deploy sa Vercel (SPA rewrite sa `vercel.json`).
+- **Database / Auth / Realtime:** Supabase (PostgreSQL + Supabase Auth + Realtime channels). Ang frontend ay **direktang** kumakausap sa Supabase gamit ang `src/lib/supabase.ts`.
+- **Backend (optional):** `server/` — Node.js + Express + TypeScript REST API (port 5000). Tandaan: `src/lib/api.ts` (client para sa server) ay kasalukuyang hindi ginagamit ng frontend.
+
+## Folder structure
+
+```
+src/
+  App.tsx                 Routes: / , /track, /login, /reset-password, /dashboard (customer), /internal (staff/admin)
+  pages/                  Public pages (Home, Login, TrackStatus, ResetPassword)
+  components/             Shared UI (Navbar, home sections, auth/ProtectedRoute, tutorial, legal)
+  customer/               Customer dashboard: tabs/ (Overview, BookService, ServiceHistory, Profile, Settings), modals/, components/
+  internal/               Staff & Admin console: tabs/ (Queue, Bays, Billing, Analytics, Audit, Staff, Services, ...), modals/, utils/ (auth, permissions, audit logger)
+  lib/                    supabase client, realtimeSync (broadcast), hardcopyService, api (unused)
+  utils/                  Business logic: bookingLifecycle (missed/reschedule), workshopCapacity, serviceCatalog, motorcycleCatalog, ticketNotesParser, validators
+  types/                  Shared TS types (dashboard.ts)
+server/src/
+  index.ts, routes/ (tickets, admin, messages, motorcycles, profile), middlewares/ (auth, adminOnly), config/supabase.ts, scripts/ (motorcycle seeders)
+supabase/migrations/      SQL migrations (status CHECK constraint, RLS policies, updated_at trigger, motorcycle models)
+```
+
+## Mahahalagang konsepto
+
+- **`service_tickets.status`** ay may CHECK constraint (tingnan `supabase/migrations/20261016_update_service_tickets_status_check.sql`). Allowed: `PENDING_CONFIRMATION`, `PENDING_DROPOFF`, `CONFIRMED_APPOINTMENT`, `IN_PROGRESS`, `READY_FOR_PICKUP`, `COMPLETED`, `CANCELLED`, `MISSED`, `NO_SHOW`, `CANCELLED_BY_ADMIN`. Huwag gumamit ng ibang value.
+- **Stages 1–5:** 1 Intake, 2 Bay Inspection, 3 Repair, 4 Quality Testing, 5 Ready for Release.
+- Ang booking state ay bahagyang naka-encode sa `notes` bilang tags: `[BOOKING:PENDING_CONFIRMATION]`, `[BOOKING:PENDING_DROPOFF]`, `[MISSED_EXPIRATION...]`, `[LATE_CHECKIN_OVERRIDE...]`, at `Arrival Window: ...`. Gamitin ang `src/utils/ticketNotesParser.ts` sa pag-parse.
+- Workshop capacity: 10 bookings/araw, sarado tuwing Linggo (`src/utils/workshopCapacity.ts`).
+- Realtime updates: `broadcastTicketSync` sa `src/lib/realtimeSync.ts` + Supabase `postgres_changes`.
+
+## Commands
+
+```bash
+npm run dev            # Vite dev server (frontend)
+npm run server         # Express API (server/) sa watch mode
+npm run build          # tsc -b && vite build (frontend)
+npm run build:server   # build ng server
+npm run build:all      # frontend + server
+npm run lint           # ESLint
+npm run preview        # preview ng production build
+```
+
+Env vars: tingnan ang `.env.example` (frontend) at `server/README.md` (server).
+
+## Rules para kay Claude
+
+- **Palaging mag-explain sa simpleng Taglish.**
+- **Magtanong muna bago gumawa ng malalaking changes** (hal. pag-refactor ng maraming file, pagbago ng database schema/migrations, pagbura ng files, o pagbago ng booking/status flow).

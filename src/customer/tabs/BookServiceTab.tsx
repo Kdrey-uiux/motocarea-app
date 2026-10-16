@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { Motorcycle, BikeModel, ServiceTicket } from '../../types/dashboard';
 import {
   Calendar,
@@ -26,15 +27,17 @@ import {
   CreditCard,
   MessageSquare,
   XCircle,
-  RotateCcw,
   FileText,
   HelpCircle,
-  Gauge,
   Sliders,
   CalendarSync
 } from 'lucide-react';
 import { TabType } from '../../types/dashboard';
-import { getBayCapacity, DAILY_MAX_CAPACITY } from '../../utils/mockReservations';
+import { getBayCapacity } from '../../utils/mockReservations';
+import {
+  FIXED_WORKSHOP_CAPACITY,
+  isSundayDate
+} from '../../utils/workshopCapacity';
 import {
   getCompleteMotorcycleCatalog,
   registerNewMotorcycleModel
@@ -57,24 +60,15 @@ interface BookServiceTabProps {
   onCancelReschedule?: () => void;
 }
 
-export type ServiceCategoryKey = 'all' | 'diagnostic' | 'maintenance' | 'transmission' | 'engine' | 'brakes' | 'electrical' | 'custom';
+import { 
+  getSharedServiceCatalog, 
+  SERVICE_CATEGORIES, 
+  ServiceCategoryKey, 
+  ServiceCategoryOption 
+} from '../../utils/serviceCatalog';
 
-export interface ServiceCategoryOption {
-  id: ServiceCategoryKey;
-  label: string;
-  badge?: string;
-}
-
-export const SERVICE_CATEGORIES: ServiceCategoryOption[] = [
-  { id: 'all', label: 'All Services' },
-  { id: 'diagnostic', label: "I'm Not Sure / Diagnostic" },
-  { id: 'maintenance', label: 'PMS & Fluids' },
-  { id: 'transmission', label: 'CVT & Transmission' },
-  { id: 'engine', label: 'Engine & Fuel' },
-  { id: 'brakes', label: 'Brakes & Wheels' },
-  { id: 'electrical', label: 'Electrical & Battery' },
-  { id: 'custom', label: 'Custom & Upgrades' },
-];
+export { SERVICE_CATEGORIES };
+export type { ServiceCategoryKey, ServiceCategoryOption };
 
 export interface ServicePackageOption {
   id: string;
@@ -90,297 +84,29 @@ export interface ServicePackageOption {
   isDiagnostic?: boolean;
 }
 
-export const MOTORCYCLE_SERVICE_PACKAGES: ServicePackageOption[] = [
-  {
-    id: 'Mechanic Diagnostic & Road Assessment',
-    title: 'Mechanic Diagnostic & Road Assessment',
-    category: 'diagnostic',
-    tag: 'For Unsure Issues',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '30 - 45 mins',
-    description: 'Not sure what is wrong with your motorcycle? Senior mechanics perform a comprehensive physical inspection, diagnostic scan, and road test to pinpoint exact issues before giving you an official quote.',
-    inclusions: [
-      'Comprehensive mechanical, electrical, and chassis inspection',
-      'Road vibration, handling, and engine knocking diagnosis',
-      'Detailed diagnostic findings report & transparent parts estimate',
-      '₱0 downpayment — your approval required before any repair begins',
-    ],
-    icon: HelpCircle,
-    isDiagnostic: true,
-  },
-  {
-    id: 'Change Oil & Routine Inspection',
-    title: 'Standard Oil Change & Safety Inspection',
-    category: 'maintenance',
-    tag: 'Essential Care',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '30 - 45 mins',
-    description: 'Manufacturer-grade 4-stroke or scooter engine oil replacement tailored to your engine specifications, complete with washer renewal, strainer check, and safety inspection.',
-    inclusions: [
-      'Manufacturer-grade synthetic engine oil refill',
-      'Magnetic drain plug cleaning & new crush washer',
-      'Tire pressure calibration & brake free-play adjustment',
-      'Complimentary multi-point digital chassis check',
-    ],
-    icon: Droplets,
-  },
-  {
-    id: 'Full PMS & Valve Clearance Check',
-    title: 'Master Comprehensive PMS',
-    category: 'maintenance',
-    tag: 'Most Popular',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '2.5 - 3.5 hrs',
-    description: 'Total bumper-to-bumper preventive maintenance, valve clearance check, spark plug calibration, and chassis torquing to maintain optimal reliability.',
-    inclusions: [
-      'Precision intake & exhaust valve clearance adjustment',
-      'Spark plug electrode gap calibration & cleaning',
-      'Full chassis, suspension, & swingarm bolt torquing',
-      'Air filter, oil strainer, & throttle cleaning inspection',
-    ],
-    icon: ShieldCheck,
-  },
-  {
-    id: 'Radiator Coolant Flush & System Bleed',
-    title: 'Radiator Flush & Cooling System Service',
-    category: 'maintenance',
-    tag: 'Overheating Prevention',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '45 mins - 1 hr',
-    description: 'Drain, chemical degrease flush, and high-temp anti-corrosion coolant refill with air bleeding for liquid-cooled engines.',
-    inclusions: [
-      'Complete chemical radiator & hose flush',
-      'Premium anti-boil, anti-rust ethylene glycol coolant refill',
-      'Water pump seal, radiator cap, and thermostat cycle test',
-      'Cooling system air bleed to eliminate engine hotspots',
-    ],
-    icon: Droplets,
-  },
-  {
-    id: 'CVT Cleaning, Regrease & Belt Check',
-    title: 'CVT Overhaul, Regrease & Pulley Service',
-    category: 'transmission',
-    tag: 'Best for Scooters',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1 - 1.5 hrs',
-    description: 'Restores scooter acceleration, eliminates shuddering at low speeds, and services drive belt, rollers, torque spring, and pulleys.',
-    inclusions: [
-      'Drive belt micro-crack & width measurement',
-      'Variator pulley & roller weight cleaning and inspection',
-      'Clutch bell & shoe deglazing and sanding',
-      'High-temperature torque spring regreasing',
-    ],
-    icon: Settings,
-  },
-  {
-    id: 'Drive Chain & Sprocket Replacement / Overhaul',
-    title: 'Drive Chain & Sprockets Overhaul',
-    category: 'transmission',
-    tag: 'Manual & Underbone',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '45 mins - 1 hr',
-    description: 'Heavy-duty drive chain cleaning, tensioning, sprocket tooth alignment, or complete sprocket set replacement.',
-    inclusions: [
-      'Front countershaft & rear wheel sprocket tooth wear check',
-      'Drive chain ultrasonic cleaning & synthetic waxing',
-      'Rear wheel axle alignment & swingarm slack adjustment',
-      'Drive chain master link safety clip or rivet inspection',
-    ],
-    icon: RotateCcw,
-  },
-  {
-    id: 'Manual Clutch Lining Replacement & Cable Tune',
-    title: 'Manual Clutch Lining & Cable Replacement',
-    category: 'transmission',
-    tag: 'Manual Transmission',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1.5 - 2 hrs',
-    description: 'Eliminates clutch slippage on acceleration, replaces friction plates, and adjusts clutch free-play for crisp gear shifts.',
-    inclusions: [
-      'Friction plate & steel clutch plate thickness inspection',
-      'Clutch pressure spring tension measurement',
-      'Clutch release cable lubrication or replacement',
-      'Crankcase clutch cover gasket renewal & fresh oil refill',
-    ],
-    icon: Settings,
-  },
-  {
-    id: 'Gearbox & Final Drive Oil Service',
-    title: 'Final Drive & Gearbox Oil Service',
-    category: 'transmission',
-    tag: 'Scooter Maintenance',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '20 - 30 mins',
-    description: 'Protects rear gear differential and bearings from metal shaving wear with high-pressure synthetic gear lubricant.',
-    inclusions: [
-      'High-pressure SAE synthetic gear oil refill',
-      'Magnetic gear case drain plug inspection for metal shavings',
-      'Rear hub bearing seal & breather hose inspection',
-      'Crush washer replacement on fill and drain bolts',
-    ],
-    icon: Droplets,
-  },
-  {
-    id: 'FI Diagnostic & Throttle Body Cleaning',
-    title: 'Fuel Injection Diagnostic & Throttle Body Service',
-    category: 'engine',
-    tag: 'Fuel Efficiency',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1 - 1.5 hrs',
-    description: 'Computer scanner diagnostics, ultrasonic injector cleaning, and throttle body degreasing for crisp response and smooth idle.',
-    inclusions: [
-      'ECU scanner diagnostics & fault code history clearing',
-      'Throttle body butterfly & idle air control valve cleaning',
-      'Ultrasonic fuel injector spray pattern test & cleaning',
-      'Throttle Position Sensor (TPS) and idle recalibration',
-    ],
-    icon: Activity,
-  },
-  {
-    id: 'Carburetor Overhaul, Jet Tuning & Ultrasonic Clean',
-    title: 'Carburetor Overhaul & Jet Tuning',
-    category: 'engine',
-    tag: 'Carb Tuning',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1 - 1.5 hrs',
-    description: 'Fixes hard starting, fuel flooding, and hesitation through complete disassembly, jet cleaning, and air-fuel ratio tuning.',
-    inclusions: [
-      'Full carburetor disassembly and ultrasonic solvent bath',
-      'Pilot jet, main jet, and needle valve cleaning',
-      'Float level height measurement and fuel leak test',
-      'Air-fuel mixture screw and idle speed synchronization',
-    ],
-    icon: Sliders,
-  },
-  {
-    id: 'Top Engine Overhaul & Carbon Decarbonization',
-    title: 'Top Engine Overhaul & Decarbonization',
-    category: 'engine',
-    tag: 'Power Restoration',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '4 - 6 hrs',
-    description: 'Removes heavy carbon buildup, replaces cylinder head gasket, reseats valves, and restores factory cylinder compression.',
-    inclusions: [
-      'Cylinder head disassembly, valve lap grinding, & reseating',
-      'Combustion chamber & piston crown carbon scraping',
-      'New valve stem oil seals & cylinder head gasket installation',
-      'Piston ring gap measurement & compression gauge test',
-    ],
-    icon: Wrench,
-  },
-  {
-    id: 'Brake Caliper Overhaul & Fluid Flush',
-    title: 'Hydraulic Brake Caliper Service & Fluid Flush',
-    category: 'brakes',
-    tag: 'Safety Essential',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '45 mins - 1 hr',
-    description: 'Eliminates spongy brake levers, replaces contaminated hydraulic fluid with DOT 4, and services sticky caliper pistons.',
-    inclusions: [
-      'High-temp DOT 4 synthetic hydraulic fluid bleed & refill',
-      'Brake caliper piston cleaning, degrease, & seal lubrication',
-      'Brake pad friction material thickness & rotor runout check',
-      'Master cylinder reservoir seal & lever pivot lubrication',
-    ],
-    icon: Disc,
-  },
-  {
-    id: 'Brake Shoe & Drum Brake Reconditioning',
-    title: 'Rear Drum Brake & Shoe Service',
-    category: 'brakes',
-    tag: 'Rear Brake Care',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '30 - 45 mins',
-    description: 'Eliminates rear brake screeching and weak braking power through hub cleaning, shoe inspection, and cam lever lubrication.',
-    inclusions: [
-      'Rear brake drum hub dust blowout & surface deglazing',
-      'Brake shoe lining thickness measurement & wear check',
-      'Brake cam shaft and return spring greasing',
-      'Brake rod linkage free-play adjustment',
-    ],
-    icon: Disc,
-  },
-  {
-    id: 'Fork Oil Replacement & Front Suspension Rebuild',
-    title: 'Front Fork Oil & Seal Replacement',
-    category: 'brakes',
-    tag: 'Handling & Comfort',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1.5 - 2 hrs',
-    description: 'Restores front suspension rebound, stops oil leaks on stanchions, and eliminates front-end bottoming-out over bumps.',
-    inclusions: [
-      'Complete front fork disassembly & degrease cleaning',
-      'High-viscosity hydraulic fork oil replenishment',
-      'Replacement of oil seals & dust seals (if leaking)',
-      'Equal-damping height calibration & steering head check',
-    ],
-    icon: Wrench,
-  },
-  {
-    id: 'Tire Replacement, Wheel Balancing & Alignment',
-    title: 'Tire Mounting, Balancing & Wheel Inspection',
-    category: 'brakes',
-    tag: 'Road Safety',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '30 - 45 mins',
-    description: 'Professional scratch-free tire mounting, tubeless tire valve replacement, wheel truing, and rim bead leak inspection.',
-    inclusions: [
-      'Machine-assisted rim-safe tire removal and installation',
-      'New rubber / metal angled tubeless valve stem installation',
-      'Bead seating airtight seal test with rim leak check',
-      'Wheel rim runout, spoke tension, and wheel bearing test',
-    ],
-    icon: Gauge,
-  },
-  {
-    id: 'Electrical & Battery Diagnostics',
-    title: 'Electrical System, Stator & Battery Diagnostic',
-    category: 'electrical',
-    tag: 'Starting & Charging',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '45 mins - 1 hr',
-    description: 'Pinpoints battery draining, hard cranking, dead stator coils, and regulator-rectifier overcharging issues.',
-    inclusions: [
-      'Battery conductance & cold-cranking ampere (CCA) load test',
-      'Stator AC output voltage and regulator charging circuit test',
-      'Starter motor relay, ignition coil, and main fuse inspection',
-      'Parasitic ground drain test to eliminate overnight battery drain',
-    ],
-    icon: Zap,
-  },
-  {
-    id: 'Wiring Harness Rewire & Lighting Installation',
-    title: 'Wiring Harness Restoration & Auxiliary Lighting',
-    category: 'electrical',
-    tag: 'Electrical Care',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1 - 2 hrs',
-    description: 'Resolves short circuits, exposed frayed wiring, burnt sockets, and integrates fused auxiliary mini-driving lights.',
-    inclusions: [
-      'Heat-shrink waterproof harness wire soldering & routing',
-      'Headlight, taillight, turn signal, and horn circuit test',
-      'Dedicated fused relay harness installation for accessories',
-      'Ignition switch key cylinder & handlebar switch cleaning',
-    ],
-    icon: Zap,
-  },
-  {
-    id: 'Custom Modifications & Performance Tuning',
-    title: 'Custom Mods & Performance Upgrades',
-    category: 'custom',
-    tag: 'Aftermarket & Styling',
-    estimatedCost: 'Quoted on Inspection',
-    estimatedDuration: '1.5 - 3 hrs',
-    description: 'Professional installation of aftermarket accessories, suspension upgrades, exhaust systems, handlebars, and cosmetic enhancements.',
-    inclusions: [
-      'Aftermarket exhaust system & header pipe fitting',
-      'Upgraded front & rear shock suspension installation',
-      'Custom handlebar, side mirror, & lever set alignment',
-      'Crash guard, top box bracket, & accessory mount installation',
-    ],
-    icon: Sliders,
-  },
-];
+export const getActiveServicePackages = (): ServicePackageOption[] => {
+  const shared = getSharedServiceCatalog();
+  return shared.map((s) => ({
+    id: s.id,
+    title: s.title || s.name,
+    category: s.category,
+    tag: s.tag,
+    estimatedCost: s.estimatedCost || s.priceRange || 'Quoted on Inspection',
+    basePriceNum: s.basePrice,
+    estimatedDuration: s.estimatedDuration || s.estimatedTime,
+    description: s.description,
+    inclusions: s.inclusions || s.checklist || [],
+    icon: (s.isDiagnostic || s.category === 'diagnostic') ? HelpCircle :
+          s.category === 'maintenance' ? Droplets :
+          s.category === 'transmission' ? Settings :
+          s.category === 'engine' ? Activity :
+          s.category === 'brakes' ? Disc :
+          s.category === 'electrical' ? Zap : Sliders,
+    isDiagnostic: s.isDiagnostic || s.category === 'diagnostic',
+  }));
+};
+
+export const MOTORCYCLE_SERVICE_PACKAGES: ServicePackageOption[] = getActiveServicePackages();
 
 const TIME_WINDOWS = [
   { id: '08:00 AM - 10:00 AM', label: 'Morning Slot', time: '08:00 AM - 10:00 AM', desc: 'Fastest turnaround, early morning priority' },
@@ -449,6 +175,16 @@ export default function BookServiceTab({
   const [serviceType, setServiceType] = useState<string>('');
   const [expandedPackageId, setExpandedPackageId] = useState<string | null>(null);
 
+  // Dynamic Service Packages reactive sync
+  const [servicePackages, setServicePackages] = useState<ServicePackageOption[]>(() => getActiveServicePackages());
+  useEffect(() => {
+    const handleServicesUpdate = () => {
+      setServicePackages(getActiveServicePackages());
+    };
+    window.addEventListener('motocare_services_updated', handleServicesUpdate);
+    return () => window.removeEventListener('motocare_services_updated', handleServicesUpdate);
+  }, []);
+
   // Step 3: Date & arrival window
   const [dropoffDate, setDropoffDate] = useState('');
   const [selectedTimeWindow, setSelectedTimeWindow] = useState(TIME_WINDOWS[0].id);
@@ -466,6 +202,47 @@ export default function BookServiceTab({
 
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+
+  // Dynamic workshop capacity sync (workshop-wide from database)
+  const [capacityVersion, setCapacityVersion] = useState(0);
+  const [workshopBookings, setWorkshopBookings] = useState<{ dropoff_date: string; status: string }[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadWorkshopBookings = async () => {
+      try {
+        const { data } = await supabase
+          .from('service_tickets')
+          .select('dropoff_date, status')
+          .not('status', 'in', '("CANCELLED","CANCELLED_BY_ADMIN","MISSED","NO_SHOW")');
+        if (isMounted && data) {
+          setWorkshopBookings(data);
+        }
+      } catch (err) {
+        console.error('Error fetching workshop capacity bookings:', err);
+      }
+    };
+
+    loadWorkshopBookings();
+
+    const channel = supabase
+      .channel('motocare_capacity_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'service_tickets' }, () => {
+        loadWorkshopBookings();
+      })
+      .on('broadcast', { event: 'TICKET_DISPATCH_SYNC' }, () => {
+        loadWorkshopBookings();
+      })
+      .subscribe();
+
+    const handleCapChange = () => setCapacityVersion((v) => v + 1);
+    window.addEventListener('motocare_capacity_updated', handleCapChange);
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+      window.removeEventListener('motocare_capacity_updated', handleCapChange);
+    };
+  }, []);
 
   // Status
   const [loading, setLoading] = useState(false);
@@ -494,6 +271,12 @@ export default function BookServiceTab({
       }
     }
     loadCatalog();
+    const handleCatalogUpdate = () => { loadCatalog(); };
+    window.addEventListener('motocare_catalog_updated', handleCatalogUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('motocare_catalog_updated', handleCatalogUpdate);
+    };
   }, []);
 
   // Ensure selected bike is valid
@@ -590,14 +373,14 @@ export default function BookServiceTab({
   // Selected package details (null when nothing is chosen yet)
   const selectedPackage = useMemo(() => {
     if (!serviceType) return null;
-    return MOTORCYCLE_SERVICE_PACKAGES.find((p) => p.id === serviceType) || null;
-  }, [serviceType]);
+    return servicePackages.find((p) => p.id === serviceType) || null;
+  }, [serviceType, servicePackages]);
 
   // Filtered packages based on active category
   const filteredPackages = useMemo(() => {
-    if (selectedCategory === 'all') return MOTORCYCLE_SERVICE_PACKAGES;
-    return MOTORCYCLE_SERVICE_PACKAGES.filter((pkg) => pkg.category === selectedCategory);
-  }, [selectedCategory]);
+    if (selectedCategory === 'all') return servicePackages;
+    return servicePackages.filter((pkg) => pkg.category === selectedCategory);
+  }, [selectedCategory, servicePackages]);
 
   // Monthly Calendar Matrix Generation
   const calendarData = useMemo(() => {
@@ -616,6 +399,7 @@ export default function BookServiceTab({
       dateKey?: string;
       isPast?: boolean;
       isToday?: boolean;
+      isSunday?: boolean;
       capacity?: ReturnType<typeof getBayCapacity>;
     }> = [];
 
@@ -631,14 +415,38 @@ export default function BookServiceTab({
       const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
       const isPast = dObj < today;
       const isToday = dObj.getTime() === today.getTime();
+      const isSunday = dObj.getDay() === 0;
 
-      // Retrieve capacity from real active bookings + mock schedule
-      const baseCap = getBayCapacity(dateKey);
-      const realBookingsOnDate = (activeTickets || []).filter(
-        (t) => t.dropoff_date === dateKey && t.status !== 'CANCELLED' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
+      // Sunday: shop is closed (0 slots)
+      if (isSunday) {
+        cells.push({
+          empty: false,
+          key: dateKey,
+          dayNum: day,
+          dateKey,
+          isPast,
+          isToday,
+          isSunday: true,
+          capacity: {
+            date: dateKey,
+            dayLabel: dObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+            status: 'CLOSED' as const,
+            occupiedCount: 0,
+            totalSlots: 0,
+            remainingSlots: 0,
+            isSunday: true,
+          },
+        });
+        continue;
+      }
+
+      // Monday to Saturday: Fixed 10 slots (Workshop-wide real-time bookings)
+      const realBookingsOnDate = workshopBookings.filter(
+        (t) => t.dropoff_date === dateKey && t.status !== 'CANCELLED' && t.status !== 'CANCELLED_BY_ADMIN' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
       ).length;
-      const totalOccupied = Math.min(DAILY_MAX_CAPACITY, Math.max(baseCap.occupiedCount, realBookingsOnDate));
-      const remainingSlots = Math.max(0, DAILY_MAX_CAPACITY - totalOccupied);
+      const totalSlots = FIXED_WORKSHOP_CAPACITY;
+      const totalOccupied = Math.min(totalSlots, realBookingsOnDate);
+      const remainingSlots = Math.max(0, totalSlots - totalOccupied);
       const status: 'AVAILABLE' | 'LIMITED' | 'FULL' =
         remainingSlots === 0 ? 'FULL' : remainingSlots <= 2 ? 'LIMITED' : 'AVAILABLE';
 
@@ -649,11 +457,15 @@ export default function BookServiceTab({
         dateKey,
         isPast,
         isToday,
+        isSunday: false,
         capacity: {
-          ...baseCap,
+          date: dateKey,
+          dayLabel: dObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+          totalSlots,
           occupiedCount: totalOccupied,
           remainingSlots,
           status,
+          isSunday: false,
         },
       });
     }
@@ -662,7 +474,7 @@ export default function BookServiceTab({
       monthLabel: calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       cells,
     };
-  }, [calendarMonth, activeTickets]);
+  }, [calendarMonth, workshopBookings, capacityVersion]);
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date();
@@ -686,36 +498,52 @@ export default function BookServiceTab({
     setCalendarMonth(today);
   };
 
-  // Live capacity calculation for 10 daily slots limit
+  // Live capacity calculation for daily slots limit (Fixed 10 Slots, Closed Sunday)
   const currentCapacity = useMemo(() => {
     if (!dropoffDate) {
       return {
         date: '',
         occupiedCount: 0,
-        totalSlots: DAILY_MAX_CAPACITY,
-        remainingSlots: DAILY_MAX_CAPACITY,
+        totalSlots: FIXED_WORKSHOP_CAPACITY,
+        remainingSlots: FIXED_WORKSHOP_CAPACITY,
         status: 'UNSELECTED' as const,
+        isSunday: false,
       };
     }
-    const baseCap = getBayCapacity(dropoffDate);
-    const realBookingsOnDate = (activeTickets || []).filter(
-      (t) => t.dropoff_date === dropoffDate && t.status !== 'CANCELLED' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
+    const isSun = isSundayDate(dropoffDate);
+    if (isSun) {
+      return {
+        date: dropoffDate,
+        occupiedCount: 0,
+        totalSlots: 0,
+        remainingSlots: 0,
+        status: 'CLOSED' as const,
+        isSunday: true,
+      };
+    }
+
+    const realBookingsOnDate = workshopBookings.filter(
+      (t) => t.dropoff_date === dropoffDate && t.status !== 'CANCELLED' && t.status !== 'CANCELLED_BY_ADMIN' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
     ).length;
 
-    const totalOccupied = Math.min(DAILY_MAX_CAPACITY, Math.max(baseCap.occupiedCount, realBookingsOnDate));
-    const remaining = Math.max(0, DAILY_MAX_CAPACITY - totalOccupied);
+    const totalSlots = FIXED_WORKSHOP_CAPACITY;
+    const totalOccupied = Math.min(totalSlots, realBookingsOnDate);
+    const remaining = Math.max(0, totalSlots - totalOccupied);
     const status = remaining === 0 ? 'FULL' : remaining <= 2 ? 'LIMITED' : 'AVAILABLE';
 
     return {
       date: dropoffDate,
       occupiedCount: totalOccupied,
-      totalSlots: DAILY_MAX_CAPACITY,
+      totalSlots,
       remainingSlots: remaining,
       status,
+      isSunday: false,
     };
-  }, [dropoffDate, activeTickets]);
+  }, [dropoffDate, workshopBookings, capacityVersion]);
 
-  const isDateFullyBooked = dropoffDate ? currentCapacity.status === 'FULL' : false;
+  const isDateFullyBooked = dropoffDate
+    ? isSundayDate(dropoffDate) || currentCapacity.status === 'FULL' || currentCapacity.status === 'CLOSED'
+    : false;
 
   // Autocomplete bikes list
   const filteredBikes = useMemo(() => {
@@ -761,6 +589,10 @@ export default function BookServiceTab({
         setErrorMsg('Please select an available booking date from the monthly calendar.');
         return;
       }
+      if (isSundayDate(dropoffDate)) {
+        setErrorMsg('MotoCare is closed on Sundays (Shop rest day). Please select a date from Monday to Saturday.');
+        return;
+      }
       if (isDateFullyBooked) {
         setErrorMsg('Please select an available date. This date has reached its maximum 10 booking capacity.');
         return;
@@ -783,6 +615,11 @@ export default function BookServiceTab({
     if (e) e.preventDefault();
     if (!userId) {
       setErrorMsg('Please log in to finalize your service reservation.');
+      return;
+    }
+
+    if (!dropoffDate || isSundayDate(dropoffDate)) {
+      setErrorMsg('MotoCare is closed on Sundays (Shop rest day). Please select a date from Monday to Saturday.');
       return;
     }
 
@@ -918,7 +755,8 @@ export default function BookServiceTab({
         `Arrival Window: ${selectedTimeWindow}`,
       ]
         .filter(Boolean)
-        .join(' | ');
+      const pendingTag = '[BOOKING:PENDING_CONFIRMATION]';
+      const notesWithTag = combinedNotes ? `${combinedNotes}\n${pendingTag}` : pendingTag;
 
       const randomCode = `MC-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -928,29 +766,19 @@ export default function BookServiceTab({
         ticket_code: randomCode,
         service_type: serviceType,
         stage: 1,
-        assigned_bay: 'Bay Assignment Pending',
-        assigned_mechanic: 'Queued for Assignment',
+        assigned_bay: null,
+        assigned_mechanic: null,
         estimated_pickup: 'To be assessed upon arrival',
         total_estimate: selectedPackage?.estimatedCost || 'Quoted on Inspection',
         status: 'IN_PROGRESS',
         dropoff_date: dropoffDate,
-        notes: combinedNotes || null,
+        notes: notesWithTag,
       });
 
       if (ticketError) throw ticketError;
 
       // Broadcast real-time new booking to Admin and Staff consoles live
-      if (typeof window !== 'undefined') {
-        try {
-          supabase.channel('motocare_dispatch_realtime').send({
-            type: 'broadcast',
-            event: 'TICKET_DISPATCH_SYNC',
-            payload: { action: 'NEW_BOOKING', ticket_code: randomCode },
-          });
-        } catch {
-          // ignore
-        }
-      }
+      broadcastTicketSync({ action: 'NEW_BOOKING', ticket_code: randomCode });
 
       // Reset
       setNewBikeModel('');
@@ -960,7 +788,9 @@ export default function BookServiceTab({
       await onBookingComplete();
     } catch (err: unknown) {
       console.error('Booking submission error:', err);
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to submit service booking.');
+      const postgrestErr = err as { message?: string; details?: string; hint?: string; code?: string };
+      const displayMsg = postgrestErr?.message || (err instanceof Error ? err.message : 'Failed to submit service booking.');
+      setErrorMsg(displayMsg);
     } finally {
       setLoading(false);
     }
@@ -1147,8 +977,8 @@ export default function BookServiceTab({
                   const isCatActive = selectedCategory === cat.id;
                   const count =
                     cat.id === 'all'
-                      ? MOTORCYCLE_SERVICE_PACKAGES.length
-                      : MOTORCYCLE_SERVICE_PACKAGES.filter((p) => p.category === cat.id).length;
+                      ? servicePackages.length
+                      : servicePackages.filter((p) => p.category === cat.id).length;
 
                   return (
                     <button
@@ -1554,7 +1384,7 @@ export default function BookServiceTab({
                       <Search className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
 
-                    {isDropdownOpen && filteredBikes.length > 0 && (
+                    {isDropdownOpen && (filteredBikes.length > 0 || newBikeModel.trim().length > 0) && (
                       <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-30 max-h-48 overflow-y-auto divide-y divide-slate-100">
                         {filteredBikes.map((bike, idx) => (
                           <button
@@ -1570,6 +1400,18 @@ export default function BookServiceTab({
                             <span className="text-[10px] text-slate-400">{bike.brand}</span>
                           </button>
                         ))}
+                        {newBikeModel.trim().length > 0 && !filteredBikes.some((b) => b.name.toLowerCase() === newBikeModel.trim().toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                            }}
+                            className="w-full text-left px-3 py-2.5 text-xs bg-orange-50/70 hover:bg-orange-100 text-orange-900 font-semibold flex items-center justify-between transition cursor-pointer"
+                          >
+                            <span className="truncate pr-2">+ Use &quot;{newBikeModel.trim()}&quot; as custom model</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-200/80 text-orange-950 font-bold uppercase shrink-0">Custom</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1711,7 +1553,9 @@ export default function BookServiceTab({
               {dropoffDate && (
                 <span
                   className={`text-xs font-bold px-3 py-1 rounded-full border self-start sm:self-auto flex items-center gap-1.5 ${
-                    currentCapacity.status === 'FULL'
+                    currentCapacity.status === 'CLOSED' || currentCapacity.isSunday
+                      ? 'bg-slate-100 text-slate-700 border-slate-300'
+                      : currentCapacity.status === 'FULL'
                       ? 'bg-rose-50 text-rose-700 border-rose-200'
                       : currentCapacity.status === 'LIMITED'
                       ? 'bg-amber-50 text-amber-800 border-amber-200'
@@ -1720,14 +1564,18 @@ export default function BookServiceTab({
                 >
                   <span
                     className={`w-2 h-2 rounded-full ${
-                      currentCapacity.status === 'FULL'
+                      currentCapacity.status === 'CLOSED' || currentCapacity.isSunday
+                        ? 'bg-slate-400'
+                        : currentCapacity.status === 'FULL'
                         ? 'bg-rose-600'
                         : currentCapacity.status === 'LIMITED'
                         ? 'bg-amber-500 animate-pulse'
                         : 'bg-emerald-500'
                     }`}
                   />
-                  {currentCapacity.status === 'FULL'
+                  {currentCapacity.status === 'CLOSED' || currentCapacity.isSunday
+                    ? 'Closed on Sundays (Shop Rest Day)'
+                    : currentCapacity.status === 'FULL'
                     ? 'Fully Booked for Selected Date'
                     : currentCapacity.status === 'LIMITED'
                     ? `High Demand: ${currentCapacity.remainingSlots} slots remaining`
@@ -1744,7 +1592,7 @@ export default function BookServiceTab({
                     Step 1: Choose Workshop Date
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Monthly bay availability schedule (Closed on past dates & fully-booked days)
+                    Monday to Saturday schedule • Maximum 10 intake slots per day (Closed on Sundays)
                   </p>
                 </div>
 
@@ -1788,7 +1636,7 @@ export default function BookServiceTab({
               <div className="border border-slate-200 rounded-2xl bg-white p-2.5 sm:p-4 shadow-2xs space-y-2">
                 {/* Weekday Names Header */}
                 <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center pb-2 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <div>Sun</div>
+                  <div className="text-rose-500/80">Sun</div>
                   <div>Mon</div>
                   <div>Tue</div>
                   <div>Wed</div>
@@ -1804,17 +1652,18 @@ export default function BookServiceTab({
                       return <div key={cell.key} className="h-14 sm:h-16 rounded-xl bg-transparent" />;
                     }
 
-                    const { dayNum, dateKey, isPast, isToday, capacity } = cell;
+                    const { dayNum, dateKey, isPast, isToday, capacity, isSunday } = cell;
                     const isSelected = dropoffDate === dateKey;
                     const isFull = capacity?.status === 'FULL';
                     const isLimited = capacity?.status === 'LIMITED';
-                    const isDisabled = isPast || isFull;
+                    const isDisabled = isPast || isFull || Boolean(isSunday);
 
                     return (
                       <button
                         key={cell.key}
                         type="button"
                         disabled={isDisabled}
+                        title={isSunday ? 'MotoCare is closed on Sundays (Shop rest day)' : undefined}
                         onClick={() => {
                           if (!isDisabled && dateKey) {
                             setDropoffDate(dateKey);
@@ -1825,8 +1674,10 @@ export default function BookServiceTab({
                           isSelected
                             ? 'bg-orange-500 text-white font-bold shadow-md shadow-orange-500/25 ring-2 ring-orange-500 ring-offset-2 z-10'
                             : isDisabled
-                            ? isPast
-                              ? 'bg-slate-50/60 border border-slate-100 text-slate-300 cursor-not-allowed opacity-40'
+                            ? isSunday
+                              ? 'bg-slate-100/70 border border-slate-200/80 text-slate-400 cursor-not-allowed select-none opacity-80'
+                              : isPast
+                              ? 'bg-slate-50/60 border border-slate-100 text-slate-300 cursor-not-allowed opacity-40 select-none'
                               : 'bg-rose-50/40 border border-rose-200/60 text-rose-800 cursor-not-allowed opacity-80'
                             : isLimited
                             ? 'bg-amber-50/50 hover:bg-amber-100/60 border border-amber-200 text-slate-800 hover:scale-[1.02]'
@@ -1834,17 +1685,21 @@ export default function BookServiceTab({
                         }`}
                       >
                         <div className="w-full flex items-center justify-between text-[11px] sm:text-xs">
-                          <span className={`font-semibold ${isSelected ? 'text-white' : isToday ? 'text-orange-600 font-bold' : ''}`}>
+                          <span className={`font-semibold ${isSelected ? 'text-white' : isSunday ? 'text-slate-400 font-normal' : isToday ? 'text-orange-600 font-bold' : ''}`}>
                             {dayNum}
                           </span>
-                          {isToday && !isSelected && (
+                          {isToday && !isSelected && !isSunday && (
                             <span className="w-1.5 h-1.5 rounded-full bg-orange-500" title="Today" />
                           )}
                         </div>
 
                         {/* Status Label */}
                         <div className="w-full">
-                          {isPast ? (
+                          {isSunday ? (
+                            <span className="text-[8.5px] sm:text-[9.5px] font-bold px-1 py-0.5 rounded block uppercase leading-none bg-slate-200/70 text-slate-500 border border-slate-300/60">
+                              Closed
+                            </span>
+                          ) : isPast ? (
                             <span className="text-[9px] text-slate-300">--</span>
                           ) : isFull ? (
                             <span
@@ -1882,7 +1737,7 @@ export default function BookServiceTab({
                   <div className="flex items-center gap-3">
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span>Open (3-10 Slots)</span>
+                      <span>Open (3+ Slots)</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -1940,7 +1795,7 @@ export default function BookServiceTab({
                     </span>
                   </div>
                   <span className="text-[11px] font-bold text-orange-700 bg-white/90 px-2.5 py-0.5 rounded-full border border-orange-200 self-start sm:self-auto">
-                    {currentCapacity.remainingSlots} of 10 Slots Available
+                    {currentCapacity.remainingSlots} of {currentCapacity.totalSlots} Slots Available
                   </span>
                 </div>
               )}
@@ -2073,7 +1928,7 @@ export default function BookServiceTab({
                   Same-Day Bay Priority
                 </strong>
                 <span className="text-xs text-emerald-600 font-semibold block mt-0.5">
-                  Slot #{currentCapacity.occupiedCount + 1} of 10 Confirmed
+                  Slot #{currentCapacity.occupiedCount + 1} of {currentCapacity.totalSlots} Confirmed
                 </span>
               </div>
             </div>

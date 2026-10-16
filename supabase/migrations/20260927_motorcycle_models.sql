@@ -34,6 +34,6 @@ CREATE POLICY "Allow admin full access to motorcycle models"
     EXISTS (
       SELECT 1 FROM public.profiles 
       WHERE profiles.id = auth.uid() 
-      AND (profiles.role = 'ADMIN' OR profiles.role = 'SUPER_ADMIN')
+      AND LOWER(profiles.role) IN ('admin', 'staff')
     )
   );

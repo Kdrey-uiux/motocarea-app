@@ -1,14 +1,21 @@
+import {
+  FIXED_WORKSHOP_CAPACITY,
+  isSundayDate,
+} from './workshopCapacity';
+
 export interface DayCapacity {
   date: string; // YYYY-MM-DD
   dayLabel: string; // e.g. "Mon, Oct 5"
-  status: 'AVAILABLE' | 'LIMITED' | 'FULL';
+  status: 'AVAILABLE' | 'LIMITED' | 'FULL' | 'CLOSED';
   occupiedCount: number;
   totalSlots: number;
   remainingSlots: number;
   totalBays?: number; // legacy compatibility
+  isSunday?: boolean;
 }
 
-export const DAILY_MAX_CAPACITY = 10;
+export const DAILY_MAX_CAPACITY = FIXED_WORKSHOP_CAPACITY;
+export const DAILY_BASE_CAPACITY = FIXED_WORKSHOP_CAPACITY;
 
 /**
  * Helper to format Date to YYYY-MM-DD in local time
@@ -21,7 +28,7 @@ export function formatDateKey(d: Date): string {
 }
 
 /**
- * Generates dynamic reservation schedule relative to today based on 10 daily slots limit
+ * Generates reservation schedule relative to today with fixed 10 capacity (Mon-Sat) and Sunday closed
  */
 export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayCapacity> {
   const schedule: Record<string, DayCapacity> = {};
@@ -38,32 +45,36 @@ export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayC
       day: 'numeric',
     });
 
-    let occupied = 2; // default 2 slots occupied, 8 available
+    const isSunday = isSundayDate(dateKey);
 
-    if (i === 0) {
-      occupied = 4; // Today: 4 booked, 6 slots available
-    } else if (i === 1) {
-      occupied = 10; // Tomorrow: Fully booked (10/10)
-    } else if (i === 2) {
-      occupied = 8; // Day + 2: 8 booked, 2 slots remaining (Limited)
-    } else if (i === 4) {
-      occupied = 9; // Day + 4: 9 booked, 1 slot left (Limited)
-    } else if (i === 5) {
-      occupied = 3; // Day + 5: 3 booked, 7 available
+    if (isSunday) {
+      schedule[dateKey] = {
+        date: dateKey,
+        dayLabel,
+        status: 'CLOSED',
+        occupiedCount: 0,
+        totalSlots: 0,
+        remainingSlots: 0,
+        totalBays: 0,
+        isSunday: true,
+      };
+      continue;
     }
 
-    const remaining = Math.max(0, DAILY_MAX_CAPACITY - occupied);
-    const status: 'AVAILABLE' | 'LIMITED' | 'FULL' =
-      remaining === 0 ? 'FULL' : remaining <= 2 ? 'LIMITED' : 'AVAILABLE';
+    const totalSlots = FIXED_WORKSHOP_CAPACITY;
+    // Moderate realistic baseline for demo/fallback
+    const occupied = 0;
+    const remaining = totalSlots;
 
     schedule[dateKey] = {
       date: dateKey,
       dayLabel,
-      status,
+      status: 'AVAILABLE',
       occupiedCount: occupied,
-      totalSlots: DAILY_MAX_CAPACITY,
+      totalSlots,
       remainingSlots: remaining,
-      totalBays: DAILY_MAX_CAPACITY,
+      totalBays: totalSlots,
+      isSunday: false,
     };
   }
 
@@ -71,13 +82,10 @@ export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayC
 }
 
 /**
- * Get capacity status for a specific date
+ * Get fixed capacity status for a specific date (10 slots on Mon-Sat, Closed on Sunday)
  */
 export function getBayCapacity(dateString: string): DayCapacity {
-  const schedule = getMockReservationsSchedule(30);
-  if (schedule[dateString]) {
-    return schedule[dateString];
-  }
+  const isSunday = isSundayDate(dateString);
 
   const parsed = new Date(dateString);
   const dayLabel = isNaN(parsed.getTime())
@@ -88,13 +96,27 @@ export function getBayCapacity(dateString: string): DayCapacity {
         day: 'numeric',
       });
 
+  if (isSunday) {
+    return {
+      date: dateString,
+      dayLabel,
+      status: 'CLOSED',
+      occupiedCount: 0,
+      totalSlots: 0,
+      remainingSlots: 0,
+      totalBays: 0,
+      isSunday: true,
+    };
+  }
+
   return {
     date: dateString,
     dayLabel,
     status: 'AVAILABLE',
-    occupiedCount: 2,
-    totalSlots: DAILY_MAX_CAPACITY,
-    remainingSlots: DAILY_MAX_CAPACITY - 2,
-    totalBays: DAILY_MAX_CAPACITY,
+    occupiedCount: 0,
+    totalSlots: FIXED_WORKSHOP_CAPACITY,
+    remainingSlots: FIXED_WORKSHOP_CAPACITY,
+    totalBays: FIXED_WORKSHOP_CAPACITY,
+    isSunday: false,
   };
 }

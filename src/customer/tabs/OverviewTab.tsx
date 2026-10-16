@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '../../lib/supabase';
+import { broadcastTicketSync } from '../../lib/realtimeSync';
+import { parseTicketReview, attachTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
 import {
   Wrench,
@@ -9,7 +12,10 @@ import {
   Info,
   XCircle,
   AlertTriangle,
-  CalendarSync
+  CalendarSync,
+  Star,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -21,6 +27,7 @@ interface OverviewTabProps {
   onViewHistoryClick?: () => void;
   onRequestCancelTicket?: (ticket: ServiceTicket) => void;
   onRescheduleClick?: (ticket: ServiceTicket) => void;
+  onRefreshData?: () => void;
 }
 
 export default function OverviewTab({
@@ -32,6 +39,7 @@ export default function OverviewTab({
   onViewHistoryClick,
   onRequestCancelTicket,
   onRescheduleClick,
+  onRefreshData,
 }: OverviewTabProps) {
   // Support switching between multiple active booked motorcycles
   const [selectedTicketId, setSelectedTicketId] = useState<string>(
@@ -60,7 +68,10 @@ export default function OverviewTab({
   const activeBikePlate = activeTicket?.motorcycles?.plate_number || primaryBike?.plate_number || 'N/A';
 
   const isReady = activeTicket?.status === 'READY_FOR_PICKUP';
-  const currentStage = activeTicket ? (isReady ? 5 : activeTicket.stage) : 0;
+  const isPending =
+    activeTicket?.status === 'PENDING_CONFIRMATION' ||
+    Boolean(activeTicket?.notes && activeTicket.notes.includes('[BOOKING:PENDING_CONFIRMATION]'));
+  const currentStage = activeTicket ? (isReady ? 5 : isPending ? 0 : activeTicket.stage) : 0;
 
   // Interactive Stage Inspection State (Defaults to active stage or Stage 1)
   const [inspectedStageStep, setInspectedStageStep] = useState<number>(currentStage > 0 ? currentStage : 1);
@@ -68,10 +79,13 @@ export default function OverviewTab({
   // Synchronize inspected stage whenever active ticket changes
   useEffect(() => {
     if (activeTicket) {
-      const stage = activeTicket.status === 'READY_FOR_PICKUP' ? 5 : activeTicket.stage;
+      const isTicketPending =
+        activeTicket.status === 'PENDING_CONFIRMATION' ||
+        Boolean(activeTicket.notes && activeTicket.notes.includes('[BOOKING:PENDING_CONFIRMATION]'));
+      const stage = activeTicket.status === 'READY_FOR_PICKUP' ? 5 : isTicketPending ? 1 : activeTicket.stage;
       setInspectedStageStep(stage > 0 ? stage : 1);
     }
-  }, [activeTicket?.id, activeTicket?.stage, activeTicket?.status]);
+  }, [activeTicket?.id, activeTicket?.stage, activeTicket?.status, activeTicket?.notes]);
 
   // Detect any missed drop-off bookings to prompt immediate rescheduling
   const missedBookings = useMemo(() => {
@@ -79,6 +93,127 @@ export default function OverviewTab({
       (t) => t.status === 'MISSED' || t.status === 'NO_SHOW'
     );
   }, [serviceHistory]);
+
+  const pendingAuthorizations = useMemo(() => {
+    if (!activeTicket || !Array.isArray(activeTicket.billing_breakdown)) return [];
+    return activeTicket.billing_breakdown.filter(
+      (item: any) => item.isAdditional && item.approvalStatus === 'PENDING'
+    );
+  }, [activeTicket]);
+
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
+  const [submittedReviewTicketId, setSubmittedReviewTicketId] = useState<string | null>(null);
+  const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
+
+  const recentUnreviewedCompleted = useMemo(() => {
+    return (serviceHistory || []).find(
+      (t) =>
+        t.status === 'COMPLETED' &&
+        !parseTicketReview(t.notes) &&
+        t.id !== submittedReviewTicketId
+    );
+  }, [serviceHistory, submittedReviewTicketId]);
+
+  const handleApproveAuthorization = async (itemId: string) => {
+    if (!activeTicket) return;
+    setIsSubmittingAuth(true);
+    try {
+      const currentList: any[] = Array.isArray(activeTicket.billing_breakdown)
+        ? [...activeTicket.billing_breakdown]
+        : [];
+      const updated = currentList.map((item) =>
+        item.id === itemId
+          ? { ...item, approvalStatus: 'APPROVED', respondedAt: new Date().toISOString() }
+          : item
+      );
+
+      const { error } = await supabase
+        .from('service_tickets')
+        .update({ billing_breakdown: updated })
+        .eq('id', activeTicket.id);
+
+      if (error) throw error;
+
+      broadcastTicketSync({ ticketId: activeTicket.id, action: 'AUTH_APPROVED' });
+
+      if (onRefreshData) onRefreshData();
+    } catch (err) {
+      console.error('Failed to approve authorization:', err);
+      alert('Failed to update authorization. Please check network connection.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleDeclineAuthorization = async (itemId: string) => {
+    if (!activeTicket) return;
+    setIsSubmittingAuth(true);
+    try {
+      const currentList: any[] = Array.isArray(activeTicket.billing_breakdown)
+        ? [...activeTicket.billing_breakdown]
+        : [];
+      const updated = currentList.map((item) =>
+        item.id === itemId
+          ? { ...item, approvalStatus: 'DECLINED', respondedAt: new Date().toISOString() }
+          : item
+      );
+
+      const { error } = await supabase
+        .from('service_tickets')
+        .update({ billing_breakdown: updated })
+        .eq('id', activeTicket.id);
+
+      if (error) throw error;
+
+      broadcastTicketSync({ ticketId: activeTicket.id, action: 'AUTH_DECLINED' });
+
+      if (onRefreshData) onRefreshData();
+    } catch (err) {
+      console.error('Failed to decline authorization:', err);
+      alert('Failed to update authorization. Please check network connection.');
+    } finally {
+      setIsSubmittingAuth(false);
+    }
+  };
+
+  const handleSubmitReview = async (ticket: ServiceTicket) => {
+    if (reviewRating < 1) {
+      alert('Please select a star rating between 1 and 5 stars.');
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      const newReview: TicketReview = {
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+        reviewed_at: new Date().toISOString(),
+        reviewer_name: userProfile?.full_name || 'Verified Rider',
+        bike_model: ticket.motorcycles?.model || 'Motorcycle Unit',
+      };
+      const updatedNotes = attachTicketReview(ticket.notes || '', newReview);
+      const { error } = await supabase
+        .from('service_tickets')
+        .update({ notes: updatedNotes })
+        .eq('id', ticket.id);
+
+      if (error) throw error;
+
+      setSubmittedReviewTicketId(ticket.id);
+      setReviewComment('');
+
+      broadcastTicketSync({ ticketId: ticket.id, action: 'REVIEW_SUBMITTED' });
+
+      if (onRefreshData) onRefreshData();
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      alert('Failed to submit review. Please try again.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const stages = [
     {
@@ -262,7 +397,7 @@ export default function OverviewTab({
                 </span>
               </div>
               <p className="text-xs text-slate-600 mt-0.5 leading-snug">
-                Mukhang hindi mo nadala ang iyong motor ({missedBookings[0].motorcycles?.model || 'Motorcycle'}) sa itinakdang oras kanina. Naka-save ang iyong detalye — maaari mo itong i-reschedule agad sa bagong petsa at oras.
+                It appears your vehicle ({missedBookings[0].motorcycles?.model || 'Motorcycle'}) was not checked in during your scheduled drop-off window. Your booking details are saved — you can reschedule anytime.
               </p>
             </div>
           </div>
@@ -275,6 +410,180 @@ export default function OverviewTab({
             <CalendarSync className="w-3.5 h-3.5" />
             <span>Reschedule Appointment</span>
           </button>
+        </div>
+      )}
+
+      {/* 1.9 Pending Workshop Confirmation Banner */}
+      {isPending && activeTicket && (
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50/40 to-white border border-amber-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+          <div className="flex items-start sm:items-center gap-3.5 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
+                  Awaiting Workshop Confirmation
+                </span>
+                <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
+                  #{activeTicket.ticket_code}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5 leading-snug">
+                Your online service appointment request has been submitted to the workshop queue. The front desk is verifying bay availability and will confirm shortly.
+              </p>
+            </div>
+          </div>
+
+          {onRequestCancelTicket && (
+            <button
+              type="button"
+              onClick={() => onRequestCancelTicket(activeTicket)}
+              className="w-full sm:w-auto shrink-0 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 px-4 py-2 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            >
+              <XCircle className="w-3.5 h-3.5 text-slate-400" />
+              <span>Cancel Request</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* 1.95 Additional Work & Parts Authorization Required Card */}
+      {pendingAuthorizations.length > 0 && (
+        <div className="bg-gradient-to-r from-orange-50 via-amber-50/50 to-white border-2 border-orange-400/80 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-sm space-y-3.5 animate-in fade-in duration-200">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-xs font-bold text-orange-950 uppercase tracking-wider block">
+                  Workshop Authorization Required
+                </span>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  During inspection, the mechanic discovered additional parts or repairs recommended for your vehicle:
+                </p>
+              </div>
+            </div>
+            <span className="px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 text-[11px] font-bold border border-orange-200 shrink-0">
+              {pendingAuthorizations.length} Pending
+            </span>
+          </div>
+
+          <div className="space-y-2.5">
+            {pendingAuthorizations.map((item: any) => (
+              <div
+                key={item.id}
+                className="p-3 sm:p-4 bg-white border border-slate-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
+              >
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900">{item.name}</span>
+                    <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200/60">
+                      ₱{item.unitPrice.toLocaleString()}
+                    </span>
+                  </div>
+                  {item.reason && (
+                    <p className="text-[11px] text-slate-500 italic">
+                      Finding: {item.reason}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={isSubmittingAuth}
+                    onClick={() => handleDeclineAuthorization(item.id)}
+                    className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs transition cursor-pointer"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmittingAuth}
+                    onClick={() => handleApproveAuthorization(item.id)}
+                    className="flex-1 sm:flex-none px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Approve & Proceed</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 1.96 Post-Service Star Rating & Customer Review Card */}
+      {recentUnreviewedCompleted && (
+        <div className="bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white border border-amber-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Star className="w-5 h-5 fill-current" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Rate Your Workshop Experience
+                </h3>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Your recent service for <strong className="text-slate-800">{recentUnreviewedCompleted.motorcycles?.model || 'Motorcycle'}</strong> (#{recentUnreviewedCompleted.ticket_code}) has been completed. How was the quality of service?
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-200/80 rounded-xl p-3.5 space-y-3 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-700">Rating:</span>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    onMouseEnter={() => setHoverRating(star)}
+                    onMouseLeave={() => setHoverRating(0)}
+                    className="p-1 text-slate-300 hover:scale-110 transition cursor-pointer"
+                  >
+                    <Star
+                      className={`w-5 h-5 ${
+                        (hoverRating || reviewRating) >= star
+                          ? 'text-amber-400 fill-amber-400'
+                          : 'text-slate-200'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              <span className="text-xs font-bold text-slate-700 ml-1">
+                {reviewRating > 0 ? `${reviewRating} / 5 Stars` : 'Select rating'}
+              </span>
+            </div>
+
+            <div className="space-y-1">
+              <textarea
+                rows={2}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Optional: share feedback about repair quality, turnaround time, or technician professionalism..."
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-orange-500 transition resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={isSubmittingReview || reviewRating === 0}
+                onClick={() => handleSubmitReview(recentUnreviewedCompleted)}
+                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs rounded-full shadow-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                {isSubmittingReview && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Submit Workshop Review</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -336,7 +645,7 @@ export default function OverviewTab({
                   {activeTicket ? 'Assigned Bay' : 'Next Due'}
                 </span>
                 <span className="font-bold truncate block">
-                  {activeTicket ? (activeTicket.assigned_bay || 'Bay Pending') : primaryBike?.next_service || '3,000 km'}
+                  {activeTicket ? (activeTicket.assigned_bay || 'Bay Pending') : primaryBike?.next_service || 'Routine Check'}
                 </span>
               </div>
             </div>
@@ -356,7 +665,7 @@ export default function OverviewTab({
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-                {activeTicket ? (isReady ? 'Ready for Pickup' : 'Bay In-Progress') : '100% Road Ready'}
+                {activeTicket ? (isReady ? 'Ready for Pickup' : 'Bay In-Progress') : 'Ready for Service'}
               </span>
             </div>
 
@@ -365,7 +674,7 @@ export default function OverviewTab({
                 {activeTicket ? 'Lead Mechanic' : 'Vehicle Condition'}
               </span>
               <span className="font-bold text-slate-800">
-                {activeTicket ? activeTicket.assigned_mechanic : 'Road-Ready'}
+                {activeTicket ? (activeTicket.assigned_mechanic || 'Pending Assignment') : (primaryBike?.status || 'Good Standing')}
               </span>
             </div>
 
@@ -376,7 +685,7 @@ export default function OverviewTab({
               <span className="font-bold text-slate-800">
                 {activeTicket
                   ? activeTicket.dropoff_date || activeTicket.estimated_pickup || 'Standard Queue'
-                  : primaryBike?.next_service || '3,000 km'}
+                  : primaryBike?.next_service || 'Pending Schedule'}
               </span>
             </div>
           </div>
@@ -403,7 +712,7 @@ export default function OverviewTab({
               <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-[11px] font-medium text-slate-600">
                 <span className="px-2.5 py-0.5 rounded-full">Stages</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-semibold shadow-xs">
-                  {activeTicket ? `Stage ${currentStage}` : 'Interactive'}
+                  {activeTicket ? (isPending ? 'Pending Review' : isReady ? 'Ready for Pickup' : `Stage ${currentStage}`) : 'Interactive'}
                 </span>
               </div>
             </div>
@@ -540,7 +849,7 @@ export default function OverviewTab({
                   )}
                 </div>
 
-                {activeTicket.stage === 1 ? (
+                {(activeTicket.stage === 1 || isPending) ? (
                   onRequestCancelTicket && (
                     <button
                       type="button"

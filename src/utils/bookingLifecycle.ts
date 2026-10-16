@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { broadcastTicketSync } from '../lib/realtimeSync';
 
 export interface TimeSlotConfig {
   id: string;
@@ -101,7 +102,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
   try {
     const { data: tickets, error } = await supabase
       .from('service_tickets')
-      .select('id, ticket_code, user_id, dropoff_date, notes, stage, status, service_type, motorcycles(model, plate_number)')
+      .select('id, ticket_code, user_id, dropoff_date, notes, stage, status, service_type, is_walk_in, motorcycles(model, plate_number)')
       .eq('stage', 1)
       .eq('status', 'IN_PROGRESS');
 
@@ -109,7 +110,8 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
       return { expiredCount: 0, expiredTickets: [] };
     }
 
-    const expiredToUpdate = tickets.filter(isBookingExpiredOrMissed);
+    // Walk-in units are already at the shop, so they can never miss a drop-off window
+    const expiredToUpdate = tickets.filter((t) => !t.is_walk_in && isBookingExpiredOrMissed(t));
     if (expiredToUpdate.length === 0) {
       return { expiredCount: 0, expiredTickets: [] };
     }
@@ -125,7 +127,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
       const { error: updateError } = await supabase
         .from('service_tickets')
         .update({
-          status: 'MISSED',
+          status: 'CANCELLED',
           notes: updatedNotes,
         })
         .eq('id', ticket.id);
@@ -150,7 +152,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
             plateNumber: plateNum,
             serviceType: ticket.service_type,
             rescheduleUrl: `/dashboard?tab=book&reschedule=${ticket.ticket_code}`,
-            message: `Mukhang hindi mo nadala ang iyong motor (${bikeModel} - ${plateNum}) para sa appointment #${ticket.ticket_code}. Naka-save ang iyong impormasyon — maaari mo itong i-reschedule agad sa bagong petsa at oras.`,
+            message: `Your motorcycle (${bikeModel} - ${plateNum}) was not checked in for appointment #${ticket.ticket_code}. Your booking details are saved, and you can reschedule to a new date and time at any time.`,
           };
 
           try {
@@ -167,16 +169,8 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
     }
 
     // Broadcast realtime event so all active dashboards refresh immediately
-    if (typeof window !== 'undefined' && expiredTickets.length > 0) {
-      try {
-        supabase.channel('motocare_dispatch_realtime').send({
-          type: 'broadcast',
-          event: 'TICKET_DISPATCH_SYNC',
-          payload: { action: 'BOOKINGS_EXPIRED_MISSED', count: expiredTickets.length },
-        });
-      } catch {
-        // ignore
-      }
+    if (expiredTickets.length > 0) {
+      broadcastTicketSync({ action: 'BOOKINGS_EXPIRED_MISSED', count: expiredTickets.length });
     }
 
     return { expiredCount: expiredTickets.length, expiredTickets };
@@ -184,6 +178,27 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
     console.error('evaluateAndExpireMissedBookings error:', err);
     return { expiredCount: 0, expiredTickets: [] };
   }
+}
+
+// Throttle state for the missed-booking scan (shared per browser tab)
+const MISSED_SCAN_INTERVAL_MS = 5 * 60 * 1000;
+let lastMissedScanAt = 0;
+let missedScanInFlight: Promise<unknown> | null = null;
+
+/**
+ * Runs the missed-booking scan in the background at most once every 5 minutes.
+ * Never blocks the caller and never runs two scans at the same time.
+ */
+export function runMissedBookingScanInBackground(force = false): void {
+  const now = Date.now();
+  if (missedScanInFlight) return;
+  if (!force && now - lastMissedScanAt < MISSED_SCAN_INTERVAL_MS) return;
+  lastMissedScanAt = now;
+  missedScanInFlight = evaluateAndExpireMissedBookings()
+    .catch(() => undefined)
+    .finally(() => {
+      missedScanInFlight = null;
+    });
 }
 
 /**
@@ -226,7 +241,7 @@ export async function checkAndSendBookingReminders(userId: string): Promise<void
           plateNumber: plateNum,
           date: todayStr,
           timeWindow: slotLabel,
-          message: `Paalala mula sa MotoCare: Nakatakda ang drop-off ng iyong motor ${bikeModel} (${plateNum}) ngayong araw sa ${slotLabel}. Mangyaring dalhin sa MotoCare Reception sa Santa Maria Hub.`,
+          message: `Reminder from MotoCare: Your ${bikeModel} (${plateNum}) is scheduled for drop-off today during the ${slotLabel}. Please bring it to the MotoCare reception desk.`,
         };
 
         await supabase.from('messages').insert({
@@ -305,7 +320,7 @@ export async function rescheduleServiceTicket({
         ticketCode,
         newDropoffDate,
         newTimeWindow,
-        message: `Matagumpay na nai-reschedule ang iyong appointment #${ticketCode} sa ${newDropoffDate} (${newTimeWindow}). Handa ang MotoCare reception sa iyong pagdating!`,
+        message: `Your appointment #${ticketCode} has been rescheduled to ${newDropoffDate} (${newTimeWindow}). The MotoCare reception desk is ready for your arrival.`,
       };
       try {
         await supabase.from('messages').insert({
@@ -318,20 +333,98 @@ export async function rescheduleServiceTicket({
       }
     }
 
-    if (typeof window !== 'undefined') {
-      try {
-        supabase.channel('motocare_dispatch_realtime').send({
-          type: 'broadcast',
-          event: 'TICKET_DISPATCH_SYNC',
-          payload: { action: 'TICKET_RESCHEDULED', ticket_code: ticketCode },
-        });
-      } catch {
-        // ignore
-      }
-    }
+    broadcastTicketSync({ action: 'TICKET_RESCHEDULED', ticket_code: ticketCode });
 
     return { success: true };
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error during reschedule.' };
   }
 }
+
+/**
+ * Admin Late Check-in Override
+ */
+export async function adminLateCheckInOverride(
+  ticketId: string,
+  actorName: string = 'Service Advisor'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { data: ticket, error: fetchErr } = await supabase
+      .from('service_tickets')
+      .select('id, ticket_code, notes, stage, status')
+      .eq('id', ticketId)
+      .single();
+
+    if (fetchErr || !ticket) return { success: false, error: 'Ticket not found.' };
+
+    const updatedNotes = `${ticket.notes || ''} | [LATE_CHECKIN_OVERRIDE: Approved by ${actorName} at ${new Date().toLocaleTimeString()}]`.trim();
+
+    const { error: updateErr } = await supabase
+      .from('service_tickets')
+      .update({
+        stage: 1,
+        status: 'IN_PROGRESS',
+        notes: updatedNotes,
+      })
+      .eq('id', ticketId);
+
+    if (updateErr) return { success: false, error: updateErr.message };
+
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed late check-in override.' };
+  }
+}
+
+/**
+ * Admin Extend Grace Period
+ */
+export async function adminExtendGracePeriod(
+  ticketId: string,
+  extraHours: number = 1,
+  actorName: string = 'Service Advisor'
+): Promise<boolean> {
+  try {
+    const { data: ticket } = await supabase
+      .from('service_tickets')
+      .select('id, ticket_code, notes')
+      .eq('id', ticketId)
+      .single();
+
+    if (!ticket) return false;
+
+    const updatedNotes = `${ticket.notes || ''} | [GRACE_EXTENDED: +${extraHours}h by ${actorName}]`.trim();
+
+    await supabase
+      .from('service_tickets')
+      .update({
+        notes: updatedNotes,
+        status: 'IN_PROGRESS',
+      })
+      .eq('id', ticketId);
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Admin Assisted Reschedule
+ */
+export async function adminAssistedReschedule(
+  ticketId: string,
+  ticketCode: string,
+  newDate: string,
+  newSlot: string,
+  actorName: string = 'Service Advisor'
+): Promise<{ success: boolean; error?: string }> {
+  return rescheduleServiceTicket({
+    ticketId,
+    ticketCode,
+    newDropoffDate: newDate,
+    newTimeWindow: newSlot,
+    customNotes: `Assisted by ${actorName}`,
+  });
+}
+

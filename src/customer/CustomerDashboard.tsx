@@ -19,9 +19,10 @@ import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
 import CancelBookingModal from './modals/CancelBookingModal';
 import SpotlightTour from '../components/tutorial/SpotlightTour';
 
-import { Wrench, Loader2, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { Wrench, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
-import { evaluateAndExpireMissedBookings, checkAndSendBookingReminders } from '../utils/bookingLifecycle';
+import { runMissedBookingScanInBackground, checkAndSendBookingReminders } from '../utils/bookingLifecycle';
+import { TICKET_SYNC_CHANNEL, TICKET_SYNC_EVENT, broadcastTicketSync, debounce } from '../lib/realtimeSync';
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
@@ -60,46 +61,41 @@ export default function CustomerDashboard() {
 
   const loadDashboardData = async (uid: string) => {
     try {
-      // Auto-evaluate expired bookings & deliver day-of-service reminders
-      await evaluateAndExpireMissedBookings();
-      await checkAndSendBookingReminders(uid);
+      // Non-blocking background health checks
+      runMissedBookingScanInBackground();
+      checkAndSendBookingReminders(uid).catch(() => {});
 
-      // 1. Kunin lahat ng motor sa garahe
-      const { data: bikesData } = await supabase
-        .from('motorcycles')
-        .select('*')
-        .eq('user_id', uid)
-        .order('created_at', { ascending: false });
+      // Parallelize customer dashboard queries
+      const [bikesRes, ongoingRes, historyRes, hardcopies] = await Promise.all([
+        supabase
+          .from('motorcycles')
+          .select('*')
+          .eq('user_id', uid)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('service_tickets')
+          .select(`*, motorcycles (model, plate_number)`)
+          .eq('user_id', uid)
+          .in('status', ['PENDING_CONFIRMATION', 'IN_PROGRESS', 'READY_FOR_PICKUP'])
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('service_tickets')
+          .select(`*, motorcycles (model, plate_number)`)
+          .eq('user_id', uid)
+          .in('status', ['COMPLETED', 'MISSED', 'NO_SHOW', 'CANCELLED_BY_ADMIN', 'CANCELLED'])
+          .order('created_at', { ascending: false }),
+        fetchHardcopyRequests(uid),
+      ]);
 
-      const loadedBikes = bikesData || [];
+      const loadedBikes = bikesRes.data || [];
       setMotorcycles(loadedBikes);
       if (loadedBikes.length > 0 && !selectedBikeId) {
         setSelectedBikeId(loadedBikes[0].id);
       }
 
-      // 2. Kunin ang LAHAT ng active tickets
-      const { data: ongoingTickets } = await supabase
-        .from('service_tickets')
-        .select(`*, motorcycles (model, plate_number)`)
-        .eq('user_id', uid)
-        .in('status', ['IN_PROGRESS', 'READY_FOR_PICKUP'])
-        .order('created_at', { ascending: false });
-
-      setActiveTickets(ongoingTickets || []);
-
-      // 3. Kunin ang completed records at missed bookings
-      const { data: historyTickets } = await supabase
-        .from('service_tickets')
-        .select(`*, motorcycles (model, plate_number)`)
-        .eq('user_id', uid)
-        .in('status', ['COMPLETED', 'MISSED', 'NO_SHOW'])
-        .order('created_at', { ascending: false });
-
-      setServiceHistory(historyTickets || []);
-
-      // 4. Kunin ang certified hardcopy requests
-      const hardcopies = await fetchHardcopyRequests(uid);
-      setHardcopyRequests(hardcopies);
+      setActiveTickets(ongoingRes.data || []);
+      setServiceHistory(historyRes.data || []);
+      setHardcopyRequests(hardcopies || []);
     } catch (err) {
       console.error('Error loading Supabase dashboard data:', err);
     }
@@ -154,13 +150,25 @@ export default function CustomerDashboard() {
     };
   }, [navigate]);
 
-  // Realtime subscription para sa ticket stage/dispatch updates at hardcopy status updates
+  // Realtime subscription for ticket stage/dispatch updates and hardcopy status
   useEffect(() => {
     if (!userId) return;
 
-    // 1. Service tickets realtime (stage changes, bay moves, technician assignments from Admin/Staff)
+    const debouncedReload = debounce(() => {
+      loadDashboardData(userId);
+    }, 400);
+
+    // 1. Service tickets broadcast (stage changes, bay moves, confirmations from Admin/Staff)
     const dispatchChannel = supabase
-      .channel(`customer_dispatch_realtime_${userId}`)
+      .channel(TICKET_SYNC_CHANNEL)
+      .on('broadcast', { event: TICKET_SYNC_EVENT }, () => {
+        debouncedReload();
+      })
+      .subscribe();
+
+    // 2. Direct database level changes for current user
+    const dbChangesChannel = supabase
+      .channel(`customer_db_sync_${userId}`)
       .on(
         'postgres_changes',
         {
@@ -170,19 +178,12 @@ export default function CustomerDashboard() {
           filter: `user_id=eq.${userId}`,
         },
         () => {
-          loadDashboardData(userId);
-        }
-      )
-      .on(
-        'broadcast',
-        { event: 'TICKET_DISPATCH_SYNC' },
-        () => {
-          loadDashboardData(userId);
+          debouncedReload();
         }
       )
       .subscribe();
 
-    // 2. Hardcopy certified requests realtime
+    // 3. Hardcopy certified requests realtime
     const hardcopyChannel = supabase
       .channel(`customer_hardcopy_realtime_${userId}`)
       .on(
@@ -207,7 +208,9 @@ export default function CustomerDashboard() {
       .subscribe();
 
     return () => {
+      debouncedReload.cancel();
       supabase.removeChannel(dispatchChannel);
+      supabase.removeChannel(dbChangesChannel);
       supabase.removeChannel(hardcopyChannel);
     };
   }, [userId]);
@@ -237,6 +240,23 @@ export default function CustomerDashboard() {
     }
   }, [isMobileMenuOpen]);
 
+  // BFCache Interceptor: Disallows viewing dashboard via browser Back button after logout
+  useEffect(() => {
+    const handlePageShow = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          window.location.replace('/login');
+        }
+      } catch {
+        window.location.replace('/login');
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    return () => window.removeEventListener('pageshow', handlePageShow);
+  }, []);
+
   const handleLogout = () => {
     setIsLogoutModalOpen(true);
   };
@@ -244,7 +264,8 @@ export default function CustomerDashboard() {
   const executeLogout = async () => {
     setIsLoggingOut(true);
     await supabase.auth.signOut();
-    navigate('/login', { replace: true });
+    // Hard cache flush: burns the browser history snapshot so Back button cannot return
+    window.location.replace('/login');
   };
 
   const handleRequestCancelTicket = (ticket: ServiceTicket) => {
@@ -277,6 +298,9 @@ export default function CustomerDashboard() {
         if (delErr) throw delErr;
       }
 
+      // Broadcast real-time cancellation to Admin and Staff consoles live
+      broadcastTicketSync({ action: 'CANCELLED', id: cancellingTicket.id, ticket_code: cancellingTicket.ticket_code });
+
       if (userId) await loadDashboardData(userId);
       setIsCancelModalOpen(false);
       const code = cancellingTicket.ticket_code;
@@ -293,27 +317,13 @@ export default function CustomerDashboard() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-200">
-        <div className="flex flex-col items-center space-y-4">
-          {/* Animated MotoCare Emblem */}
-          <div className="relative">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
-              <Wrench className="w-6 h-6 animate-pulse" />
-            </div>
-            <div className="absolute -inset-1.5 rounded-3xl bg-orange-500/15 blur-sm -z-10 animate-pulse" />
-          </div>
-
-          {/* Brand Title & Loading Subtext */}
-          <div className="text-center space-y-1">
-            <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
-              <span>MotoCare</span>
-              <span className="w-1 h-1 rounded-full bg-orange-500" />
-              <span className="text-xs font-semibold text-slate-500">Rider Portal</span>
-            </h3>
-            <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500 pt-0.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
-              <span>Verifying rider session...</span>
-            </div>
+      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-150">
+        <div className="relative flex items-center justify-center">
+          {/* Active Spinning Ring */}
+          <div className="w-16 h-16 rounded-full border-3 border-orange-200 border-t-orange-500 animate-spin" />
+          {/* Centered MotoCare Icon */}
+          <div className="absolute w-9 h-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25">
+            <Wrench className="w-4 h-4 animate-pulse" />
           </div>
         </div>
       </div>
@@ -369,6 +379,9 @@ export default function CustomerDashboard() {
               onViewHistoryClick={() => setActiveTab('history')}
               onRequestCancelTicket={handleRequestCancelTicket}
               onRescheduleClick={handleOpenReschedule}
+              onRefreshData={() => {
+                if (userId) loadDashboardData(userId);
+              }}
             />
           )}
 
@@ -406,6 +419,9 @@ export default function CustomerDashboard() {
               onNavigateTab={(tab) => setActiveTab(tab)}
               onOpenHelpdesk={() => setIsMessagesModalOpen(true)}
               onRescheduleTicket={handleOpenReschedule}
+              onRefreshData={() => {
+                if (userId) loadDashboardData(userId);
+              }}
             />
           )}
 

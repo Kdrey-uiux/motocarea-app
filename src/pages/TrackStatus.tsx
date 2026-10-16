@@ -33,21 +33,33 @@ interface PublicTicket {
   } | null;
 }
 
+export function normalizeTicketCode(input: string): string {
+  let cleaned = input.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
+  if (!cleaned) return '';
+  if (cleaned.startsWith('MC-')) {
+    cleaned = cleaned.slice(3);
+  }
+  if (cleaned.startsWith('W-')) {
+    return `MC-W-${cleaned.slice(2).replace(/\D/g, '')}`;
+  } else if (cleaned.startsWith('W')) {
+    return `MC-W-${cleaned.slice(1).replace(/\D/g, '')}`;
+  } else {
+    return `MC-${cleaned.replace(/\D/g, '')}`;
+  }
+}
+
 export default function TrackStatus() {
   const { ticketCode } = useParams<{ ticketCode?: string }>();
   const navigate = useNavigate();
 
-  const [ticketDigits, setTicketDigits] = useState('');
+  const [ticketInput, setTicketInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchTicket = async (codeToSearch: string) => {
-    let cleanCode = codeToSearch.trim().toUpperCase();
-    if (!cleanCode) return;
-    if (!cleanCode.startsWith('MC-')) {
-      cleanCode = `MC-${cleanCode.replace(/\D/g, '')}`;
-    }
+    const cleanCode = normalizeTicketCode(codeToSearch);
+    if (!cleanCode || cleanCode === 'MC-' || cleanCode === 'MC-W-') return;
 
     setLoading(true);
     setErrorMsg(null);
@@ -112,11 +124,9 @@ export default function TrackStatus() {
 
   useEffect(() => {
     if (ticketCode) {
-      const cleanDigits = ticketCode.replace(/\D/g, '').slice(0, 6);
-      setTicketDigits(cleanDigits);
-      const normalizedCode = ticketCode.toUpperCase().startsWith('MC-')
-        ? ticketCode.toUpperCase()
-        : `MC-${cleanDigits}`;
+      const normalizedCode = normalizeTicketCode(ticketCode);
+      const displayPart = normalizedCode.startsWith('MC-') ? normalizedCode.slice(3) : normalizedCode;
+      setTicketInput(displayPart);
       fetchTicket(normalizedCode);
     }
   }, [ticketCode]);
@@ -163,11 +173,10 @@ export default function TrackStatus() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanDigits = ticketDigits.trim();
-    if (!cleanDigits) return;
-    const fullCode = `MC-${cleanDigits}`;
-    navigate(`/track/${fullCode}`, { replace: true });
-    fetchTicket(fullCode);
+    const normalized = normalizeTicketCode(ticketInput);
+    if (!normalized || normalized === 'MC-' || normalized === 'MC-W-') return;
+    navigate(`/track/${normalized}`, { replace: true });
+    fetchTicket(normalized);
   };
 
   const stages = [
@@ -263,17 +272,20 @@ export default function TrackStatus() {
 
               <input
                 type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={6}
-                value={ticketDigits}
-                onChange={(e) => setTicketDigits(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder=""
-                className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-mono font-bold tracking-wider focus:outline-none"
+                autoCapitalize="characters"
+                maxLength={10}
+                value={ticketInput}
+                onChange={(e) => {
+                  let val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+                  if (val.startsWith('MC-')) val = val.slice(3);
+                  setTicketInput(val.slice(0, 10));
+                }}
+                placeholder="684920 o W-7842"
+                className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-mono font-bold tracking-wider focus:outline-hidden"
               />
               <button
                 type="submit"
-                disabled={loading || !ticketDigits.trim()}
+                disabled={loading || !ticketInput.trim()}
                 className="bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-semibold px-4 sm:px-5 py-2 rounded-full transition flex items-center gap-1 shadow-sm shadow-orange-500/20 active:scale-95 cursor-pointer shrink-0"
               >
                 {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Track'}

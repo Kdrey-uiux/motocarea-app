@@ -5,17 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:admin": "npm run dev --prefix admin",
     "server": "npm run dev --prefix server",
     "build": "tsc -b && vite build",
-    "build:admin": "npm run build --prefix admin",
     "build:server": "npm run build --prefix server",
-    "build:all": "npm run build && npm run build:admin && npm run build:server",
+    "build:all": "npm run build && npm run build:server",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "workspaces": [
-    "admin",
     "server"
   ],
   "dependencies": {

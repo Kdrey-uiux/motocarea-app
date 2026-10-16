@@ -338,6 +338,48 @@ export default function Login() {
     };
   }, [searchParams]);
 
+  // Auto-redirect if user already has an active authenticated session
+  useEffect(() => {
+    let isMounted = true;
+    const checkActiveSession = async () => {
+      // Don't auto-redirect if user is verifying email or resetting password
+      const hash = window.location.hash;
+      if (
+        searchParams.get('verified') === 'true' ||
+        hash.includes('type=signup') ||
+        hash.includes('type=email_verification') ||
+        hash.includes('type=recovery')
+      ) {
+        return;
+      }
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && isMounted) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          const role = profile?.role?.toLowerCase();
+          if (['admin', 'staff'].includes(role || '')) {
+            navigate('/internal', { replace: true });
+          } else {
+            navigate('/dashboard', { replace: true });
+          }
+        }
+      } catch (err) {
+        console.error('Session check on login error:', err);
+      }
+    };
+
+    checkActiveSession();
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate, searchParams]);
+
   // Resend cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -361,9 +403,9 @@ export default function Login() {
 
     const role = profile?.role?.toLowerCase();
     if (['admin', 'staff'].includes(role || '')) {
-      navigate('/admin');
+      navigate('/internal', { replace: true });
     } else {
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     }
   };
 
@@ -491,7 +533,7 @@ export default function Login() {
 
           setSuccessMessage('Account created successfully! Redirecting to your dashboard...');
           setTimeout(() => {
-            navigate('/dashboard');
+            navigate('/dashboard', { replace: true });
           }, 800);
           return;
         }

@@ -39,7 +39,7 @@ Ang server ay tatakbo sa: **`http://localhost:5000`**
 * `GET /api/profile` - Kunin ang account profile
 * `PUT /api/profile` - I-update ang full name at contact number
 
-### 3. Admin Endpoints (Nangangailangan ng `ADMIN` o `SUPER_ADMIN` Role)
+### 3. Admin & Staff Endpoints (Nangangailangan ng `admin` o `staff` Role)
 * `GET /api/admin/tickets` - Kunin ang buong pila ng workshop tickets kasama ang detalye ng motor
 * `PATCH /api/admin/tickets/:ticketId/status` - Baguhin ang status (`IN_PROGRESS`, `READY_FOR_PICKUP`, `COMPLETED`), stage (1-5), service bay, at lead mechanic
 * `GET /api/admin/metrics` - Workshop summary counts (ongoing, ready, completed)

@@ -1,7 +1,7 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Wrench, Loader2 } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -32,6 +32,19 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     checkAuth();
 
+    const handlePageShow = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          window.location.replace('/login');
+        }
+      } catch {
+        window.location.replace('/login');
+      }
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (isMounted) {
         setIsAuthenticated(!!session);
@@ -41,32 +54,19 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+      window.removeEventListener('pageshow', handlePageShow);
     };
   }, []);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-200">
-        <div className="flex flex-col items-center space-y-4">
-          {/* Animated MotoCare Emblem */}
-          <div className="relative">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-orange-500 via-orange-500 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
-              <Wrench className="w-6 h-6 animate-pulse" />
-            </div>
-            <div className="absolute -inset-1.5 rounded-3xl bg-orange-500/15 blur-sm -z-10 animate-pulse" />
-          </div>
-
-          {/* Brand Title & Loading Subtext */}
-          <div className="text-center space-y-1">
-            <h3 className="text-sm font-bold text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
-              <span>MotoCare</span>
-              <span className="w-1 h-1 rounded-full bg-orange-500" />
-              <span className="text-xs font-semibold text-slate-500">Rider Portal</span>
-            </h3>
-            <div className="flex items-center justify-center gap-2 text-xs font-medium text-slate-500 pt-0.5">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-500" />
-              <span>Verifying rider session...</span>
-            </div>
+      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-150">
+        <div className="relative flex items-center justify-center">
+          {/* Active Spinning Ring */}
+          <div className="w-16 h-16 rounded-full border-3 border-orange-200 border-t-orange-500 animate-spin" />
+          {/* Centered MotoCare Icon */}
+          <div className="absolute w-9 h-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25">
+            <Wrench className="w-4 h-4 animate-pulse" />
           </div>
         </div>
       </div>

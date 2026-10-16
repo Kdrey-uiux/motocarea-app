@@ -1,4 +1,7 @@
 import { useState, useMemo } from 'react';
+import { supabase } from '../../lib/supabase';
+import { broadcastTicketSync } from '../../lib/realtimeSync';
+import { parseTicketReview, attachTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, UserProfile, TabType } from '../../types/dashboard';
 import RequestHardcopyModal from '../modals/RequestHardcopyModal';
 import { HardcopyRequest } from '../../lib/hardcopyService';
@@ -16,7 +19,9 @@ import {
   Stamp,
   MapPin,
   AlertTriangle,
-  CalendarSync
+  CalendarSync,
+  Star,
+  Loader2
 } from 'lucide-react';
 
 interface ServiceHistoryTabProps {
@@ -28,6 +33,7 @@ interface ServiceHistoryTabProps {
   hardcopyRequests?: HardcopyRequest[];
   onRefreshHardcopy?: () => void;
   onRescheduleTicket?: (ticket: ServiceTicket) => void;
+  onRefreshData?: () => void;
 }
 
 export default function ServiceHistoryTab({
@@ -39,11 +45,62 @@ export default function ServiceHistoryTab({
   hardcopyRequests = [],
   onRefreshHardcopy,
   onRescheduleTicket,
+  onRefreshData,
 }: ServiceHistoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
   const [selectedBikePlate, setSelectedBikePlate] = useState<string>('all');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+
+  // Review & Rating Modal States
+  const [ratingTargetTicket, setRatingTargetTicket] = useState<ServiceTicket | null>(null);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
+
+  const handleSubmitReview = async (ticket: ServiceTicket) => {
+    if (reviewRating < 1) {
+      alert('Please select a star rating between 1 and 5 stars.');
+      return;
+    }
+    setIsSubmittingReview(true);
+    try {
+      const newReview: TicketReview = {
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+        reviewed_at: new Date().toISOString(),
+        reviewer_name: userProfile?.full_name || 'Verified Rider',
+        bike_model: ticket.motorcycles?.model || 'Motorcycle Unit',
+      };
+      const updatedNotes = attachTicketReview(ticket.notes || '', newReview);
+      const { error } = await supabase
+        .from('service_tickets')
+        .update({ notes: updatedNotes })
+        .eq('id', ticket.id);
+
+      if (error) throw error;
+
+      broadcastTicketSync({ ticketId: ticket.id, action: 'REVIEW_SUBMITTED' });
+
+      setRatingTargetTicket(null);
+      setReviewComment('');
+      setReviewRating(5);
+
+      if (onRefreshData) onRefreshData();
+      if (selectedTicket && selectedTicket.id === ticket.id) {
+        setSelectedTicket({
+          ...selectedTicket,
+          notes: updatedNotes,
+        });
+      }
+    } catch (err) {
+      console.error('Failed to submit review:', err);
+      alert('Failed to submit review. Please check your network connection.');
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   const latestActiveHardcopy = useMemo(() => {
     if (!hardcopyRequests || hardcopyRequests.length === 0) return null;
@@ -556,14 +613,35 @@ export default function ServiceHistoryTab({
                       </button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedTicket(item)}
-                      className="w-full py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.99]"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>View Official Slip</span>
-                    </button>
+                    <div className="flex items-center gap-2 pt-1">
+                      {parseTicketReview(item.notes) ? (
+                        <div className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-full text-xs font-bold">
+                          <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          <span>{parseTicketReview(item.notes)?.rating}.0</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRatingTargetTicket(item);
+                            setReviewRating(5);
+                            setReviewComment('');
+                          }}
+                          className="flex-1 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        >
+                          <Star className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Rate Service</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTicket(item)}
+                        className="flex-1 py-2 bg-orange-50 hover:bg-orange-100 text-orange-600 border border-orange-200/80 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-[0.99]"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>View Official Slip</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               ))}
@@ -648,14 +726,35 @@ export default function ServiceHistoryTab({
                               </button>
                             </div>
                           ) : (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedTicket(item)}
-                              className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200/80 px-3.5 py-1.5 rounded-full transition cursor-pointer"
-                            >
-                              <FileText className="w-3.5 h-3.5" />
-                              <span>View Slip</span>
-                            </button>
+                            <div className="flex items-center justify-end gap-2">
+                              {parseTicketReview(item.notes) ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200/80 rounded-full text-xs font-bold">
+                                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                                  <span>{parseTicketReview(item.notes)?.rating}.0</span>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRatingTargetTicket(item);
+                                    setReviewRating(5);
+                                    setReviewComment('');
+                                  }}
+                                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 px-3 py-1.5 rounded-full transition cursor-pointer"
+                                >
+                                  <Star className="w-3.5 h-3.5 text-amber-500" />
+                                  <span>Rate</span>
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setSelectedTicket(item)}
+                                className="inline-flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-200/80 px-3.5 py-1.5 rounded-full transition cursor-pointer"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                <span>View Slip</span>
+                              </button>
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -927,12 +1026,123 @@ export default function ServiceHistoryTab({
                 </div>
               </div>
 
+              {/* Itemized Parts & Labor Breakdown if available */}
+              {((selectedTicket as any).billing_breakdown && (selectedTicket as any).billing_breakdown.length > 0) && (
+                <div className="pt-2 border-t border-dashed border-slate-200 space-y-1">
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Parts & Labor Breakdown</div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 divide-y divide-slate-100 text-[11px]">
+                    {(selectedTicket as any).billing_breakdown.map((item: any, idx: number) => (
+                      <div key={idx} className="py-1 flex justify-between">
+                        <span className="text-slate-700">{item.name} × {item.quantity}</span>
+                        <span className="font-semibold text-slate-900">₱{(item.subtotal || 0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                    {(selectedTicket as any).labor_cost !== undefined && (
+                      <div className="py-1 flex justify-between font-medium text-slate-700">
+                        <span>Workshop Labor Fee</span>
+                        <span className="font-semibold text-slate-900">₱{((selectedTicket as any).labor_cost || 0).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-700">TOTAL AMOUNT PAID:</span>
+                <div>
+                  <span className="font-bold text-slate-700 block">TOTAL AMOUNT PAID:</span>
+                  {(selectedTicket as any).payment_method && (
+                    <span className="text-[10px] text-slate-400 font-medium">
+                      Paid via {(selectedTicket as any).payment_method}
+                    </span>
+                  )}
+                </div>
                 <span className="text-base font-extrabold text-emerald-600">
-                  {selectedTicket.total_estimate}
+                  {(selectedTicket as any).total_amount ? `₱${(selectedTicket as any).total_amount.toLocaleString()}` : selectedTicket.total_estimate}
                 </span>
               </div>
+
+              {/* Customer Rating & Feedback in Slip */}
+              {parseTicketReview(selectedTicket.notes) && (
+                <div className="pt-2 border-t border-dashed border-slate-200 space-y-1">
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Customer Review & Rating</div>
+                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 text-xs space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="flex items-center">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`w-3.5 h-3.5 ${
+                              star <= (parseTicketReview(selectedTicket.notes)?.rating || 0)
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-slate-200'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <span className="font-bold text-slate-800 text-xs">
+                        {parseTicketReview(selectedTicket.notes)?.rating}.0 / 5.0
+                      </span>
+                    </div>
+                    {parseTicketReview(selectedTicket.notes)?.comment && (
+                      <p className="text-[11px] text-slate-600 italic">
+                        "{parseTicketReview(selectedTicket.notes)?.comment}"
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* If unreviewed, offer rating directly inside slip */}
+              {!parseTicketReview(selectedTicket.notes) && selectedTicket.status === 'COMPLETED' && (
+                <div className="pt-2 border-t border-dashed border-slate-200 space-y-2 print-hide">
+                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Rate Your Workshop Service</div>
+                  <div className="bg-white p-3 rounded-xl border border-amber-200/90 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            onMouseEnter={() => setHoverRating(star)}
+                            onMouseLeave={() => setHoverRating(0)}
+                            className="p-0.5 text-slate-300 hover:scale-110 transition cursor-pointer"
+                          >
+                            <Star
+                              className={`w-4 h-4 ${
+                                (hoverRating || reviewRating) >= star
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-slate-200'
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-xs font-bold text-slate-700">
+                        {reviewRating > 0 ? `${reviewRating} / 5` : 'Rate'}
+                      </span>
+                    </div>
+                    <textarea
+                      rows={2}
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="Share your experience with our mechanic..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-orange-500"
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        disabled={isSubmittingReview || reviewRating === 0}
+                        onClick={() => handleSubmitReview(selectedTicket)}
+                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition cursor-pointer flex items-center gap-1"
+                      >
+                        {isSubmittingReview && <Loader2 className="w-3 h-3 animate-spin" />}
+                        <span>Submit Review</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2.5 pt-2 print-hide">
@@ -968,6 +1178,97 @@ export default function ServiceHistoryTab({
           if (onRefreshHardcopy) onRefreshHardcopy();
         }}
       />
+
+      {/* Standalone Rating Modal when clicking [Rate Service] */}
+      {ratingTargetTicket && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-amber-50 text-amber-500 flex items-center justify-center">
+                  <Star className="w-4 h-4 fill-current" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">Rate Workshop Service</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">
+                    #{ratingTargetTicket.ticket_code} • {ratingTargetTicket.motorcycles?.model || 'Motorcycle'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRatingTargetTicket(null)}
+                className="p-1 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                  Rating:
+                </label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="p-1 text-slate-300 hover:scale-110 transition cursor-pointer"
+                    >
+                      <Star
+                        className={`w-6 h-6 ${
+                          (hoverRating || reviewRating) >= star
+                            ? 'text-amber-400 fill-amber-400'
+                            : 'text-slate-200'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs font-bold text-slate-700 ml-2">
+                    {reviewRating} of 5 Stars
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-700 block">
+                  Feedback & Comments (Optional):
+                </label>
+                <textarea
+                  rows={3}
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Share feedback on repair quality, turnaround time, or technician professionalism..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-orange-500 transition resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setRatingTargetTicket(null)}
+                className="px-4 py-2 rounded-full border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingReview || reviewRating === 0}
+                onClick={() => handleSubmitReview(ratingTargetTicket)}
+                className="px-5 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs rounded-full shadow-xs transition cursor-pointer flex items-center gap-1.5"
+              >
+                {isSubmittingReview && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Submit Review</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

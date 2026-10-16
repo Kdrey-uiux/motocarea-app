@@ -16,6 +16,19 @@ export interface Motorcycle {
   next_service: string;
 }
 
+export interface AdditionalAuthorizationItem {
+  id: string;
+  name: string;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+  isAdditional?: boolean;
+  approvalStatus?: 'PENDING' | 'APPROVED' | 'DECLINED';
+  reason?: string;
+  requestedAt?: string;
+  respondedAt?: string;
+}
+
 export interface ServiceTicket {
   id: string;
   ticket_code: string;
@@ -30,6 +43,10 @@ export interface ServiceTicket {
   motorcycle_id?: string;
   dropoff_date?: string;
   notes?: string;
+  billing_breakdown?: AdditionalAuthorizationItem[];
+  cancellation_reason?: string;
+  cancelled_by?: string;
+  cancelled_at?: string;
   motorcycles?: {
     model: string;
     plate_number: string;
