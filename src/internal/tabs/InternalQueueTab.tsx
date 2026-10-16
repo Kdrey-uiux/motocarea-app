@@ -1574,6 +1574,7 @@ export function InternalQueueTab({
         isOpen={isReviewsModalOpen}
         onClose={() => setIsReviewsModalOpen(false)}
         tickets={tickets}
+        currentStaffName={currentStaffName}
       />
 
       {/* Soft Cancellation / Void Modal */}

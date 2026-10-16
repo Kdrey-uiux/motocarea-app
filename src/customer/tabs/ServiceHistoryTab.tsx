@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
-import { parseTicketReview, attachTicketReview, TicketReview } from '../../utils/ticketReviews';
+import { parseTicketReview, submitTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, UserProfile, TabType } from '../../types/dashboard';
 import RequestHardcopyModal from '../modals/RequestHardcopyModal';
 import { HardcopyRequest } from '../../lib/hardcopyService';
@@ -73,13 +72,7 @@ export default function ServiceHistoryTab({
         reviewer_name: userProfile?.full_name || 'Verified Rider',
         bike_model: ticket.motorcycles?.model || 'Motorcycle Unit',
       };
-      const updatedNotes = attachTicketReview(ticket.notes || '', newReview);
-      const { error } = await supabase
-        .from('service_tickets')
-        .update({ notes: updatedNotes })
-        .eq('id', ticket.id);
-
-      if (error) throw error;
+      const { updatedNotes } = await submitTicketReview(ticket, newReview);
 
       broadcastTicketSync({ ticketId: ticket.id, action: 'REVIEW_SUBMITTED' });
 

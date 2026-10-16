@@ -1,3 +1,5 @@
+import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../lib/sharedSettings';
+
 export type ServiceCategoryKey = 
   | 'all' 
   | 'diagnostic' 
@@ -515,28 +517,24 @@ export const BASE_MOTORCYCLE_SERVICES: UnifiedServicePackage[] = [
   },
 ];
 
-const SHARED_SERVICES_STORAGE_KEY = 'motocare_shared_services_catalog_v2';
-
+/**
+ * Current service catalog. Reads the local cache of the Supabase `app_settings`
+ * row (kept in sync by startSharedSettingsSync), falling back to the base catalog.
+ */
 export function getSharedServiceCatalog(): UnifiedServicePackage[] {
-  try {
-    const saved = localStorage.getItem(SHARED_SERVICES_STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch {
-    // fallback
+  const saved = readSharedSetting<unknown>(SHARED_SETTINGS.serviceCatalog, null);
+  if (Array.isArray(saved) && saved.length > 0) {
+    return saved as UnifiedServicePackage[];
   }
   return BASE_MOTORCYCLE_SERVICES;
 }
 
-export function saveSharedServiceCatalog(updated: UnifiedServicePackage[]): void {
-  try {
-    localStorage.setItem(SHARED_SERVICES_STORAGE_KEY, JSON.stringify(updated));
-    window.dispatchEvent(new Event('motocare_services_updated'));
-  } catch {
-    // ignore
-  }
+/**
+ * Saves the catalog to Supabase so every customer and staff screen receives it.
+ */
+export function saveSharedServiceCatalog(
+  updated: UnifiedServicePackage[],
+  updatedBy?: string
+): Promise<{ success: boolean; error?: string }> {
+  return saveSharedSetting(SHARED_SETTINGS.serviceCatalog, updated, updatedBy);
 }

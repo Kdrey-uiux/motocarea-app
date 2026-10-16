@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import InternalProtectedRoute from './internal/components/InternalProtectedRoute';
+import { startSharedSettingsSync } from './lib/sharedSettings';
 
 // Code-split route components for fast initial page load & low bundle size
 const Home = lazy(() => import('./pages/Home'));
@@ -45,6 +46,11 @@ function AuthHashRedirectHandler() {
 }
 
 export default function App() {
+  // Workshop-wide settings (service catalog, bay maintenance, resolved chats) shared across all devices
+  useEffect(() => {
+    startSharedSettingsSync();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthHashRedirectHandler />

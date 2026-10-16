@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
+import { verifyCustomerSession, WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE } from '../lib/customerAuth';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   LogIn,
@@ -15,15 +16,8 @@ import {
   KeyRound,
   Check,
   X,
-  Phone,
   RefreshCw
 } from 'lucide-react';
-import {
-  registerPhoneMapping,
-  resolveEmailFromPhone,
-  isPhoneFormat,
-  extract10DigitPhone
-} from '../utils/authPhoneRegistry';
 import LegalTermsModal from '../components/legal/LegalTermsModal';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
@@ -58,7 +52,7 @@ export default function Login() {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState(''); // 10 digits starting with 9 (following +63)
   const [email, setEmail] = useState('');
-  const [loginIdentifier, setLoginIdentifier] = useState(''); // Email OR 10-digit Phone for Sign In & Forgot Password
+  const [loginIdentifier, setLoginIdentifier] = useState(''); // Email for Sign In & Forgot Password
   const [signInPassword, setSignInPassword] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -354,20 +348,11 @@ export default function Login() {
       }
 
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session && isMounted) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', session.user.id)
-            .maybeSingle();
-
-          const role = profile?.role?.toLowerCase();
-          if (['admin', 'staff'].includes(role || '')) {
-            navigate('/internal', { replace: true });
-          } else {
-            navigate('/dashboard', { replace: true });
-          }
+        // Only a verified customer login skips this page; deleted logins and
+        // admin/staff accounts are signed out and stay on the customer login.
+        const result = await verifyCustomerSession();
+        if (result.status === 'customer' && isMounted) {
+          navigate('/dashboard', { replace: true });
         }
       } catch (err) {
         console.error('Session check on login error:', err);
@@ -392,21 +377,17 @@ export default function Login() {
   const checkUserRoleAndRedirect = async (userId: string) => {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, phone_number')
+      .select('role')
       .eq('id', userId)
       .maybeSingle();
 
-    // Auto-link phone number into local directory if found
-    if (profile?.phone_number && email) {
-      registerPhoneMapping(profile.phone_number, email);
-    }
-
+    // Admin/staff accounts are never routed from the customer login into the workshop console
     const role = profile?.role?.toLowerCase();
-    if (['admin', 'staff'].includes(role || '')) {
-      navigate('/internal', { replace: true });
-    } else {
-      navigate('/dashboard', { replace: true });
+    if (role === 'admin' || role === 'staff') {
+      await supabase.auth.signOut({ scope: 'local' });
+      throw new Error(WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE);
     }
+    navigate('/dashboard', { replace: true });
   };
 
   const handleResendVerification = async () => {
@@ -512,9 +493,6 @@ export default function Login() {
           throw signUpError;
         }
 
-        // Register and link 10-digit phone number to email for dual login (Facebook-style)
-        registerPhoneMapping(clean10Phone, cleanEmail);
-
         // Direct session handling (if email confirmation is turned off in Supabase)
         if (signUpData.session && signUpData.user) {
           try {
@@ -545,29 +523,12 @@ export default function Login() {
       } else if (mode === 'signin') {
         const rawInput = loginIdentifier.trim();
         if (!rawInput) {
-          throw new Error('Please enter your email address or mobile number.');
+          throw new Error('Please enter your email address.');
         }
-
-        let targetEmail = '';
-
-        // Check if user entered a phone number (e.g. 9171234567, 09171234567, or +639171234567)
-        if (isPhoneFormat(rawInput)) {
-          const base10 = extract10DigitPhone(rawInput);
-          if (base10.length !== 10 || !base10.startsWith('9')) {
-            throw new Error('Please enter a valid 10-digit mobile number (e.g. 9171234567).');
-          }
-
-          const resolved = resolveEmailFromPhone(base10);
-          if (!resolved) {
-            throw new Error(
-              `No account found linked to mobile number ${base10}. Please check the number or sign in using your registered email address.`
-            );
-          }
-          targetEmail = resolved;
-        } else {
-          // Standard email login
-          targetEmail = rawInput.toLowerCase();
+        if (!validateEmail(rawInput).isValid) {
+          throw new Error('Please enter a valid email address.');
         }
+        const targetEmail = rawInput.toLowerCase();
 
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: targetEmail,
@@ -586,38 +547,18 @@ export default function Login() {
         }
 
         if (authData.user) {
-          // Auto-link phone number into registry if user metadata has phone_number
-          const userPhone = authData.user.user_metadata?.phone_number;
-          if (userPhone && authData.user.email) {
-            registerPhoneMapping(userPhone, authData.user.email);
-          }
-
           await checkUserRoleAndRedirect(authData.user.id);
         }
 
       } else if (mode === 'forgot_password') {
         const rawInput = loginIdentifier.trim();
         if (!rawInput) {
-          throw new Error('Please enter your email address or registered mobile number.');
+          throw new Error('Please enter your email address.');
         }
-
-        let recoveryEmail = '';
-
-        if (isPhoneFormat(rawInput)) {
-          const base10 = extract10DigitPhone(rawInput);
-          const resolved = resolveEmailFromPhone(base10);
-          if (!resolved) {
-            throw new Error(
-              `No account found for mobile number ${base10}. Please check your number or enter your registered email.`
-            );
-          }
-          recoveryEmail = resolved;
-        } else {
-          if (!validateEmail(rawInput).isValid) {
-            throw new Error('Please enter a valid email address.');
-          }
-          recoveryEmail = rawInput.toLowerCase();
+        if (!validateEmail(rawInput).isValid) {
+          throw new Error('Please enter a valid email address.');
         }
+        const recoveryEmail = rawInput.toLowerCase();
 
         const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: getAuthRedirectUrl('/reset-password'),
@@ -634,9 +575,6 @@ export default function Login() {
       setLoading(false);
     }
   };
-
-  // Determine icon for Sign In / Forgot Password input
-  const isInputPhone = isPhoneFormat(loginIdentifier);
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-900 flex items-center justify-center p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
@@ -666,7 +604,7 @@ export default function Login() {
               <span className="text-orange-600 font-semibold break-all">{email}</span>
             </p>
             <p className="text-slate-500 text-xs">
-              Click the link in your email to activate your rider account. Once verified, you can sign in with your email or mobile number immediately.
+              Click the link in your email to activate your rider account. Once verified, you can sign in with your email immediately.
             </p>
 
             {/* Resend Action */}
@@ -707,7 +645,7 @@ export default function Login() {
                   </button>
                   <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reset Password</h2>
                   <p className="text-slate-500 text-xs mt-1">
-                    Enter your email or registered mobile number to receive recovery instructions
+                    Enter your registered email to receive recovery instructions
                   </p>
                 </div>
               ) : (
@@ -887,18 +825,15 @@ export default function Login() {
               {mode !== 'register' && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Email or Mobile Number <span className="text-orange-500">*</span>
+                    Email Address <span className="text-orange-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                      {isInputPhone ? (
-                        <Phone className="w-3.5 h-3.5 text-orange-500" />
-                      ) : (
-                        <Mail className="w-3.5 h-3.5" />
-                      )}
+                      <Mail className="w-3.5 h-3.5" />
                     </div>
                     <input
-                      type="text"
+                      type="email"
+                      autoComplete="email"
                       value={loginIdentifier}
                       onBlur={() => setTouched((p) => ({ ...p, loginIdentifier: true }))}
                       onChange={(e) => setLoginIdentifier(e.target.value)}

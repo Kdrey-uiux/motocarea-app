@@ -224,7 +224,10 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
 
   const handleToggleStatus = async (model: OfficialBikeModel) => {
     try {
-      await toggleOfficialCatalogModelStatus(model.id || '', model.name, model.is_active !== false);
+      const res = await toggleOfficialCatalogModelStatus(model.id || '', model.name, model.is_active !== false);
+      if (!res.success) {
+        alert('Error: ' + (res.error || 'Failed to update model status.'));
+      }
     } catch (err) {
       console.error('Status toggle failed:', err);
     }

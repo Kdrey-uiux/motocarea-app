@@ -1,6 +1,7 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { verifyCustomerSession } from '../../lib/customerAuth';
 import { Wrench } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -16,9 +17,10 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     async function checkAuth() {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        // Verified with Supabase: deleted logins and admin/staff accounts cannot open the customer dashboard
+        const result = await verifyCustomerSession();
         if (isMounted) {
-          setIsAuthenticated(!!session);
+          setIsAuthenticated(result.status === 'customer');
           setLoading(false);
         }
       } catch (err) {

@@ -44,6 +44,9 @@ export default function Navbar() {
           <button onClick={() => scrollToSection('why-us')} className="hover:text-orange-600 transition cursor-pointer">
             Why Choose Us
           </button>
+          <button onClick={() => scrollToSection('reviews')} className="hover:text-orange-600 transition cursor-pointer">
+            Reviews
+          </button>
           <button onClick={() => scrollToSection('team')} className="hover:text-orange-600 transition cursor-pointer">
             Team
           </button>
@@ -99,6 +102,12 @@ export default function Navbar() {
             className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition"
           >
             Why Choose Us
+          </button>
+          <button
+            onClick={() => scrollToSection('reviews')}
+            className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition"
+          >
+            Reviews
           </button>
           <button
             onClick={() => scrollToSection('team')}

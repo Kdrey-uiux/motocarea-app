@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { InternalTicket } from '../types/internal';
+import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { 
   Wrench, 
   CheckCircle2, 
@@ -88,35 +89,33 @@ const ALL_WORKSHOP_BAYS = [
   },
 ];
 
-const BAY_MAINTENANCE_KEY = 'motocare_bay_maintenance_flags';
-
 export default function InternalBaysTab({
   tickets,
   onOpenDispatch,
 }: InternalBaysTabProps) {
-  // Maintenance state per bay
-  // Toggle maintenance state per bay
-  const [maintenanceBays, setMaintenanceBays] = useState<Record<string, boolean>>(() => {
-    try {
-      const saved = localStorage.getItem(BAY_MAINTENANCE_KEY);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  // Maintenance state per bay (shared across all devices via Supabase app_settings)
+  const [maintenanceBays, setMaintenanceBays] = useState<Record<string, boolean>>(() =>
+    readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {})
+  );
+
+  useEffect(() => {
+    const handleMaintenanceChange = () => {
+      setMaintenanceBays(readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {}));
+    };
+    window.addEventListener(SHARED_SETTINGS.bayMaintenance.event, handleMaintenanceChange);
+    return () => window.removeEventListener(SHARED_SETTINGS.bayMaintenance.event, handleMaintenanceChange);
+  }, []);
 
   // Quick Dispatch Selection Modal State for vacant bay
   const [dispatchTargetBay, setDispatchTargetBay] = useState<string | null>(null);
 
   const toggleMaintenance = (bayId: string) => {
-    setMaintenanceBays((prev) => {
-      const updated = { ...prev, [bayId]: !prev[bayId] };
-      try {
-        localStorage.setItem(BAY_MAINTENANCE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
+    const updated = { ...maintenanceBays, [bayId]: !maintenanceBays[bayId] };
+    setMaintenanceBays(updated);
+    saveSharedSetting(SHARED_SETTINGS.bayMaintenance, updated).then((res) => {
+      if (!res.success) {
+        alert('Error: ' + (res.error || 'Failed to save bay maintenance status.'));
       }
-      return updated;
     });
   };
 

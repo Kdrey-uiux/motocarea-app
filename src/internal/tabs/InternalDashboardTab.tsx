@@ -1184,6 +1184,7 @@ export function WorkshopDashboard({
         isOpen={isReviewsModalOpen}
         onClose={() => setIsReviewsModalOpen(false)}
         tickets={tickets}
+        currentStaffName={currentUserName}
       />
     </div>
   );

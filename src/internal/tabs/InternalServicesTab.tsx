@@ -55,7 +55,11 @@ export default function InternalServicesTab({
 
   const saveToStorage = (updated: UnifiedServicePackage[]) => {
     setPackages(updated);
-    saveSharedServiceCatalog(updated);
+    saveSharedServiceCatalog(updated).then((res) => {
+      if (!res.success) {
+        alert('Error: ' + (res.error || 'Failed to save the service catalog to the database.'));
+      }
+    });
   };
 
   const openEditModal = (srv: UnifiedServicePackage) => {

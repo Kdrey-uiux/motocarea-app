@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
-import { parseTicketReview, attachTicketReview, TicketReview } from '../../utils/ticketReviews';
+import { parseTicketReview, submitTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
 import {
   Wrench,
@@ -193,13 +193,7 @@ export default function OverviewTab({
         reviewer_name: userProfile?.full_name || 'Verified Rider',
         bike_model: ticket.motorcycles?.model || 'Motorcycle Unit',
       };
-      const updatedNotes = attachTicketReview(ticket.notes || '', newReview);
-      const { error } = await supabase
-        .from('service_tickets')
-        .update({ notes: updatedNotes })
-        .eq('id', ticket.id);
-
-      if (error) throw error;
+      await submitTicketReview(ticket, newReview);
 
       setSubmittedReviewTicketId(ticket.id);
       setReviewComment('');

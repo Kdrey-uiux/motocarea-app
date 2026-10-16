@@ -364,6 +364,15 @@ export async function registerNewMotorcycleModel(name: string): Promise<BikeMode
 }
 
 /**
+ * Supabase client signed in as the current workshop (admin/staff) user, or null.
+ * Loaded lazily so the customer bundle never pulls in the workshop auth client.
+ */
+async function getWorkshopClient() {
+  const { getInternalAuthedClient } = await import('../internal/utils/internalAuth');
+  return getInternalAuthedClient();
+}
+
+/**
  * ADMIN-ONLY ACTION: Magdagdag ng bagong OPISYAL na modelo sa database catalog
  */
 export async function addOfficialCatalogModel({
@@ -394,9 +403,14 @@ export async function addOfficialCatalogModel({
     created_at: new Date().toISOString(),
   };
 
+  // 1. I-insert sa Supabase `motorcycle_models` gamit ang workshop login (RLS requires admin/staff)
+  const client = await getWorkshopClient();
+  if (!client) {
+    return { success: false, error: 'Your workshop session has expired. Please sign in again.' };
+  }
+
   try {
-    // 1. Subukan i-insert sa Supabase `motorcycle_models` table
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('motorcycle_models')
       .insert({
         brand: cleanBrand,
@@ -408,11 +422,12 @@ export async function addOfficialCatalogModel({
       .select()
       .maybeSingle();
 
-    if (!error && data) {
-      newModel.id = data.id;
+    if (error || !data) {
+      return { success: false, error: error?.message || 'Failed to save the model to the database.' };
     }
-  } catch (err) {
-    console.warn('Supabase insert failed, saving to local admin catalog cache:', err);
+    newModel.id = data.id;
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : 'Failed to save the model to the database.' };
   }
 
   // 2. I-save sa local admin catalog para instant ang paglitaw
@@ -438,15 +453,23 @@ export async function toggleOfficialCatalogModelStatus(
 ): Promise<{ success: boolean; error?: string }> {
   const nextStatus = !currentStatus;
 
-  try {
-    if (id && !id.startsWith('model-')) {
-      await supabase
+  if (id && !id.startsWith('model-')) {
+    const client = await getWorkshopClient();
+    if (!client) {
+      return { success: false, error: 'Your workshop session has expired. Please sign in again.' };
+    }
+    try {
+      const { data, error } = await client
         .from('motorcycle_models')
         .update({ is_active: nextStatus })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
+      if (error || !data || data.length === 0) {
+        return { success: false, error: error?.message || 'Failed to update the model in the database.' };
+      }
+    } catch (err: unknown) {
+      return { success: false, error: err instanceof Error ? err.message : 'Failed to update the model in the database.' };
     }
-  } catch (err) {
-    console.warn('Supabase update failed:', err);
   }
 
   // Update in local admin registry if present

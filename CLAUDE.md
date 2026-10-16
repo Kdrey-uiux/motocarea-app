@@ -28,12 +28,14 @@ src/
   types/                  Shared TS types (dashboard.ts)
 server/src/
   index.ts, routes/ (tickets, admin, messages, motorcycles, profile), middlewares/ (auth, adminOnly), config/supabase.ts, scripts/ (motorcycle seeders)
-supabase/migrations/      SQL migrations (status CHECK constraint, RLS policies, updated_at trigger, motorcycle models)
+supabase/migrations/      Clean schema, run in order 00 → 06 (00_reset is dev-only). Ito ang iisang basehan ng database.
+supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 ```
 
 ## Mahahalagang konsepto
 
-- **`service_tickets.status`** ay may CHECK constraint (tingnan `supabase/migrations/20261016_update_service_tickets_status_check.sql`). Allowed: `PENDING_CONFIRMATION`, `PENDING_DROPOFF`, `CONFIRMED_APPOINTMENT`, `IN_PROGRESS`, `READY_FOR_PICKUP`, `COMPLETED`, `CANCELLED`, `MISSED`, `NO_SHOW`, `CANCELLED_BY_ADMIN`. Huwag gumamit ng ibang value.
+- **`profiles.role`** ay lowercase: `customer`, `staff`, `admin` (tingnan `supabase/migrations/01_profiles.sql`).
+- **`service_tickets.status`** ay may CHECK constraint (tingnan `supabase/migrations/03_service_tickets.sql`). Allowed: `PENDING_CONFIRMATION`, `PENDING_DROPOFF`, `CONFIRMED_APPOINTMENT`, `IN_PROGRESS`, `READY_FOR_PICKUP`, `COMPLETED`, `CANCELLED`, `MISSED`, `NO_SHOW`, `CANCELLED_BY_ADMIN`. Huwag gumamit ng ibang value.
 - **Stages 1–5:** 1 Intake, 2 Bay Inspection, 3 Repair, 4 Quality Testing, 5 Ready for Release.
 - Ang booking state ay bahagyang naka-encode sa `notes` bilang tags: `[BOOKING:PENDING_CONFIRMATION]`, `[BOOKING:PENDING_DROPOFF]`, `[MISSED_EXPIRATION...]`, `[LATE_CHECKIN_OVERRIDE...]`, at `Arrival Window: ...`. Gamitin ang `src/utils/ticketNotesParser.ts` sa pag-parse.
 - Workshop capacity: 10 bookings/araw, sarado tuwing Linggo (`src/utils/workshopCapacity.ts`).
@@ -60,4 +62,4 @@ Env vars: tingnan ang `.env.example` (frontend) at `server/README.md` (server).
 - **Huwag mag-`git push`.** Local commit lang. Naka-deploy sa Vercel ang `main`, kaya ang push ay diretsong mapupunta sa live app.
 - **Testing ay sa localhost lang** (`npm run dev`).
 - **Huwag patakbuhin ang SQL migrations.** Gawin lang ang file at sabihin kung ano ang ira-run sa Supabase SQL Editor.
-- **Iisang Supabase project** (`cqkwlyqajtajkvctgdeu`) ang gamit ng local `.env.local`, `server/.env`, at ng hardcoded fallback sa code. Ang local testing ay sumusulat sa totoong data, kaya mag-ingat.
+- **Iisang Supabase project** (`cqkwlyqajtajkvctgdeu`) ang gamit ng local `.env.local`, `server/.env`, ng hardcoded fallback sa code, at ng Vercel. Development pa lang (walang totoong customer), pero tandaan na pareho ang data ng local at live.

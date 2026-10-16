@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
+import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { InternalTicket } from '../types/internal';
 import { 
   MessageSquare, 
@@ -45,7 +46,6 @@ const PRESET_REPLIES = [
   'Thank you for confirming. Proceeding with parts installation now.',
 ];
 
-const RESOLVED_CONVOS_KEY = 'motocare_resolved_conversations';
 
 export default function InternalMessagesTab({
   tickets,
@@ -57,28 +57,30 @@ export default function InternalMessagesTab({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
-  const [resolvedIds, setResolvedIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem(RESOLVED_CONVOS_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Resolved chats are shared across all staff devices via Supabase app_settings
+  const [resolvedIds, setResolvedIds] = useState<string[]>(() =>
+    readSharedSetting<string[]>(SHARED_SETTINGS.resolvedConversations, [])
+  );
+
+  useEffect(() => {
+    const handleResolvedChange = () => {
+      setResolvedIds(readSharedSetting<string[]>(SHARED_SETTINGS.resolvedConversations, []));
+    };
+    window.addEventListener(SHARED_SETTINGS.resolvedConversations.event, handleResolvedChange);
+    return () => window.removeEventListener(SHARED_SETTINGS.resolvedConversations.event, handleResolvedChange);
+  }, []);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const toggleResolved = (userId: string) => {
-    setResolvedIds((prev) => {
-      const updated = prev.includes(userId)
-        ? prev.filter((id) => id !== userId)
-        : [...prev, userId];
-      try {
-        localStorage.setItem(RESOLVED_CONVOS_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
+    const updated = resolvedIds.includes(userId)
+      ? resolvedIds.filter((id) => id !== userId)
+      : [...resolvedIds, userId];
+    setResolvedIds(updated);
+    saveSharedSetting(SHARED_SETTINGS.resolvedConversations, updated, currentStaffName).then((res) => {
+      if (!res.success) {
+        alert('Error: ' + (res.error || 'Failed to save conversation status.'));
       }
-      return updated;
     });
   };
 
