@@ -53,6 +53,7 @@ export default function InternalHeader({
   const floorTabs: { id: InternalTab; label: string }[] = useMemo(() => {
     if (currentRole === 'admin') {
       return [
+        { id: 'actions', label: 'Action Center' },
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'queue', label: 'Queue' },
         { id: 'bays', label: 'Bays' },
@@ -61,6 +62,7 @@ export default function InternalHeader({
       ];
     }
     return [
+      { id: 'actions', label: 'Action Center' },
       { id: 'queue', label: 'Queue' },
       { id: 'bays', label: 'Bays' },
       { id: 'billing', label: 'Counter Release' },
@@ -136,7 +138,7 @@ export default function InternalHeader({
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveTab?.(tab.id)}
-                  className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer ${
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
                     isActive
                       ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/20 scale-100'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'

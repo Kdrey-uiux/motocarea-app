@@ -4,6 +4,7 @@ import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, UserRole, InternalTab } from '../types/internal';
 import { canVoidTicket } from '../utils/permissions';
+import { acceptOnlineBooking, cancelOrDeclineTicket, isPendingOnlineBooking } from '../utils/ticketActions';
 import {
   adminLateCheckInOverride,
   adminAssistedReschedule,
@@ -78,6 +79,8 @@ export interface InternalQueueTabProps {
   pendingHardcopyCount?: number;
   onNavigateTab?: (tab: InternalTab) => void;
   staffList?: InternalStaffMember[];
+  /** View to open first (e.g. 'MISSED' when coming from the Action Center) */
+  initialView?: OperationalView;
 }
 
 export type OperationalView = 'ACTIVE' | 'SCHEDULED' | 'PENDING' | 'READY_RELEASE' | 'COMPLETED' | 'MISSED';
@@ -96,8 +99,9 @@ export function InternalQueueTab({
   pendingHardcopyCount = 0,
   onNavigateTab,
   staffList = [],
+  initialView = 'ACTIVE',
 }: InternalQueueTabProps) {
-  const [activeView, setActiveView] = useState<OperationalView>('ACTIVE');
+  const [activeView, setActiveView] = useState<OperationalView>(initialView);
   const [searchQuery, setSearchQuery] = useState('');
   const [myTasksOnly, setMyTasksOnly] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -143,12 +147,7 @@ export function InternalQueueTab({
   }, [staffList]);
 
   // Helper to determine if a ticket is pending online confirmation
-  const isPendingTicket = (t: { status: string; notes?: string | null }) => {
-    return (
-      t.status === 'PENDING_CONFIRMATION' ||
-      Boolean(t.notes && t.notes.includes('[BOOKING:PENDING_CONFIRMATION]'))
-    );
-  };
+  const isPendingTicket = isPendingOnlineBooking;
 
   // Helper to determine if a ticket is a confirmed scheduled advance booking awaiting physical arrival
   const isScheduledBooking = (t: InternalTicket) => {
@@ -489,42 +488,8 @@ export function InternalQueueTab({
   const handleConfirmBooking = async (ticket: InternalTicket) => {
     setUpdatingId(ticket.id);
     try {
-      let cleanedNotes = (ticket.notes || '').replace('[BOOKING:PENDING_CONFIRMATION]', '').trim();
-      
-      const isAdvanceDate = Boolean(ticket.dropoff_date && ticket.dropoff_date > todayDateStr);
-      if (isAdvanceDate && !cleanedNotes.includes('[BOOKING:PENDING_DROPOFF]')) {
-        cleanedNotes = cleanedNotes ? `${cleanedNotes} [BOOKING:PENDING_DROPOFF]` : '[BOOKING:PENDING_DROPOFF]';
-      }
-
-      const updates = {
-        status: 'IN_PROGRESS',
-        stage: 1,
-        notes: cleanedNotes,
-      };
-
-      const { data, error } = await supabase
-        .from('service_tickets')
-        .update(updates)
-        .eq('id', ticket.id)
-        .select('id, ticket_code');
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.');
-      }
-
-      await recordAuditLog({
-        ticketCode: ticket.ticket_code,
-        action: 'BOOKING_CONFIRMED',
-        actor: currentStaffName,
-        details: isAdvanceDate
-          ? `Online booking accepted for scheduled drop-off date: ${ticket.dropoff_date}.`
-          : 'Online booking accepted and placed into Stage 1 intake.',
-        previousValue: ticket.status,
-        newValue: 'IN_PROGRESS',
-      });
-
-      broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
+      const result = await acceptOnlineBooking(ticket, currentStaffName);
+      if (!result.success) throw new Error(result.error);
       onRefresh();
     } catch (err: unknown) {
       console.error('Failed to confirm booking:', err);
@@ -609,39 +574,8 @@ export function InternalQueueTab({
 
     setIsVoiding(true);
     try {
-      const isPending = isPendingTicket(voidTarget);
-      const cleanedNotes = (voidTarget.notes || '').replace('[BOOKING:PENDING_CONFIRMATION]', '').trim();
-      const updates = {
-        status: 'CANCELLED',
-        cancellation_reason: cleanReason,
-        cancelled_by: currentStaffName,
-        cancelled_at: new Date().toISOString(),
-        notes: cleanedNotes,
-      };
-
-      const { data, error } = await supabase
-        .from('service_tickets')
-        .update(updates)
-        .eq('id', voidTarget.id)
-        .select('id, ticket_code');
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.');
-      }
-
-      await recordAuditLog({
-        ticketCode: voidTarget.ticket_code,
-        action: isPending ? 'BOOKING_DECLINED' : 'TICKET_CANCELLED',
-        actor: currentStaffName,
-        details: isPending
-          ? `Online booking declined. Reason: ${cleanReason}`
-          : `Ticket cancelled and voided. Reason: ${cleanReason}`,
-        previousValue: voidTarget.status,
-        newValue: 'CANCELLED',
-      });
-
-      broadcastTicketSync({ id: voidTarget.id, ticket_code: voidTarget.ticket_code, ...updates });
+      const result = await cancelOrDeclineTicket(voidTarget, cleanReason, currentStaffName);
+      if (!result.success) throw new Error(result.error);
 
       setVoidTarget(null);
       setVoidReason('');

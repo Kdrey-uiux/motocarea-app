@@ -28,6 +28,11 @@ export const SHARED_SETTINGS = {
     storageKey: 'motocare_resolved_conversations',
     event: 'motocare_resolved_conversations_updated',
   },
+  dismissedActions: {
+    key: 'dismissed_actions',
+    storageKey: 'motocare_dismissed_actions',
+    event: 'motocare_dismissed_actions_updated',
+  },
 } satisfies Record<string, SharedSettingDef>;
 
 const SETTINGS_BY_KEY: Record<string, SharedSettingDef> = Object.fromEntries(

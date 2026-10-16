@@ -15,6 +15,8 @@ import {
 interface InternalMessagesTabProps {
   tickets: InternalTicket[];
   currentStaffName?: string;
+  /** Customer conversation to open first (e.g. "Reply" from the Action Center) */
+  initialUserId?: string;
 }
 
 interface ChatMessage {
@@ -50,9 +52,10 @@ const PRESET_REPLIES = [
 export default function InternalMessagesTab({
   tickets,
   currentStaffName = 'Workshop Reception',
+  initialUserId,
 }: InternalMessagesTabProps) {
   const [conversations, setConversations] = useState<CustomerConversation[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(initialUserId ?? null);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);

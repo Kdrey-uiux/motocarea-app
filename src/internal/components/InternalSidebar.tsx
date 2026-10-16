@@ -1,4 +1,5 @@
-import { 
+import {
+  BellRing,
   LayoutGrid,
   Inbox, 
   Wrench, 
@@ -23,6 +24,7 @@ interface InternalSidebarProps {
   messagesCount: number;
   fleetCount: number;
   staffCount: number;
+  actionCount?: number;
   currentRole: UserRole;
   currentUserName?: string;
   onLogout?: () => void;
@@ -39,6 +41,7 @@ export default function InternalSidebar({
   messagesCount,
   fleetCount,
   staffCount,
+  actionCount = 0,
   currentRole,
   currentUserName = 'Staff Member',
   onLogout,
@@ -46,6 +49,14 @@ export default function InternalSidebar({
   onCloseMobile,
 }: InternalSidebarProps) {
   const navItems = [
+    {
+      id: 'actions' as InternalTab,
+      label: 'Action Center',
+      icon: BellRing,
+      badge: actionCount > 0 ? actionCount : undefined,
+      badgeColor: 'bg-rose-500 text-white',
+      adminOnly: false,
+    },
     {
       id: 'dashboard' as InternalTab,
       label: 'Dashboard',

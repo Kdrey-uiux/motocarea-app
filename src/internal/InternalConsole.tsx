@@ -29,8 +29,9 @@ import HardcopyRequestsModal from './modals/HardcopyRequestsModal';
 import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
 
 // Tabs
+import InternalActionCenterTab from './tabs/InternalActionCenterTab';
 import InternalDashboardTab from './tabs/InternalDashboardTab';
-import InternalQueueTab from './tabs/InternalQueueTab';
+import InternalQueueTab, { type OperationalView } from './tabs/InternalQueueTab';
 import InternalBaysTab from './tabs/InternalBaysTab';
 import InternalBillingTab from './tabs/InternalBillingTab';
 import InternalAnalyticsTab from './tabs/InternalAnalyticsTab';
@@ -98,9 +99,18 @@ export default function InternalConsole() {
     };
   }, [session?.userId, currentRole]);
 
-  const [activeTab, setActiveTab] = useState<InternalTab>(
-    currentRole === 'admin' ? 'dashboard' : 'queue'
-  );
+  const [activeTab, setActiveTab] = useState<InternalTab>('actions');
+  // One-shot focus targets used when the Action Center deep-links into another tab
+  const [queueFocusView, setQueueFocusView] = useState<OperationalView | undefined>(undefined);
+  const [messagesFocusUserId, setMessagesFocusUserId] = useState<string | undefined>(undefined);
+  const [actionCount, setActionCount] = useState(0);
+
+  // Regular navigation (sidebar/header) always opens tabs in their default state
+  const navigateToTab = useCallback((tab: InternalTab) => {
+    setQueueFocusView(undefined);
+    setMessagesFocusUserId(undefined);
+    setActiveTab(tab);
+  }, []);
   const [tickets, setTickets] = useState<InternalTicket[]>([]);
   const [staffList, setStaffList] = useState<InternalStaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -536,13 +546,14 @@ export default function InternalConsole() {
       {/* Slim Floating Left Dock (Fixed on Desktop) */}
       <InternalSidebar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={navigateToTab}
         queueCount={queueCount}
         occupiedBaysCount={occupiedBaysCount}
         readyBillingCount={readyBillingCount}
         messagesCount={messagesCount}
         fleetCount={fleetCount}
         staffCount={staffList.length}
+        actionCount={actionCount}
         currentRole={currentRole}
         currentUserName={currentUserName}
         onLogout={handleLogout}
@@ -561,7 +572,7 @@ export default function InternalConsole() {
           currentRole={currentRole}
           currentUserName={currentUserName}
           activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          setActiveTab={navigateToTab}
           notifications={notifications}
           onMarkNotificationRead={handleMarkNotifRead}
           onClearNotifications={handleClearNotifs}
@@ -587,6 +598,29 @@ export default function InternalConsole() {
             </div>
           )}
 
+          {activeTab === 'actions' && (
+            <InternalActionCenterTab
+              tickets={tickets}
+              hardcopyRequests={hardcopyRequests}
+              currentRole={currentRole}
+              currentStaffName={currentUserName}
+              onRefresh={fetchTickets}
+              onRefreshHardcopies={loadHardcopies}
+              onOpenDispatch={handleOpenDispatch}
+              onOpenStage5Billing={handleOpenStage5Billing}
+              onOpenQueue={(view) => {
+                setQueueFocusView(view);
+                setActiveTab('queue');
+              }}
+              onOpenConversation={(userId) => {
+                setMessagesFocusUserId(userId);
+                setActiveTab('messages');
+              }}
+              onNavigateTab={navigateToTab}
+              onActionCountChange={setActionCount}
+            />
+          )}
+
           {activeTab === 'dashboard' && canAccessTab(currentRole, 'dashboard') && (
             <InternalDashboardTab
               tickets={tickets}
@@ -595,7 +629,7 @@ export default function InternalConsole() {
               onRefresh={fetchTickets}
               onOpenDispatch={handleOpenDispatch}
               onOpenStage5Billing={handleOpenStage5Billing}
-              setActiveTab={setActiveTab}
+              setActiveTab={navigateToTab}
               currentRole={currentRole}
               currentUserName={currentUserName}
             />
@@ -614,8 +648,9 @@ export default function InternalConsole() {
               currentStaffName={currentUserName}
               onOpenHardcopyModal={() => setIsHardcopyOpen(true)}
               pendingHardcopyCount={pendingHardcopyCount}
-              onNavigateTab={setActiveTab}
+              onNavigateTab={navigateToTab}
               staffList={staffList}
+              initialView={queueFocusView}
             />
           )}
 
@@ -660,6 +695,7 @@ export default function InternalConsole() {
             <InternalMessagesTab
               tickets={tickets}
               currentStaffName={currentUserName}
+              initialUserId={messagesFocusUserId}
             />
           )}
 

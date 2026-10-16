@@ -5,6 +5,7 @@
 --   service_catalog         services & prices shown to customers
 --   bay_maintenance         { "<bayId>": true } bays under maintenance
 --   resolved_conversations  [customer user ids] chats marked resolved
+--   dismissed_actions       [item keys] Action Center notices marked "Got it"
 -- =========================================================================
 
 CREATE TABLE public.app_settings (
