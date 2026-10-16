@@ -38,6 +38,7 @@ export function isBookingExpiredOrMissed(ticket: {
   stage: number;
   status: string;
   created_at?: string;
+  assigned_bay?: string | null;
 }): boolean {
   // If already marked as MISSED or NO_SHOW
   if (ticket.status === 'MISSED' || ticket.status === 'NO_SHOW') return true;
@@ -46,6 +47,12 @@ export function isBookingExpiredOrMissed(ticket: {
   if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') return false;
   if (ticket.stage > 1) return false;
   if (!ticket.dropoff_date) return false;
+
+  // Motorcycle is already physically at the shop (on a bay lift, checked in, or late check-in approved)
+  if (ticket.assigned_bay && ticket.assigned_bay !== 'Bay Assignment Pending') return false;
+  if (ticket.notes && (ticket.notes.includes('[CHECKED_IN') || ticket.notes.includes('[LATE_CHECKIN_OVERRIDE'))) {
+    return false;
+  }
 
   const now = new Date();
 
@@ -59,35 +66,29 @@ export function isBookingExpiredOrMissed(ticket: {
 
   if (isNaN(bookYear) || isNaN(bookMonth) || isNaN(bookDay)) return false;
 
-  const scheduledDate = new Date(bookYear, bookMonth, bookDay);
-  scheduledDate.setHours(0, 0, 0, 0);
-
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  today.setHours(0, 0, 0, 0);
-
-  // 1. Scheduled date is strictly before today -> Missed
-  if (scheduledDate < today) {
-    return true;
+  // Cutoff = slot end + grace period (default closing cutoff: 4:30 PM), plus any admin grace extensions
+  const slot = parseTimeSlotFromNotes(ticket.notes);
+  const cutoffTime = slot
+    ? new Date(bookYear, bookMonth, bookDay, slot.endHour, slot.endMinute + slot.graceMinutes, 0)
+    : new Date(bookYear, bookMonth, bookDay, 16, 30, 0);
+  const extraHours = parseGraceExtensionHours(ticket.notes);
+  if (extraHours > 0) {
+    cutoffTime.setTime(cutoffTime.getTime() + extraHours * 60 * 60 * 1000);
   }
 
-  // 2. Scheduled date is today -> check slot cutoff + grace period
-  if (scheduledDate.getTime() === today.getTime()) {
-    const slot = parseTimeSlotFromNotes(ticket.notes);
-    if (slot) {
-      const cutoffTime = new Date(bookYear, bookMonth, bookDay, slot.endHour, slot.endMinute + slot.graceMinutes, 0);
-      if (now > cutoffTime) {
-        return true;
-      }
-    } else {
-      // Default closing cutoff: 4:30 PM (16:30)
-      const defaultCutoff = new Date(bookYear, bookMonth, bookDay, 16, 30, 0);
-      if (now > defaultCutoff) {
-        return true;
-      }
-    }
-  }
+  return now > cutoffTime;
+}
 
-  return false;
+/**
+ * Sums all "[GRACE_EXTENDED: +Nh ...]" tags written by adminExtendGracePeriod
+ */
+function parseGraceExtensionHours(notes?: string): number {
+  if (!notes) return 0;
+  let total = 0;
+  for (const match of notes.matchAll(/\[GRACE_EXTENDED: \+(\d+(?:\.\d+)?)h/g)) {
+    total += parseFloat(match[1]);
+  }
+  return total;
 }
 
 /**
@@ -102,7 +103,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
   try {
     const { data: tickets, error } = await supabase
       .from('service_tickets')
-      .select('id, ticket_code, user_id, dropoff_date, notes, stage, status, service_type, is_walk_in, motorcycles(model, plate_number)')
+      .select('id, ticket_code, user_id, dropoff_date, notes, stage, status, service_type, is_walk_in, assigned_bay, motorcycles(model, plate_number)')
       .eq('stage', 1)
       .eq('status', 'IN_PROGRESS');
 
@@ -120,14 +121,14 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
 
     for (const ticket of expiredToUpdate) {
       const currentNotes = ticket.notes || '';
-      const updatedNotes = currentNotes.includes('[MISSED_EXPIRATION]')
+      const updatedNotes = currentNotes.includes('[MISSED_EXPIRATION')
         ? currentNotes
         : `${currentNotes} | [MISSED_EXPIRATION: Drop-off window ended without check-in. Slot released.]`.trim();
 
       const { error: updateError } = await supabase
         .from('service_tickets')
         .update({
-          status: 'CANCELLED',
+          status: 'MISSED',
           notes: updatedNotes,
         })
         .eq('id', ticket.id);
@@ -285,9 +286,13 @@ export async function rescheduleServiceTicket({
       return { success: false, error: 'Original booking record not found.' };
     }
 
-    let updatedNotes = currentTicket.notes || '';
+    // A rescheduled motorcycle is no longer at the shop, so drop arrival markers (lets the missed scan apply again)
+    let updatedNotes = (currentTicket.notes || '')
+      .replace(/\s*\|?\s*\[(?:CHECKED_IN|LATE_CHECKIN_OVERRIDE)[^\]]*\]/g, '')
+      .trim();
     if (updatedNotes.includes('Arrival Window:')) {
-      updatedNotes = updatedNotes.replace(/Arrival Window: [^|]+/, `Arrival Window: ${newTimeWindow}`);
+      // Replace only the window value; stop before "|", a newline, or a "[BOOKING:...]" tag so tags are preserved
+      updatedNotes = updatedNotes.replace(/Arrival Window: [^|\n[]*[^|\n[\s]/, `Arrival Window: ${newTimeWindow}`);
     } else {
       updatedNotes = `${updatedNotes} | Arrival Window: ${newTimeWindow}`.trim();
     }
@@ -359,16 +364,20 @@ export async function adminLateCheckInOverride(
 
     const updatedNotes = `${ticket.notes || ''} | [LATE_CHECKIN_OVERRIDE: Approved by ${actorName} at ${new Date().toLocaleTimeString()}]`.trim();
 
-    const { error: updateErr } = await supabase
+    const { data: updatedRows, error: updateErr } = await supabase
       .from('service_tickets')
       .update({
         stage: 1,
         status: 'IN_PROGRESS',
         notes: updatedNotes,
       })
-      .eq('id', ticketId);
+      .eq('id', ticketId)
+      .select('id');
 
     if (updateErr) return { success: false, error: updateErr.message };
+    if (!updatedRows || updatedRows.length === 0) {
+      return { success: false, error: 'Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.' };
+    }
 
     return { success: true };
   } catch (err: unknown) {

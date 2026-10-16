@@ -445,10 +445,12 @@ export function InternalQueueTab({
     setUpdatingId(ticket.id);
     try {
       const cleanedNotes = (ticket.notes || '').replace('[BOOKING:PENDING_DROPOFF]', '').trim();
+      // Arrival marker so the missed-booking scan never expires a motorcycle that is already at the shop
+      const checkInTag = `[CHECKED_IN: by ${currentStaffName} at ${new Date().toLocaleTimeString()}]`;
       const updates = {
         status: 'IN_PROGRESS',
         stage: 1,
-        notes: cleanedNotes,
+        notes: cleanedNotes ? `${cleanedNotes} | ${checkInTag}` : checkInTag,
       };
 
       const { data, error } = await supabase
@@ -575,8 +577,8 @@ export function InternalQueueTab({
   const handleLateCheckIn = async (ticket: InternalTicket) => {
     try {
       setUpdatingId(ticket.id);
-      const success = await adminLateCheckInOverride(ticket.id);
-      if (success) {
+      const result = await adminLateCheckInOverride(ticket.id, currentStaffName);
+      if (result.success) {
         await recordAuditLog({
           ticketCode: ticket.ticket_code,
           action: 'LATE_CHECKIN_OVERRIDE',
@@ -587,7 +589,7 @@ export function InternalQueueTab({
         });
         onRefresh();
       } else {
-        alert('Failed to perform late check-in.');
+        alert(result.error || 'Failed to perform late check-in.');
       }
     } catch {
       alert('Network error while performing check-in.');

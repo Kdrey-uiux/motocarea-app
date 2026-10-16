@@ -755,6 +755,7 @@ export default function BookServiceTab({
         `Arrival Window: ${selectedTimeWindow}`,
       ]
         .filter(Boolean)
+        .join(' | ');
       const pendingTag = '[BOOKING:PENDING_CONFIRMATION]';
       const notesWithTag = combinedNotes ? `${combinedNotes}\n${pendingTag}` : pendingTag;
 

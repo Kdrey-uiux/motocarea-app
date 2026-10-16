@@ -23,48 +23,47 @@ const staffProvisioningClient = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
-const DEFAULT_WORKSHOP_STAFF: (InternalStaffMember & { password?: string })[] = [
-  {
-    id: 'staff-admin-01',
-    fullName: 'Admin',
-    email: 'admin@motocare.ph',
-    phone: '09171234567',
-    position: 'Workshop Administrator',
-    role: 'admin',
-    isActive: true,
-    createdAt: '2026-01-10T08:00:00.000Z',
-    password: 'admin2026!',
-  },
-];
+// Seeded placeholder records from older builds that must never be shown or kept
+const LEGACY_SEED_STAFF_IDS = ['staff-admin-01', 'staff-floor-01', 'staff-tech-01'];
 
-export function getLocalStaffRegistry(): (InternalStaffMember & { password?: string })[] {
+/**
+ * Local display cache of staff records (names, positions, active flag).
+ * Never holds passwords and is never used for login — Supabase Auth is the only login source.
+ */
+export function getLocalStaffRegistry(): InternalStaffMember[] {
   try {
     const raw = localStorage.getItem(STAFF_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Automatically purge hardcoded demo staff (Mark Santos & Arnel Reyes)
-        const cleaned = parsed.filter(
-          (s) =>
-            s.id !== 'staff-floor-01' &&
-            s.id !== 'staff-tech-01' &&
-            !s.fullName?.toLowerCase().includes('mark santos') &&
-            !s.fullName?.toLowerCase().includes('arnel reyes')
-        );
-        if (cleaned.length !== parsed.length) {
-          saveLocalStaffRegistry(cleaned.length > 0 ? cleaned : DEFAULT_WORKSHOP_STAFF);
+      if (Array.isArray(parsed)) {
+        const hadPasswords = parsed.some((s) => s && 'password' in s);
+        // Purge legacy seeded/demo staff and strip any stored passwords
+        const cleaned: InternalStaffMember[] = parsed
+          .filter(
+            (s) =>
+              s &&
+              !LEGACY_SEED_STAFF_IDS.includes(s.id) &&
+              !s.fullName?.toLowerCase().includes('mark santos') &&
+              !s.fullName?.toLowerCase().includes('arnel reyes')
+          )
+          .map((s) => {
+            const copy = { ...s };
+            delete copy.password;
+            return copy;
+          });
+        if (hadPasswords || cleaned.length !== parsed.length) {
+          saveLocalStaffRegistry(cleaned);
         }
-        return cleaned.length > 0 ? cleaned : DEFAULT_WORKSHOP_STAFF;
+        return cleaned;
       }
     }
   } catch {
     // ignore
   }
-  localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(DEFAULT_WORKSHOP_STAFF));
-  return DEFAULT_WORKSHOP_STAFF;
+  return [];
 }
 
-function saveLocalStaffRegistry(list: (InternalStaffMember & { password?: string })[]): void {
+function saveLocalStaffRegistry(list: InternalStaffMember[]): void {
   try {
     localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(list));
   } catch {
@@ -90,7 +89,7 @@ export async function fetchDatabaseStaffMembers(): Promise<InternalStaffMember[]
       const dbMapped: InternalStaffMember[] = data.map((p: any) => ({
         id: p.id,
         fullName: p.full_name || 'Personnel Member',
-        email: p.email || 'staff@motocare.ph',
+        email: p.email || 'N/A',
         phone: p.phone_number || 'N/A',
         position: p.position || (p.role === 'admin' ? 'Shop Owner' : 'Service Advisor'),
         role: p.role === 'admin' ? 'admin' : 'staff',
@@ -178,7 +177,7 @@ export async function createDatabaseStaffMember({
       // ignore schema differences if SQL migration hasn't run yet
     }
 
-    const newStaff: InternalStaffMember & { password?: string } = {
+    const newStaff: InternalStaffMember = {
       id: fallbackId,
       fullName: cleanName,
       email: cleanEmail,
@@ -188,7 +187,6 @@ export async function createDatabaseStaffMember({
       isActive: true,
       createdAt: new Date().toISOString(),
       createdBy: creatorName,
-      password: password || 'staff2026!',
     };
 
     const currentList = getLocalStaffRegistry().filter(

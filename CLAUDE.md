@@ -57,3 +57,7 @@ Env vars: tingnan ang `.env.example` (frontend) at `server/README.md` (server).
 
 - **Palaging mag-explain sa simpleng Taglish.**
 - **Magtanong muna bago gumawa ng malalaking changes** (hal. pag-refactor ng maraming file, pagbago ng database schema/migrations, pagbura ng files, o pagbago ng booking/status flow).
+- **Huwag mag-`git push`.** Local commit lang. Naka-deploy sa Vercel ang `main`, kaya ang push ay diretsong mapupunta sa live app.
+- **Testing ay sa localhost lang** (`npm run dev`).
+- **Huwag patakbuhin ang SQL migrations.** Gawin lang ang file at sabihin kung ano ang ira-run sa Supabase SQL Editor.
+- **Iisang Supabase project** (`cqkwlyqajtajkvctgdeu`) ang gamit ng local `.env.local`, `server/.env`, at ng hardcoded fallback sa code. Ang local testing ay sumusulat sa totoong data, kaya mag-ingat.

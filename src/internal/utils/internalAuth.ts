@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { supabase } from '../../lib/supabase';
-import { getLocalStaffRegistry } from './databaseStaffManager';
 
 const INTERNAL_AUTH_KEY = 'motocare_internal_auth_session';
+const INTERNAL_SUPABASE_TOKEN_KEY = 'motocare_internal_tab_auth_token';
 const REMEMBERED_EMAIL_KEY = 'motocare_remembered_internal_email';
 
 const supabaseUrl =
@@ -18,7 +18,7 @@ const supabaseAnonKey =
 const internalTabAuthClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-    storageKey: 'motocare_internal_tab_auth_token',
+    storageKey: INTERNAL_SUPABASE_TOKEN_KEY,
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
@@ -50,23 +50,36 @@ export async function getInternalAuthedClient() {
 }
 
 /**
+ * Returns the Supabase Auth user id stored by this tab's internal auth client, or null.
+ */
+function getSupabaseAuthUserId(): string | null {
+  try {
+    const raw = sessionStorage.getItem(INTERNAL_SUPABASE_TOKEN_KEY);
+    if (!raw) return null;
+    const stored = JSON.parse(raw);
+    return typeof stored?.user?.id === 'string' ? stored.user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Reads the active session for THIS specific browser tab (sessionStorage).
- * Falls back to migrating any legacy localStorage session into sessionStorage once.
+ * The session is only valid when this tab also holds a real Supabase Auth login
+ * for the same user, so a hand-written session entry cannot unlock the console.
  */
 export function getInternalSession(): InternalSession | null {
   try {
-    let session: InternalSession | null = null;
+    // Discard any legacy shared localStorage session (pre-Supabase-only login)
+    localStorage.removeItem(INTERNAL_AUTH_KEY);
+
     const tabRaw = sessionStorage.getItem(INTERNAL_AUTH_KEY);
-    if (tabRaw) {
-      session = JSON.parse(tabRaw);
-    } else {
-      // One-time migration if a legacy localStorage session exists
-      const legacyRaw = localStorage.getItem(INTERNAL_AUTH_KEY);
-      if (legacyRaw) {
-        sessionStorage.setItem(INTERNAL_AUTH_KEY, legacyRaw);
-        localStorage.removeItem(INTERNAL_AUTH_KEY);
-        session = JSON.parse(legacyRaw);
-      }
+    if (!tabRaw) return null;
+    const session: InternalSession = JSON.parse(tabRaw);
+
+    if (!session?.userId || session.userId !== getSupabaseAuthUserId()) {
+      sessionStorage.removeItem(INTERNAL_AUTH_KEY);
+      return null;
     }
 
     if (session) {
@@ -139,42 +152,9 @@ export function setRememberedEmail(email: string): void {
   }
 }
 
-const BUILTIN_WORKSHOP_ACCOUNTS: Record<
-  string,
-  {
-    passwords: string[];
-    userId: string;
-    fullName: string;
-    role: 'admin' | 'staff';
-    position: string;
-  }
-> = {
-  'admin@motocare.ph': {
-    passwords: ['admin2026!', 'admin123'],
-    userId: 'staff-admin-01',
-    fullName: 'Admin',
-    role: 'admin',
-    position: 'Workshop Administrator',
-  },
-  'owner@motocare.ph': {
-    passwords: ['admin123', 'admin2026!'],
-    userId: 'staff-admin-02',
-    fullName: 'Admin',
-    role: 'admin',
-    position: 'Workshop Administrator',
-  },
-  'staff@motocare.ph': {
-    passwords: ['staff2026!', 'staff123'],
-    userId: 'staff-generic-01',
-    fullName: 'Workshop Staff',
-    role: 'staff',
-    position: 'Service Advisor & Floor Staff',
-  },
-};
-
 /**
  * Unified Login Authenticator for /internal
- * Uses Tab-Isolated Supabase Authentication + Verified Workshop Personnel Registry.
+ * Uses Tab-Isolated Supabase Authentication only (no local/built-in account fallbacks).
  * Strictly inspects role & active status: Blocks 'customer' and deactivated staff accounts.
  */
 export async function authenticateInternal(
@@ -189,20 +169,6 @@ export async function authenticateInternal(
   }
 
   try {
-    // 1. Check if this staff member has been deactivated in the workshop staff registry
-    const staffRegistry = getLocalStaffRegistry();
-    const registeredStaff = staffRegistry.find(
-      (s) => s.email.trim().toLowerCase() === cleanEmail
-    );
-
-    if (registeredStaff && registeredStaff.isActive === false) {
-      return {
-        success: false,
-        error: 'Account Suspended: This personnel account has been deactivated by the Shop Owner.',
-      };
-    }
-
-    // 2. Try authenticating via Tab-Isolated Supabase Auth first
     const { data: authData, error: authError } =
       await internalTabAuthClient.auth.signInWithPassword({
         email: cleanEmail,
@@ -219,13 +185,12 @@ export async function authenticateInternal(
 
       const resolvedRole = (
         profile?.role ||
-        registeredStaff?.role ||
         authData.user.user_metadata?.role ||
         'customer'
       ).toLowerCase();
 
       // STRICT ROLE GUARD: Customers are forbidden from the internal workshop floor
-      if (resolvedRole === 'customer' && !BUILTIN_WORKSHOP_ACCOUNTS[cleanEmail] && !registeredStaff) {
+      if (resolvedRole !== 'admin' && resolvedRole !== 'staff') {
         await internalTabAuthClient.auth.signOut({ scope: 'local' });
         return {
           success: false,
@@ -248,50 +213,16 @@ export async function authenticateInternal(
         email: cleanEmail,
         fullName:
           profile?.full_name ||
-          registeredStaff?.fullName ||
           authData.user.user_metadata?.full_name ||
           (finalRole === 'admin' ? 'Shop Owner' : 'Workshop Staff'),
         role: finalRole,
         position:
           profile?.position ||
-          registeredStaff?.position ||
           (finalRole === 'admin' ? 'Shop Owner & General Manager' : 'Service Advisor'),
         isActive: true,
         loggedAt: new Date().toISOString(),
       };
 
-      setInternalSession(session);
-      setRememberedEmail(rememberMe ? cleanEmail : '');
-      return { success: true, session };
-    }
-
-    // 3. Check verified workshop personnel registry (for newly created staff or built-in accounts)
-    if (registeredStaff && registeredStaff.password && registeredStaff.password === password) {
-      const session: InternalSession = {
-        userId: registeredStaff.id,
-        email: cleanEmail,
-        fullName: registeredStaff.fullName,
-        role: registeredStaff.role === 'admin' ? 'admin' : 'staff',
-        position: registeredStaff.position,
-        isActive: true,
-        loggedAt: new Date().toISOString(),
-      };
-      setInternalSession(session);
-      setRememberedEmail(rememberMe ? cleanEmail : '');
-      return { success: true, session };
-    }
-
-    const builtin = BUILTIN_WORKSHOP_ACCOUNTS[cleanEmail];
-    if (builtin && builtin.passwords.includes(password)) {
-      const session: InternalSession = {
-        userId: builtin.userId,
-        email: cleanEmail,
-        fullName: registeredStaff?.fullName || builtin.fullName,
-        role: builtin.role,
-        position: registeredStaff?.position || builtin.position,
-        isActive: true,
-        loggedAt: new Date().toISOString(),
-      };
       setInternalSession(session);
       setRememberedEmail(rememberMe ? cleanEmail : '');
       return { success: true, session };
