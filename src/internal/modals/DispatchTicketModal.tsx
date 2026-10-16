@@ -21,6 +21,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import VehicleHistoryModal from './VehicleHistoryModal';
+import { toast } from '../utils/toast';
 
 interface DispatchTicketModalProps {
   ticket: InternalTicket | null;
@@ -153,7 +154,7 @@ export default function DispatchTicketModal({
     const cleanReason = authItemReason.trim();
 
     if (!cleanName || isNaN(cleanPrice) || cleanPrice <= 0) {
-      alert('Please specify a valid item name and amount.');
+      toast.error('Please specify a valid item name and amount.');
       return;
     }
 

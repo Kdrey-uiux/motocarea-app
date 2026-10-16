@@ -42,6 +42,7 @@ import CustomerReviewsModal from '../modals/CustomerReviewsModal';
 import { parseTicketReview } from '../../utils/ticketReviews';
 import { parseTicketNotes, formatPhoneNumber } from '../../utils/ticketNotesParser';
 import { InternalStaffMember } from '../types/internal';
+import { toast } from '../utils/toast';
 
 export const SAMPLE_QUEUE_TICKETS: InternalTicket[] = [];
 
@@ -433,7 +434,7 @@ export function InternalQueueTab({
       onRefresh();
     } catch (err: unknown) {
       console.error('Failed to assign mechanic:', err);
-      alert('Error: ' + (err instanceof Error ? err.message : 'Failed to update technician assignment.'));
+      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to update technician assignment.'));
     } finally {
       setIsAssigningMechanic(false);
     }
@@ -478,7 +479,7 @@ export function InternalQueueTab({
       onOpenDispatch(ticket);
     } catch (err: unknown) {
       console.error('Failed to check in motorcycle:', err);
-      alert('Error: ' + (err instanceof Error ? err.message : 'Failed to check in motorcycle.'));
+      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to check in motorcycle.'));
     } finally {
       setUpdatingId(null);
     }
@@ -493,7 +494,7 @@ export function InternalQueueTab({
       onRefresh();
     } catch (err: unknown) {
       console.error('Failed to confirm booking:', err);
-      alert('Error: ' + (err instanceof Error ? err.message : 'Failed to confirm booking.'));
+      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to confirm booking.'));
     } finally {
       setUpdatingId(null);
     }
@@ -532,7 +533,7 @@ export function InternalQueueTab({
       onRefresh();
     } catch (err: unknown) {
       console.error('Failed to advance stage:', err);
-      alert('Error: ' + (err instanceof Error ? err.message : 'Failed to advance stage.'));
+      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to advance stage.'));
     } finally {
       setUpdatingId(null);
     }
@@ -554,10 +555,10 @@ export function InternalQueueTab({
         });
         onRefresh();
       } else {
-        alert(result.error || 'Failed to perform late check-in.');
+        toast.error(result.error || 'Failed to perform late check-in.');
       }
     } catch {
-      alert('Network error while performing check-in.');
+      toast.error('Network error while performing check-in.');
     } finally {
       setUpdatingId(null);
     }
@@ -568,7 +569,7 @@ export function InternalQueueTab({
     if (!voidTarget) return;
     const cleanReason = voidReason.trim();
     if (!cleanReason) {
-      alert('Please specify a cancellation reason.');
+      toast.error('Please specify a cancellation reason.');
       return;
     }
 
@@ -582,7 +583,7 @@ export function InternalQueueTab({
       onRefresh();
     } catch (err: unknown) {
       console.error('Failed to void ticket:', err);
-      alert('Error: ' + (err instanceof Error ? err.message : 'Failed to void ticket.'));
+      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to void ticket.'));
     } finally {
       setIsVoiding(false);
     }
@@ -591,7 +592,7 @@ export function InternalQueueTab({
   // Assisted Reschedule
   const handleConfirmAssistedReschedule = async () => {
     if (!rescheduleTarget || !rescheduleDate) {
-      alert('Please select a new appointment date.');
+      toast.error('Please select a new appointment date.');
       return;
     }
 
@@ -610,7 +611,7 @@ export function InternalQueueTab({
       setRescheduleDate('');
       onRefresh();
     } else {
-      alert(result.error || 'Failed to reschedule ticket.');
+      toast.error(result.error || 'Failed to reschedule ticket.');
     }
   };
 

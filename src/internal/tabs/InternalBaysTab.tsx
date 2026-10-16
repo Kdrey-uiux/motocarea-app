@@ -9,6 +9,7 @@ import {
   Plus, 
   X
 } from 'lucide-react';
+import { toast } from '../utils/toast';
 
 interface InternalBaysTabProps {
   tickets: InternalTicket[];
@@ -114,7 +115,7 @@ export default function InternalBaysTab({
     setMaintenanceBays(updated);
     saveSharedSetting(SHARED_SETTINGS.bayMaintenance, updated).then((res) => {
       if (!res.success) {
-        alert('Error: ' + (res.error || 'Failed to save bay maintenance status.'));
+        toast.error('Error: ' + (res.error || 'Failed to save bay maintenance status.'));
       }
     });
   };

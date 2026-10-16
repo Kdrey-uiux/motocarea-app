@@ -19,6 +19,7 @@ import {
   Wrench,
   Search
 } from 'lucide-react';
+import { toast } from '../utils/toast';
 
 interface InternalServicesTabProps {
   currentRole?: UserRole;
@@ -57,7 +58,7 @@ export default function InternalServicesTab({
     setPackages(updated);
     saveSharedServiceCatalog(updated).then((res) => {
       if (!res.success) {
-        alert('Error: ' + (res.error || 'Failed to save the service catalog to the database.'));
+        toast.error('Error: ' + (res.error || 'Failed to save the service catalog to the database.'));
       }
     });
   };

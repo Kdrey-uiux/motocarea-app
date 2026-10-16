@@ -9,6 +9,7 @@ import {
   ShieldAlert, 
   RefreshCw 
 } from 'lucide-react';
+import { toast } from '../utils/toast';
 
 interface InternalAuditTabProps {
   currentRole: UserRole;
@@ -112,7 +113,7 @@ export default function InternalAuditTab({ currentRole }: InternalAuditTabProps)
   // Export to CSV
   const handleExportCSV = () => {
     if (filteredLogs.length === 0) {
-      alert('No audit logs available to export.');
+      toast.info('No audit logs available to export.');
       return;
     }
 

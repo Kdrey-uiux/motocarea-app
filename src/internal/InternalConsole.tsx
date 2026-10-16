@@ -19,6 +19,7 @@ import { AlertCircle } from 'lucide-react';
 // Components
 import InternalHeader from './components/InternalHeader';
 import InternalSidebar from './components/InternalSidebar';
+import ToastViewport from './components/ToastViewport';
 
 // Modals
 import DispatchTicketModal from './modals/DispatchTicketModal';
@@ -30,11 +31,11 @@ import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
 
 // Tabs
 import InternalActionCenterTab from './tabs/InternalActionCenterTab';
+import { useActionCenterData } from './hooks/useActionCenterData';
 import InternalDashboardTab from './tabs/InternalDashboardTab';
 import InternalQueueTab, { type OperationalView } from './tabs/InternalQueueTab';
 import InternalBaysTab from './tabs/InternalBaysTab';
 import InternalBillingTab from './tabs/InternalBillingTab';
-import InternalAnalyticsTab from './tabs/InternalAnalyticsTab';
 import InternalStaffTab from './tabs/InternalStaffTab';
 import InternalAuditTab from './tabs/InternalAuditTab';
 import InternalMessagesTab from './tabs/InternalMessagesTab';
@@ -103,7 +104,6 @@ export default function InternalConsole() {
   // One-shot focus targets used when the Action Center deep-links into another tab
   const [queueFocusView, setQueueFocusView] = useState<OperationalView | undefined>(undefined);
   const [messagesFocusUserId, setMessagesFocusUserId] = useState<string | undefined>(undefined);
-  const [actionCount, setActionCount] = useState(0);
 
   // Regular navigation (sidebar/header) always opens tabs in their default state
   const navigateToTab = useCallback((tab: InternalTab) => {
@@ -116,7 +116,6 @@ export default function InternalConsole() {
   const [loading, setLoading] = useState(true);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [messagesCount, setMessagesCount] = useState(0);
 
   // Live Notifications
   const [notifications, setNotifications] = useState<NotificationAlert[]>([
@@ -317,18 +316,6 @@ export default function InternalConsole() {
     }
   }, []);
 
-  const fetchMessagesCount = useCallback(async () => {
-    try {
-      const { count } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('sender_role', 'customer');
-      setMessagesCount(count || 0);
-    } catch {
-      // ignore
-    }
-  }, []);
-
   const loadHardcopies = useCallback(async () => {
     try {
       const list = await fetchHardcopyRequests();
@@ -340,7 +327,6 @@ export default function InternalConsole() {
 
   useEffect(() => {
     fetchTickets();
-    fetchMessagesCount();
     loadStaff();
     loadHardcopies();
 
@@ -382,7 +368,6 @@ export default function InternalConsole() {
     const messageChannel = supabase
       .channel('internal_messages_notif')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        fetchMessagesCount();
         if (payload.new?.sender_role === 'customer') {
           setNotifications((prev) => [
             {
@@ -429,7 +414,6 @@ export default function InternalConsole() {
     // 30s Polling Fallback (silent background check)
     const pollInterval = setInterval(() => {
       fetchTickets({ silent: true });
-      fetchMessagesCount();
       loadHardcopies();
     }, 30000);
 
@@ -441,7 +425,7 @@ export default function InternalConsole() {
       supabase.removeChannel(hardcopyChannel);
       clearInterval(pollInterval);
     };
-  }, [fetchTickets, fetchMessagesCount, loadStaff, loadHardcopies]);
+  }, [fetchTickets, loadStaff, loadHardcopies]);
 
   // Derived counts for sidebar badges
   const queueCount = useMemo(() => {
@@ -484,19 +468,12 @@ export default function InternalConsole() {
     return bays.size;
   }, [tickets]);
 
-  const fleetCount = useMemo(() => {
-    const plates = new Set<string>();
-    tickets.forEach((t) => {
-      if (t.motorcycles?.plate_number) {
-        plates.add(t.motorcycles.plate_number.toUpperCase());
-      }
-    });
-    return plates.size;
-  }, [tickets]);
-
   const pendingHardcopyCount = useMemo(() => {
     return hardcopyRequests.filter((r) => r.status === 'PENDING').length;
   }, [hardcopyRequests]);
+
+  // Everything customers did that needs a response (Action Center + live sidebar badges)
+  const actionData = useActionCenterData(tickets, hardcopyRequests);
 
   // Logout handler: Hard location replace burns the session and history snapshot
   const handleLogout = () => {
@@ -550,10 +527,8 @@ export default function InternalConsole() {
         queueCount={queueCount}
         occupiedBaysCount={occupiedBaysCount}
         readyBillingCount={readyBillingCount}
-        messagesCount={messagesCount}
-        fleetCount={fleetCount}
-        staffCount={staffList.length}
-        actionCount={actionCount}
+        messagesCount={actionData.chatsToAnswer.length}
+        actionCount={actionData.totalActions}
         currentRole={currentRole}
         currentUserName={currentUserName}
         onLogout={handleLogout}
@@ -561,8 +536,8 @@ export default function InternalConsole() {
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
 
-      {/* Main Content Area (Offset by lg:pl-28 for the floating dock) */}
-      <div className="lg:pl-28 flex flex-col min-h-screen">
+      {/* Main Content Area (offset for the fixed desktop sidebar) */}
+      <div className="lg:pl-[17rem] flex flex-col min-h-screen">
         {/* Floating Capsule Top Navbar */}
         <InternalHeader
           loading={loading}
@@ -600,9 +575,8 @@ export default function InternalConsole() {
 
           {activeTab === 'actions' && (
             <InternalActionCenterTab
+              data={actionData}
               tickets={tickets}
-              hardcopyRequests={hardcopyRequests}
-              currentRole={currentRole}
               currentStaffName={currentUserName}
               onRefresh={fetchTickets}
               onRefreshHardcopies={loadHardcopies}
@@ -617,7 +591,6 @@ export default function InternalConsole() {
                 setActiveTab('messages');
               }}
               onNavigateTab={navigateToTab}
-              onActionCountChange={setActionCount}
             />
           )}
 
@@ -671,12 +644,6 @@ export default function InternalConsole() {
             />
           )}
 
-          {activeTab === 'analytics' && canAccessTab(currentRole, 'analytics') && (
-            <InternalAnalyticsTab
-              tickets={tickets}
-              currentRole={currentRole}
-            />
-          )}
 
           {activeTab === 'staff' && canAccessTab(currentRole, 'staff') && (
             <InternalStaffTab
@@ -753,6 +720,8 @@ export default function InternalConsole() {
         onRefresh={loadHardcopies}
         currentStaffName={currentUserName}
       />
+
+      <ToastViewport />
     </div>
   );
 }

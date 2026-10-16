@@ -39,6 +39,7 @@ supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 - **Stages 1–5:** 1 Intake, 2 Bay Inspection, 3 Repair, 4 Quality Testing, 5 Ready for Release.
 - Ang booking state ay bahagyang naka-encode sa `notes` bilang tags: `[BOOKING:PENDING_CONFIRMATION]`, `[BOOKING:PENDING_DROPOFF]`, `[MISSED_EXPIRATION...]`, `[LATE_CHECKIN_OVERRIDE...]`, at `Arrival Window: ...`. Gamitin ang `src/utils/ticketNotesParser.ts` sa pag-parse.
 - Workshop capacity: 10 bookings/araw, sarado tuwing Linggo (`src/utils/workshopCapacity.ts`).
+- **Walang bayad na pumapasok sa system.** Sa labas (cash sa counter) ang lahat ng bayaran. Estimate lang ang mga presyo (services, parts approval); walang revenue tracking o sales analytics.
 - Realtime updates: `broadcastTicketSync` sa `src/lib/realtimeSync.ts` + Supabase `postgres_changes`.
 
 ## Commands

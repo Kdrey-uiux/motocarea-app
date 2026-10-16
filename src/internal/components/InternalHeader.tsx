@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { 
   Wrench, 
   LogOut, 
@@ -11,6 +11,7 @@ import {
   Stamp
 } from 'lucide-react';
 import { UserRole, NotificationAlert, InternalTab } from '../types/internal';
+import { INTERNAL_TAB_TITLES } from '../utils/tabTitles';
 
 interface InternalHeaderProps {
   loading?: boolean;
@@ -33,7 +34,7 @@ export default function InternalHeader({
   onToggleMobileMenu,
   currentRole,
   currentUserName = 'Workshop Personnel',
-  activeTab = 'queue',
+  activeTab = 'actions',
   setActiveTab,
   notifications = [],
   onMarkNotificationRead,
@@ -49,26 +50,6 @@ export default function InternalHeader({
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const floorTabs: { id: InternalTab; label: string }[] = useMemo(() => {
-    if (currentRole === 'admin') {
-      return [
-        { id: 'actions', label: 'Action Center' },
-        { id: 'dashboard', label: 'Dashboard' },
-        { id: 'queue', label: 'Queue' },
-        { id: 'bays', label: 'Bays' },
-        { id: 'billing', label: 'Counter Release' },
-        { id: 'messages', label: 'Messages' },
-      ];
-    }
-    return [
-      { id: 'actions', label: 'Action Center' },
-      { id: 'queue', label: 'Queue' },
-      { id: 'bays', label: 'Bays' },
-      { id: 'billing', label: 'Counter Release' },
-      { id: 'messages', label: 'Messages' },
-    ];
-  }, [currentRole]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -116,9 +97,11 @@ export default function InternalHeader({
               <Menu className="w-5 h-5" />
             </button>
 
-            <div 
-              onClick={() => setActiveTab && setActiveTab(currentRole === 'admin' ? 'dashboard' : 'queue')}
-              className="flex items-center gap-2.5 cursor-pointer"
+            {/* Mobile: brand (the desktop sidebar already shows it) */}
+            <button
+              type="button"
+              onClick={() => setActiveTab?.('actions')}
+              className="lg:hidden flex items-center gap-2.5 cursor-pointer"
             >
               <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-xs">
                 <Wrench className="w-4 h-4" />
@@ -126,29 +109,13 @@ export default function InternalHeader({
               <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight block">
                 Moto<span className="text-orange-500">Care</span>
               </span>
-            </div>
-          </div>
+            </button>
 
-          {/* Center: Segmented Navigation Pills (4 Core Floor Tabs) */}
-          <nav className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60 absolute left-1/2 -translate-x-1/2">
-            {floorTabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveTab?.(tab.id)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
-                    isActive
-                      ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/20 scale-100'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </nav>
+            {/* Desktop: current page title (navigation lives in the sidebar only) */}
+            <h1 className="hidden lg:block text-base font-bold text-slate-900 tracking-tight pl-1">
+              {INTERNAL_TAB_TITLES[activeTab]}
+            </h1>
+          </div>
 
           {/* Right: Notifications, User Profile Pill & Logout */}
           <div className="flex items-center gap-2 sm:gap-3">

@@ -22,6 +22,7 @@ import {
   KeyRound,
   X
 } from 'lucide-react';
+import { toast } from '../utils/toast';
 
 interface InternalStaffTabProps {
   currentRole: UserRole;
@@ -173,7 +174,7 @@ export default function InternalStaffTab({
         text: `Updated personnel details for ${editName}.`,
       });
     } else {
-      alert(result.error || 'Failed to update personnel records.');
+      toast.error(result.error || 'Failed to update personnel records.');
     }
   };
 
@@ -190,7 +191,7 @@ export default function InternalStaffTab({
         text: `Password recovery dispatched to ${staff.email}.`,
       });
     } else {
-      alert(result.error || 'Failed to send password reset email.');
+      toast.error(result.error || 'Failed to send password reset email.');
     }
   };
 
@@ -213,7 +214,7 @@ export default function InternalStaffTab({
         text: `Updated status for ${statusTarget.fullName}.`,
       });
     } else {
-      alert(result.error || 'Failed to toggle personnel status.');
+      toast.error(result.error || 'Failed to toggle personnel status.');
     }
   };
 

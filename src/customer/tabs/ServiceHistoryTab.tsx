@@ -1019,39 +1019,33 @@ export default function ServiceHistoryTab({
                 </div>
               </div>
 
-              {/* Itemized Parts & Labor Breakdown if available */}
-              {((selectedTicket as any).billing_breakdown && (selectedTicket as any).billing_breakdown.length > 0) && (
-                <div className="pt-2 border-t border-dashed border-slate-200 space-y-1">
-                  <div className="text-[10px] text-slate-400 font-semibold uppercase">Parts & Labor Breakdown</div>
-                  <div className="bg-white p-2.5 rounded-xl border border-slate-200 divide-y divide-slate-100 text-[11px]">
-                    {(selectedTicket as any).billing_breakdown.map((item: any, idx: number) => (
-                      <div key={idx} className="py-1 flex justify-between">
-                        <span className="text-slate-700">{item.name} × {item.quantity}</span>
-                        <span className="font-semibold text-slate-900">₱{(item.subtotal || 0).toLocaleString()}</span>
-                      </div>
-                    ))}
-                    {(selectedTicket as any).labor_cost !== undefined && (
-                      <div className="py-1 flex justify-between font-medium text-slate-700">
-                        <span>Workshop Labor Fee</span>
-                        <span className="font-semibold text-slate-900">₱{((selectedTicket as any).labor_cost || 0).toLocaleString()}</span>
-                      </div>
-                    )}
+              {/* Parts used (declined additional parts were not installed) */}
+              {(() => {
+                const installedParts = (selectedTicket.billing_breakdown || []).filter(
+                  (item) => item.approvalStatus !== 'DECLINED'
+                );
+                return installedParts.length > 0 ? (
+                  <div className="pt-2 border-t border-dashed border-slate-200 space-y-1">
+                    <div className="text-[10px] text-slate-400 font-semibold uppercase">Parts Used (Estimated Prices)</div>
+                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 divide-y divide-slate-100 text-[11px]">
+                      {installedParts.map((item, idx) => (
+                        <div key={item.id || idx} className="py-1 flex justify-between">
+                          <span className="text-slate-700">{item.name} × {item.quantity}</span>
+                          <span className="font-semibold text-slate-900">₱{(item.subtotal || 0).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                ) : null;
+              })()}
 
+              {/* Payment happens at the counter, outside the system: show the estimate only */}
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
                 <div>
-                  <span className="font-bold text-slate-700 block">TOTAL AMOUNT PAID:</span>
-                  {(selectedTicket as any).payment_method && (
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      Paid via {(selectedTicket as any).payment_method}
-                    </span>
-                  )}
+                  <span className="font-bold text-slate-700 block">ESTIMATED COST:</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Final amount is settled at the MotoCare counter</span>
                 </div>
-                <span className="text-base font-extrabold text-emerald-600">
-                  {(selectedTicket as any).total_amount ? `₱${(selectedTicket as any).total_amount.toLocaleString()}` : selectedTicket.total_estimate}
-                </span>
+                <span className="text-base font-extrabold text-slate-900">{selectedTicket.total_estimate}</span>
               </div>
 
               {/* Customer Rating & Feedback in Slip */}

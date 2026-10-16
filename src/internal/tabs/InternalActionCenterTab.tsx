@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import {
   CalendarCheck,
   MessageSquare,
@@ -18,20 +18,19 @@ import {
   PartyPopper,
   ArrowRight,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { HardcopyRequest, updateHardcopyStatus } from '../../lib/hardcopyService';
 import { adminLateCheckInOverride } from '../../utils/bookingLifecycle';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
-import { acceptOnlineBooking, cancelOrDeclineTicket, isPendingOnlineBooking } from '../utils/ticketActions';
-import { fetchAllReviews, getReviewStatus, ModeratedReview, setReviewPublished } from '../utils/reviewModeration';
-import { InternalTicket, InternalTab, UserRole } from '../types/internal';
+import { acceptOnlineBooking, cancelOrDeclineTicket } from '../utils/ticketActions';
+import { setReviewPublished } from '../utils/reviewModeration';
+import { ActionCenterData } from '../hooks/useActionCenterData';
+import { InternalTicket, InternalTab } from '../types/internal';
 import type { OperationalView } from './InternalQueueTab';
 
 interface InternalActionCenterTabProps {
+  /** Action lists computed once in the console (see useActionCenterData) */
+  data: ActionCenterData;
   tickets: InternalTicket[];
-  hardcopyRequests: HardcopyRequest[];
-  currentRole: UserRole;
   currentStaffName: string;
   onRefresh: () => void;
   onRefreshHardcopies: () => void;
@@ -40,19 +39,7 @@ interface InternalActionCenterTabProps {
   onOpenQueue: (view: OperationalView) => void;
   onOpenConversation: (userId: string) => void;
   onNavigateTab: (tab: InternalTab) => void;
-  onActionCountChange?: (count: number) => void;
 }
-
-interface WaitingConversation {
-  userId: string;
-  customerName: string;
-  lastMessage: string;
-  lastTime: string;
-}
-
-const MAX_DISMISSED_KEYS = 500;
-// Automated notices and hardcopy payloads are stored as "[TAG] ..." messages, not customer chat
-const SYSTEM_MESSAGE = /^\[[A-Z_]+\]/;
 
 function timeAgo(iso?: string): string {
   if (!iso) return '';
@@ -68,10 +55,6 @@ function timeAgo(iso?: string): string {
 function bikeLabel(t: InternalTicket): string {
   const model = t.motorcycles?.model || 'Motorcycle';
   return t.motorcycles?.plate_number ? `${model} • ${t.motorcycles.plate_number}` : model;
-}
-
-function countReschedules(notes?: string): number {
-  return (notes?.match(/\[Rescheduled to /g) || []).length;
 }
 
 function Section({
@@ -148,8 +131,8 @@ const btn = {
 };
 
 export default function InternalActionCenterTab({
+  data,
   tickets,
-  hardcopyRequests,
   currentStaffName,
   onRefresh,
   onRefreshHardcopies,
@@ -158,176 +141,24 @@ export default function InternalActionCenterTab({
   onOpenQueue,
   onOpenConversation,
   onNavigateTab,
-  onActionCountChange,
 }: InternalActionCenterTabProps) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [decliningId, setDecliningId] = useState<string | null>(null);
   const [declineReason, setDeclineReason] = useState('');
-  const [waitingChats, setWaitingChats] = useState<WaitingConversation[]>([]);
-  const [pendingReviews, setPendingReviews] = useState<ModeratedReview[]>([]);
-  const [dismissed, setDismissed] = useState<string[]>(() =>
-    readSharedSetting<string[]>(SHARED_SETTINGS.dismissedActions, [])
-  );
-  const [resolvedChats, setResolvedChats] = useState<string[]>(() =>
-    readSharedSetting<string[]>(SHARED_SETTINGS.resolvedConversations, [])
-  );
 
-  // Shared "Got it" / resolved lists stay in sync across all staff devices
-  useEffect(() => {
-    const onDismissed = () => setDismissed(readSharedSetting<string[]>(SHARED_SETTINGS.dismissedActions, []));
-    const onResolved = () =>
-      setResolvedChats(readSharedSetting<string[]>(SHARED_SETTINGS.resolvedConversations, []));
-    window.addEventListener(SHARED_SETTINGS.dismissedActions.event, onDismissed);
-    window.addEventListener(SHARED_SETTINGS.resolvedConversations.event, onResolved);
-    return () => {
-      window.removeEventListener(SHARED_SETTINGS.dismissedActions.event, onDismissed);
-      window.removeEventListener(SHARED_SETTINGS.resolvedConversations.event, onResolved);
-    };
-  }, []);
-
-  const ticketByUser = useMemo(() => {
-    const map = new Map<string, InternalTicket>();
-    tickets.forEach((t) => {
-      if (t.user_id && !map.has(t.user_id)) map.set(t.user_id, t);
-    });
-    return map;
-  }, [tickets]);
-
-  // Customers whose latest real chat message is theirs (no reply from the shop yet)
-  const loadWaitingChats = useCallback(() => {
-    supabase
-      .from('messages')
-      .select('user_id, sender_role, message, created_at')
-      .order('created_at', { ascending: false })
-      .limit(500)
-      .then(async ({ data, error }) => {
-        if (error || !data) return;
-        const latestByUser = new Map<string, (typeof data)[number]>();
-        data.forEach((m) => {
-          if (!m.user_id || latestByUser.has(m.user_id) || SYSTEM_MESSAGE.test(m.message || '')) return;
-          latestByUser.set(m.user_id, m);
-        });
-
-        const waiting = Array.from(latestByUser.values()).filter((m) => m.sender_role === 'customer');
-        const missingNames = waiting.map((m) => m.user_id).filter((id) => !ticketByUser.get(id)?.customer_name);
-        const names = new Map<string, string>();
-        if (missingNames.length > 0) {
-          const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', missingNames);
-          profs?.forEach((p) => names.set(p.id, p.full_name));
-        }
-
-        setWaitingChats(
-          waiting.map((m) => ({
-            userId: m.user_id,
-            customerName: ticketByUser.get(m.user_id)?.customer_name || names.get(m.user_id) || 'Rider Customer',
-            lastMessage: m.message,
-            lastTime: m.created_at,
-          }))
-        );
-      });
-  }, [ticketByUser]);
-
-  const loadPendingReviews = useCallback(() => {
-    fetchAllReviews().then((res) => {
-      if (!res.error) setPendingReviews(res.reviews.filter((r) => getReviewStatus(r) === 'pending'));
-    });
-  }, []);
-
-  useEffect(() => {
-    loadWaitingChats();
-    loadPendingReviews();
-
-    const channel = supabase
-      .channel('action_center_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => loadWaitingChats())
-      .subscribe();
-    const poll = setInterval(loadPendingReviews, 30000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(poll);
-    };
-  }, [loadWaitingChats, loadPendingReviews]);
-
-  // ---------------------------------------------------------------------------
-  // Derived action lists
-  // ---------------------------------------------------------------------------
-  const isDismissed = useCallback((key: string) => dismissed.includes(key), [dismissed]);
-
-  const pendingBookings = useMemo(
-    () =>
-      tickets
-        .filter((t) => isPendingOnlineBooking(t) && t.status !== 'CANCELLED')
-        .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()),
-    [tickets]
-  );
-
-  const chatsToAnswer = useMemo(
-    () => waitingChats.filter((c) => !resolvedChats.includes(c.userId)),
-    [waitingChats, resolvedChats]
-  );
-
-  const partsAnswers = useMemo(() => {
-    const list: { key: string; ticket: InternalTicket; itemName: string; approved: boolean; respondedAt?: string }[] = [];
-    tickets.forEach((t) => {
-      if (['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN'].includes(t.status)) return;
-      (t.billing_breakdown || []).forEach((item) => {
-        if (!item.isAdditional || (item.approvalStatus !== 'APPROVED' && item.approvalStatus !== 'DECLINED')) return;
-        const key = `parts:${t.id}:${item.id}:${item.approvalStatus}`;
-        if (isDismissed(key)) return;
-        list.push({ key, ticket: t, itemName: item.name, approved: item.approvalStatus === 'APPROVED', respondedAt: item.respondedAt });
-      });
-    });
-    return list;
-  }, [tickets, isDismissed]);
-
-  const readyForRelease = useMemo(
-    () => tickets.filter((t) => t.stage === 5 && !['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN'].includes(t.status)),
-    [tickets]
-  );
-
-  const missedBookings = useMemo(
-    () => tickets.filter((t) => (t.status === 'MISSED' || t.status === 'NO_SHOW') && !isDismissed(`missed:${t.id}`)),
-    [tickets, isDismissed]
-  );
-
-  const pendingHardcopies = useMemo(() => hardcopyRequests.filter((r) => r.status === 'PENDING'), [hardcopyRequests]);
-
-  // FYI: customer-side changes the shop should know about
-  const customerUpdates = useMemo(() => {
-    const list: { key: string; ticket: InternalTicket; label: string }[] = [];
-    tickets.forEach((t) => {
-      // Customer cancellations leave cancelled_by empty (staff cancellations record the staff name)
-      if (t.status === 'CANCELLED' && !t.cancelled_by && !isDismissed(`cancel:${t.id}`)) {
-        list.push({ key: `cancel:${t.id}`, ticket: t, label: 'Customer cancelled this booking' });
-      }
-      const reschedules = countReschedules(t.notes);
-      const assisted = /Reschedule Note: Assisted by [^|]*\| \[Rescheduled to [^\]]*\]\s*$/.test((t.notes || '').trim());
-      if (reschedules > 0 && !assisted && !isDismissed(`resched:${t.id}:${reschedules}`)) {
-        list.push({
-          key: `resched:${t.id}:${reschedules}`,
-          ticket: t,
-          label: `Customer rescheduled to ${t.dropoff_date || 'a new date'}`,
-        });
-      }
-    });
-    return list;
-  }, [tickets, isDismissed]);
-
-  const totalActions =
-    pendingBookings.length +
-    chatsToAnswer.length +
-    partsAnswers.length +
-    pendingReviews.length +
-    readyForRelease.length +
-    missedBookings.length +
-    pendingHardcopies.length +
-    customerUpdates.length;
-
-  useEffect(() => {
-    onActionCountChange?.(totalActions);
-  }, [totalActions, onActionCountChange]);
+  const {
+    pendingBookings,
+    chatsToAnswer,
+    partsAnswers,
+    pendingReviews,
+    readyForRelease,
+    missedBookings,
+    pendingHardcopies,
+    customerUpdates,
+    totalActions,
+    reloadReviews: loadPendingReviews,
+  } = data;
 
   // ---------------------------------------------------------------------------
   // Actions
@@ -350,9 +181,7 @@ export default function InternalActionCenterTab({
   };
 
   const dismiss = (keys: string[]) => {
-    const updated = Array.from(new Set([...dismissed, ...keys])).slice(-MAX_DISMISSED_KEYS);
-    setDismissed(updated);
-    saveSharedSetting(SHARED_SETTINGS.dismissedActions, updated, currentStaffName).then((res) => {
+    data.dismiss(keys, currentStaffName).then((res) => {
       if (!res.success) setErrorMsg(res.error || 'Failed to save. Please try again.');
     });
   };
@@ -618,7 +447,7 @@ export default function InternalActionCenterTab({
       <Section
         icon={<Receipt className="w-4 h-4" />}
         title="Ready for release"
-        description="Repair finished — collect payment and hand over the motorcycle."
+        description="Repair finished — complete the handover checklist and release the motorcycle."
         count={readyForRelease.length}
         tone="emerald"
       >
@@ -629,7 +458,7 @@ export default function InternalActionCenterTab({
             subtitle={`#${t.ticket_code} • ${bikeLabel(t)}`}
           >
             <button type="button" onClick={() => onOpenStage5Billing(t)} className={btn.primary}>
-              <Receipt className="w-3.5 h-3.5" /> Release & Bill
+              <Receipt className="w-3.5 h-3.5" /> Release
             </button>
           </Row>
         ))}

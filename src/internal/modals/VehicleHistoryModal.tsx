@@ -36,8 +36,6 @@ export default function VehicleHistoryModal({
     return ticketPlate === vehiclePlate;
   });
 
-  const totalSpent = pastTickets.reduce((sum, t) => sum + (t.total_amount || 0), 0);
-
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white border border-slate-200 text-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[90vh] animate-in fade-in zoom-in-95">
@@ -71,7 +69,7 @@ export default function VehicleHistoryModal({
         <div className="p-6 overflow-y-auto space-y-5 text-xs">
           
           {/* Vehicle Metadata Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Owner</span>
               <span className="font-bold text-slate-900 truncate block">{vehicle.owner_name || 'Rider Customer'}</span>
@@ -83,10 +81,6 @@ export default function VehicleHistoryModal({
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
               <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Services</span>
               <span className="font-black text-slate-900 text-sm">{pastTickets.length} visits</span>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Lifetime Spend</span>
-              <span className="font-black font-mono text-orange-600 text-sm">₱{totalSpent.toLocaleString()}</span>
             </div>
           </div>
 
@@ -138,11 +132,6 @@ export default function VehicleHistoryModal({
                           Tech: {t.assigned_mechanic}
                         </span>
                       )}
-                      {t.total_amount ? (
-                        <span className="font-mono font-bold text-slate-700">
-                          Total: ₱{t.total_amount.toLocaleString()} ({t.payment_method || 'CASH'})
-                        </span>
-                      ) : null}
                     </div>
 
                     {/* Parts Replaced in this visit */}

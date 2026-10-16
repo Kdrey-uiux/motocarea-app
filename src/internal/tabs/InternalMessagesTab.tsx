@@ -11,6 +11,7 @@ import {
   Archive, 
   Inbox 
 } from 'lucide-react';
+import { toast } from '../utils/toast';
 
 interface InternalMessagesTabProps {
   tickets: InternalTicket[];
@@ -82,7 +83,7 @@ export default function InternalMessagesTab({
     setResolvedIds(updated);
     saveSharedSetting(SHARED_SETTINGS.resolvedConversations, updated, currentStaffName).then((res) => {
       if (!res.success) {
-        alert('Error: ' + (res.error || 'Failed to save conversation status.'));
+        toast.error('Error: ' + (res.error || 'Failed to save conversation status.'));
       }
     });
   };
@@ -254,7 +255,7 @@ export default function InternalMessagesTab({
       await fetchMessages();
     } catch (err: unknown) {
       console.error('Failed to send message:', err);
-      alert(err instanceof Error ? err.message : 'Failed to send message. Please verify network connection.');
+      toast.error(err instanceof Error ? err.message : 'Failed to send message. Please verify network connection.');
     } finally {
       setSending(false);
     }

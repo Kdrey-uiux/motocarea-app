@@ -25,6 +25,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
+import { toast } from '../utils/toast';
 
 interface FleetBike {
   id: string;
@@ -226,7 +227,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
     try {
       const res = await toggleOfficialCatalogModelStatus(model.id || '', model.name, model.is_active !== false);
       if (!res.success) {
-        alert('Error: ' + (res.error || 'Failed to update model status.'));
+        toast.error('Error: ' + (res.error || 'Failed to update model status.'));
       }
     } catch (err) {
       console.error('Status toggle failed:', err);

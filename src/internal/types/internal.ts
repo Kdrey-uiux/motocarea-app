@@ -6,7 +6,6 @@ export type InternalTab =
   | 'queue'
   | 'bays'
   | 'billing'
-  | 'analytics'
   | 'staff'
   | 'audit'
   | 'messages'
