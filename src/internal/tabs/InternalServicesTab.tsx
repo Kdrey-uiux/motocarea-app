@@ -173,31 +173,19 @@ export default function InternalServicesTab({
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Layers className="w-5 h-5 text-orange-600" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Service Catalog & Pricing
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            Standard service packages, labor pricing, and quality checklists.
-          </p>
-        </div>
-
-        {isOwner && (
+      {/* Owner action (page title lives in the console header) */}
+      {isOwner && (
+        <div className="flex justify-end">
           <button
             type="button"
             onClick={openAddModal}
             className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center gap-1.5 shadow-xs active:scale-95 shrink-0"
           >
             <Plus className="w-4 h-4" />
-            <span>+ Add New Service</span>
+            <span>Add Service</span>
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Category Pills & Search Bar */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-3">

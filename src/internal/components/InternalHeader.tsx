@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
-  Wrench, 
   LogOut, 
   Menu, 
   Bell, 
@@ -11,7 +10,7 @@ import {
   Stamp
 } from 'lucide-react';
 import { UserRole, NotificationAlert, InternalTab } from '../types/internal';
-import { INTERNAL_TAB_TITLES } from '../utils/tabTitles';
+import { INTERNAL_TAB_INFO } from '../utils/tabTitles';
 
 interface InternalHeaderProps {
   loading?: boolean;
@@ -86,35 +85,25 @@ export default function InternalHeader({
       <header className="sticky top-0 z-30 pt-3 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto">
         <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
           
-          {/* Left: Branding & Mobile Menu Toggle */}
-          <div className="flex items-center gap-3">
+          {/* Left: mobile menu toggle + current page title (brand lives in the sidebar) */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={onToggleMobileMenu}
-              className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+              className="lg:hidden p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer shrink-0"
               aria-label="Open navigation menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Mobile: brand (the desktop sidebar already shows it) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab?.('actions')}
-              className="lg:hidden flex items-center gap-2.5 cursor-pointer"
-            >
-              <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-xs">
-                <Wrench className="w-4 h-4" />
-              </div>
-              <span className="text-base sm:text-lg font-bold text-slate-900 tracking-tight block">
-                Moto<span className="text-orange-500">Care</span>
-              </span>
-            </button>
-
-            {/* Desktop: current page title (navigation lives in the sidebar only) */}
-            <h1 className="hidden lg:block text-base font-bold text-slate-900 tracking-tight pl-1">
-              {INTERNAL_TAB_TITLES[activeTab]}
-            </h1>
+            <div className="min-w-0 pl-1">
+              <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate">
+                {INTERNAL_TAB_INFO[activeTab].title}
+              </h1>
+              <p className="hidden sm:block text-xs text-slate-500 font-medium truncate">
+                {INTERNAL_TAB_INFO[activeTab].subtitle}
+              </p>
+            </div>
           </div>
 
           {/* Right: Notifications, User Profile Pill & Logout */}

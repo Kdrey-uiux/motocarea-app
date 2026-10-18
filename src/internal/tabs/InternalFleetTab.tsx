@@ -334,18 +334,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
   return (
     <div className="space-y-6">
       {/* Top Banner & Sub-Tab Switcher */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Bike className="w-5 h-5 text-orange-600" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Fleet & Motorcycle Model Catalog
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            Customer motorcycle history registry and official 2024–2026 Philippine motorcycle catalog.
-          </p>
-        </div>
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-end gap-4">
 
         {/* Sub-tab Navigation */}
         <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200/80 self-start md:self-auto">

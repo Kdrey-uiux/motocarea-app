@@ -39,7 +39,6 @@ export default function OfficialReceiptPrintModal({
         year: 'numeric',
       });
 
-  const partsItems = ticket.billing_breakdown || [];
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -131,35 +130,6 @@ export default function OfficialReceiptPrintModal({
               <span className="font-medium">{ticket.assigned_mechanic || 'Workshop Tech Team'}</span>
             </div>
           </div>
-
-          {/* Itemized Parts & Consumables Installed */}
-          {partsItems.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Installed Parts & Consumables
-              </h4>
-              <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
-                <table className="w-full text-left">
-                  <thead className="bg-slate-100 text-[10px] uppercase text-slate-600 font-bold">
-                    <tr>
-                      <th className="p-2.5">Item Description</th>
-                      <th className="p-2.5 text-center">Qty</th>
-                      <th className="p-2.5 text-right">Verification Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {partsItems.map((item) => (
-                      <tr key={item.id} className="text-slate-800">
-                        <td className="p-2.5 font-medium">{item.name}</td>
-                        <td className="p-2.5 text-center">{item.quantity}</td>
-                        <td className="p-2.5 text-right font-medium text-emerald-600">Installed & Tested</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {/* Release Clearance Stamp */}
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs flex items-center justify-between">

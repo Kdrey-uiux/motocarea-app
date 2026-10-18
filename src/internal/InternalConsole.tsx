@@ -10,6 +10,7 @@ import {
 } from './types/internal';
 import { getInternalSession, clearInternalSession, getInternalAuthedClient } from './utils/internalAuth';
 import { canAccessTab } from './utils/permissions';
+import { INTERNAL_TAB_TITLES } from './utils/tabTitles';
 import { fetchDatabaseStaffMembers } from './utils/databaseStaffManager';
 import { runMissedBookingScanInBackground } from '../utils/bookingLifecycle';
 import { parseTicketNotes } from '../utils/ticketNotesParser';
@@ -27,6 +28,7 @@ import Stage5BillingModal from './modals/Stage5BillingModal';
 import OfficialReceiptPrintModal from './modals/OfficialReceiptPrintModal';
 import JobOrderPrintModal from './modals/JobOrderPrintModal';
 import HardcopyRequestsModal from './modals/HardcopyRequestsModal';
+import InternalReviewsTab from './tabs/InternalReviewsTab';
 import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
 
 // Tabs
@@ -104,6 +106,11 @@ export default function InternalConsole() {
   // One-shot focus targets used when the Action Center deep-links into another tab
   const [queueFocusView, setQueueFocusView] = useState<OperationalView | undefined>(undefined);
   const [messagesFocusUserId, setMessagesFocusUserId] = useState<string | undefined>(undefined);
+
+  // Browser tab shows the current page (e.g. "Workshop Queue · MotoCare")
+  useEffect(() => {
+    document.title = `${INTERNAL_TAB_TITLES[activeTab]} · MotoCare`;
+  }, [activeTab]);
 
   // Regular navigation (sidebar/header) always opens tabs in their default state
   const navigateToTab = useCallback((tab: InternalTab) => {
@@ -472,6 +479,11 @@ export default function InternalConsole() {
     return hardcopyRequests.filter((r) => r.status === 'PENDING').length;
   }, [hardcopyRequests]);
 
+  // Pending or ready-for-pickup requests; the header button only shows while some are open
+  const openHardcopyCount = useMemo(() => {
+    return hardcopyRequests.filter((r) => r.status !== 'CLAIMED').length;
+  }, [hardcopyRequests]);
+
   // Everything customers did that needs a response (Action Center + live sidebar badges)
   const actionData = useActionCenterData(tickets, hardcopyRequests);
 
@@ -529,6 +541,7 @@ export default function InternalConsole() {
         readyBillingCount={readyBillingCount}
         messagesCount={actionData.chatsToAnswer.length}
         actionCount={actionData.totalActions}
+        pendingReviewsCount={actionData.pendingReviews.length}
         currentRole={currentRole}
         currentUserName={currentUserName}
         onLogout={handleLogout}
@@ -552,7 +565,7 @@ export default function InternalConsole() {
           onMarkNotificationRead={handleMarkNotifRead}
           onClearNotifications={handleClearNotifs}
           pendingHardcopyCount={pendingHardcopyCount}
-          onOpenHardcopyModal={() => setIsHardcopyOpen(true)}
+          onOpenHardcopyModal={openHardcopyCount > 0 ? () => setIsHardcopyOpen(true) : undefined}
         />
 
         {/* Content View */}
@@ -580,7 +593,6 @@ export default function InternalConsole() {
               currentStaffName={currentUserName}
               onRefresh={fetchTickets}
               onRefreshHardcopies={loadHardcopies}
-              onOpenDispatch={handleOpenDispatch}
               onOpenStage5Billing={handleOpenStage5Billing}
               onOpenQueue={(view) => {
                 setQueueFocusView(view);
@@ -591,6 +603,14 @@ export default function InternalConsole() {
                 setActiveTab('messages');
               }}
               onNavigateTab={navigateToTab}
+            />
+          )}
+
+          {activeTab === 'reviews' && (
+            <InternalReviewsTab
+              tickets={tickets}
+              currentStaffName={currentUserName}
+              onChanged={actionData.reloadReviews}
             />
           )}
 
@@ -619,8 +639,6 @@ export default function InternalConsole() {
               onOpenJobOrderPrint={handleOpenJobOrderPrint}
               currentRole={currentRole}
               currentStaffName={currentUserName}
-              onOpenHardcopyModal={() => setIsHardcopyOpen(true)}
-              pendingHardcopyCount={pendingHardcopyCount}
               onNavigateTab={navigateToTab}
               staffList={staffList}
               initialView={queueFocusView}

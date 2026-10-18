@@ -246,7 +246,7 @@ export default function InternalMessagesTab({
 
       if (error) {
         if (error.code === '42501' || error.message?.includes('policy')) {
-          throw new Error('Database permission error: Please run migration 20261016_fix_messages_rls_and_columns.sql in Supabase SQL Editor to allow staff replies.');
+          throw new Error('Database permission error: Please run migration 04_messages.sql in Supabase SQL Editor to allow staff replies.');
         }
         throw error;
       }
@@ -264,18 +264,7 @@ export default function InternalMessagesTab({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <MessageSquare className="w-5 h-5 text-orange-600" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Reception Desk & Live Rider Support Chat
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            Real-time messaging with bike owners, approval requests, and pickup notifications.
-          </p>
-        </div>
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-end gap-4">
 
         <button
           type="button"

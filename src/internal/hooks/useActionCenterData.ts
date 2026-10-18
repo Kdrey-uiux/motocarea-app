@@ -13,14 +13,6 @@ export interface WaitingConversation {
   lastTime: string;
 }
 
-export interface PartsAnswer {
-  key: string;
-  ticket: InternalTicket;
-  itemName: string;
-  approved: boolean;
-  respondedAt?: string;
-}
-
 export interface CustomerUpdate {
   key: string;
   ticket: InternalTicket;
@@ -30,7 +22,6 @@ export interface CustomerUpdate {
 export interface ActionCenterData {
   pendingBookings: InternalTicket[];
   chatsToAnswer: WaitingConversation[];
-  partsAnswers: PartsAnswer[];
   pendingReviews: ModeratedReview[];
   readyForRelease: InternalTicket[];
   missedBookings: InternalTicket[];
@@ -159,26 +150,6 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
     [waitingChats, resolvedChats]
   );
 
-  const partsAnswers = useMemo(() => {
-    const list: PartsAnswer[] = [];
-    tickets.forEach((t) => {
-      if (CLOSED_STATUSES.includes(t.status)) return;
-      (t.billing_breakdown || []).forEach((item) => {
-        if (!item.isAdditional || (item.approvalStatus !== 'APPROVED' && item.approvalStatus !== 'DECLINED')) return;
-        const key = `parts:${t.id}:${item.id}:${item.approvalStatus}`;
-        if (isDismissed(key)) return;
-        list.push({
-          key,
-          ticket: t,
-          itemName: item.name,
-          approved: item.approvalStatus === 'APPROVED',
-          respondedAt: item.respondedAt,
-        });
-      });
-    });
-    return list;
-  }, [tickets, isDismissed]);
-
   const readyForRelease = useMemo(
     () => tickets.filter((t) => t.stage === 5 && !CLOSED_STATUSES.includes(t.status)),
     [tickets]
@@ -215,7 +186,6 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
   const totalActions =
     pendingBookings.length +
     chatsToAnswer.length +
-    partsAnswers.length +
     pendingReviews.length +
     readyForRelease.length +
     missedBookings.length +
@@ -234,7 +204,6 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
   return {
     pendingBookings,
     chatsToAnswer,
-    partsAnswers,
     pendingReviews,
     readyForRelease,
     missedBookings,

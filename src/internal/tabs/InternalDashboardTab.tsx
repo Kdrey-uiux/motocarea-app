@@ -21,8 +21,6 @@ import {
   getDailyCapacityLimit
 } from '../../utils/workshopCapacity';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
-import CustomerReviewsModal from '../modals/CustomerReviewsModal';
-import { parseTicketReview, TicketReview } from '../../utils/ticketReviews';
 
 // ============================================================================
 // TypeScript Interfaces (Strict Mode)
@@ -125,7 +123,6 @@ export function WorkshopDashboard({
   const [selectedPeriod, setSelectedPeriod] = useState<DatePeriod>('TODAY');
   const [volumeView, setVolumeView] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
-  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
   // Dynamic Workshop Scheduling Capacity sync (Base 6 to Max 10)
@@ -302,7 +299,7 @@ export function WorkshopDashboard({
 
   const occupiedBaysCount = bayStatusList.filter((b) => b.status === 'OCCUPIED').length;
   const maintenanceBaysCount = bayStatusList.filter((b) => b.status === 'MAINTENANCE').length;
-  const activeLiftsCount = Math.max(1, 4 - maintenanceBaysCount);
+  const activeLiftsCount = Math.max(1, bayStatusList.length - maintenanceBaysCount);
   const bayUtilizationPct = Math.min(100, Math.round((occupiedBaysCount / activeLiftsCount) * 100));
 
   // 4. Top KPI Metrics
@@ -340,7 +337,7 @@ export function WorkshopDashboard({
 
     const bayUtilizationText = maintenanceBaysCount > 0
       ? `${occupiedBaysCount}/${activeLiftsCount} Active (${maintenanceBaysCount} Maint)`
-      : `${occupiedBaysCount}/4 Lifts Active (${bayUtilizationPct}%)`;
+      : `${occupiedBaysCount}/${activeLiftsCount} Lifts Active (${bayUtilizationPct}%)`;
 
     return {
       activeBikesOnFloor: bikesInBays,
@@ -362,27 +359,19 @@ export function WorkshopDashboard({
     ).length;
   }, [tickets]);
 
-  // Customer Reviews & Satisfaction Rating
-  const customerReviews = useMemo(() => {
-    return tickets
-      .map((t) => {
-        const rev = parseTicketReview(t.notes);
-        if (!rev) return null;
-        return {
-          ...rev,
-          ticketCode: t.ticket_code,
-          customerName: t.customer_name || 'Rider Customer',
-          bikeModel: t.motorcycles?.model || 'Motorcycle',
-        };
-      })
-      .filter(Boolean) as (TicketReview & { ticketCode: string; customerName: string; bikeModel: string })[];
+  // Customer rating: same published numbers the public sees on the landing page
+  const [reviewStats, setReviewStats] = useState<{ count: number; avg: string }>({ count: 0, avg: '0.0' });
+  useEffect(() => {
+    supabase
+      .from('customer_review_stats')
+      .select('review_count, average_rating')
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setReviewStats({ count: Number(data.review_count) || 0, avg: (Number(data.average_rating) || 0).toFixed(1) });
+        }
+      });
   }, [tickets]);
-
-  const avgRating = useMemo(() => {
-    if (customerReviews.length === 0) return '5.0';
-    const sum = customerReviews.reduce((acc, r) => acc + r.rating, 0);
-    return (sum / customerReviews.length).toFixed(1);
-  }, [customerReviews]);
 
 
   // 6. Elapsed Time Helper
@@ -572,29 +561,8 @@ export function WorkshopDashboard({
       {/* 1. HEADER & CONTROLS */}
       {/* ==================================================================== */}
       <div className="space-y-4 px-1">
-        {/* Top Header Row: Title & Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
-              Workshop Dashboard
-            </h1>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Overview of daily workshop activity, bay status, and customer queue.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setIsWalkInModalOpen(true)}
-            className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white rounded-full px-5 py-2.5 text-xs sm:text-sm font-bold shadow-sm shadow-orange-500/20 flex items-center justify-center gap-1.5 transition hover:scale-102 active:scale-95 cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>New Walk-in Ticket</span>
-          </button>
-        </div>
-
         {/* Filter Controls & Live Status Badges Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1 border-t border-slate-200/60">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           {/* Period Selector */}
           <div className="flex items-center gap-1 p-1 bg-white border border-slate-200/80 rounded-full shadow-2xs text-xs overflow-x-auto max-w-full">
             <span className="pl-2.5 pr-1 text-slate-400 flex items-center gap-1 text-[11px] font-semibold shrink-0">
@@ -640,6 +608,15 @@ export function WorkshopDashboard({
               <span className="text-[11px] font-semibold text-blue-700">Scheduled:</span>
               <span>{scheduledTodayCount} / {todayCapacityLimit} Slots</span>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsWalkInModalOpen(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-4 py-1.5 text-xs font-bold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition active:scale-95 cursor-pointer shrink-0"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>New Walk-in</span>
+            </button>
           </div>
         </div>
       </div>
@@ -667,10 +644,10 @@ export function WorkshopDashboard({
           </div>
           <button
             type="button"
-            onClick={() => handleNavigate('queue')}
+            onClick={() => setActiveTab?.('actions')}
             className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition cursor-pointer self-start sm:self-auto shadow-xs active:scale-95 shrink-0"
           >
-            Review in Queue ➔
+            Review in Action Center ➔
           </button>
         </div>
       )}
@@ -726,7 +703,7 @@ export function WorkshopDashboard({
               {kpis.readyForRelease}
             </div>
             <span className="text-[11px] text-slate-400 font-medium block truncate">
-              Ready for customer pickup at counter
+              Waiting for pickup
             </span>
           </div>
           <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shadow-2xs shrink-0 group-hover:scale-105 transition-transform ml-2">
@@ -736,18 +713,18 @@ export function WorkshopDashboard({
 
         {/* KPI 4: Customer Satisfaction & Rating */}
         <div
-          onClick={() => setIsReviewsModalOpen(true)}
+          onClick={() => setActiveTab?.('reviews')}
           className="bg-white rounded-2xl p-4.5 sm:p-5 shadow-xs border border-slate-100/90 hover:border-amber-300 transition flex items-center justify-between cursor-pointer group"
           title="Click to view all verified customer reviews & feedback"
         >
           <div className="space-y-1 min-w-0">
             <span className="text-xs font-bold text-slate-500 block truncate group-hover:text-amber-700 transition">Customer Satisfaction</span>
             <div className="text-2xl sm:text-3xl font-black text-amber-600 tracking-tight flex items-center gap-1.5">
-              <span>{avgRating}</span>
+              <span>{reviewStats.avg}</span>
               <span className="text-sm font-bold text-slate-400">/ 5.0</span>
             </div>
             <span className="text-[11px] text-amber-700 font-semibold block truncate">
-              {customerReviews.length > 0 ? `${customerReviews.length} verified ratings (View Feed →)` : 'Workshop rating benchmark'}
+              {reviewStats.count > 0 ? `${reviewStats.count} public reviews (Manage →)` : 'No reviews yet'}
             </span>
           </div>
           <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-50 border border-amber-200/70 flex items-center justify-center text-amber-500 shadow-2xs shrink-0 group-hover:scale-105 transition-transform ml-2">
@@ -870,62 +847,43 @@ export function WorkshopDashboard({
             </div>
           </div>
 
-          {/* Workshop 10-Bay Floor Status Grid */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-2.5 max-h-[380px] overflow-y-auto pr-1">
+          {/* Compact 10-bay grid: green = free, orange = in use, grey = maintenance */}
+          <div className="grid grid-cols-5 gap-2">
             {bayStatusList.map((bay) => {
               const isOccupied = bay.status === 'OCCUPIED';
               const isMaintenance = bay.status === 'MAINTENANCE';
-
               return (
-                <div
+                <button
                   key={bay.id}
+                  type="button"
                   onClick={() => handleNavigate('bays')}
-                  className={`p-3 sm:p-3.5 rounded-2xl border text-xs flex flex-col justify-between transition cursor-pointer hover:shadow-2xs ${
+                  title={
                     isMaintenance
-                      ? 'bg-slate-50 border-slate-200/80 text-slate-500'
+                      ? `${bay.name}: under maintenance`
                       : isOccupied
-                      ? 'bg-orange-50/50 border-orange-200/80 hover:bg-orange-100/60'
-                      : 'bg-emerald-50/40 border-emerald-200/70 hover:bg-emerald-50/80'
+                      ? `${bay.name}: ${bay.bikeModel || 'In use'}${bay.plateNumber ? ` (${bay.plateNumber})` : ''}`
+                      : `${bay.name}: available`
+                  }
+                  className={`rounded-xl border py-2.5 px-1 text-center transition cursor-pointer hover:shadow-2xs ${
+                    isMaintenance
+                      ? 'bg-slate-100 border-slate-200 text-slate-400'
+                      : isOccupied
+                      ? 'bg-orange-50 border-orange-200 text-orange-700'
+                      : 'bg-emerald-50/60 border-emerald-200/80 text-emerald-700'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-bold text-slate-900 text-xs">{bay.name}</span>
-                    {/* Quick Status Dot: Green = Available, Orange = Occupied, Gray = Maintenance */}
-                    <span
-                      className={`w-2.5 h-2.5 rounded-full ${
-                        isMaintenance
-                          ? 'bg-slate-400'
-                          : isOccupied
-                          ? 'bg-orange-500 animate-pulse'
-                          : 'bg-emerald-500'
-                      }`}
-                      title={isMaintenance ? 'Under Maintenance' : isOccupied ? 'Occupied' : 'Available'}
-                    />
-                  </div>
-
-                  <p className="font-bold text-slate-800 text-xs truncate">
-                    {isMaintenance
-                      ? 'Under Maintenance'
-                      : bay.bikeModel
-                      ? bay.bikeModel
-                      : 'Available'}
-                  </p>
-
-                  <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500 font-mono">
-                    <span className="truncate">
-                      {isMaintenance
-                        ? 'Offline'
-                        : bay.plateNumber || 'Ready for intake'}
-                    </span>
-                    {bay.stage ? (
-                      <span className="font-sans font-bold text-orange-600 bg-orange-100/80 px-1.5 py-0.2 rounded shrink-0">
-                        S{bay.stage}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
+                  <span className="block text-sm font-black leading-none">{bay.name.replace(/\D/g, '').padStart(2, '0')}</span>
+                  <span className="block text-[9px] font-semibold mt-1 truncate">
+                    {isMaintenance ? 'Maint.' : isOccupied ? (bay.stage ? `Stage ${bay.stage}` : 'In use') : 'Free'}
+                  </span>
+                </button>
               );
             })}
+          </div>
+          <div className="flex items-center gap-3 text-[10px] text-slate-500">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Free</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" /> In use</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400" /> Maintenance</span>
           </div>
 
           {/* Clean Manage Bay Lifts Button */}
@@ -1179,13 +1137,6 @@ export function WorkshopDashboard({
         currentStaffName={currentUserName}
       />
 
-      {/* Customer Reviews & Feedback Modal */}
-      <CustomerReviewsModal
-        isOpen={isReviewsModalOpen}
-        onClose={() => setIsReviewsModalOpen(false)}
-        tickets={tickets}
-        currentStaffName={currentUserName}
-      />
     </div>
   );
 }

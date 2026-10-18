@@ -2,7 +2,6 @@ import { useState, ReactNode } from 'react';
 import {
   CalendarCheck,
   MessageSquare,
-  PackageCheck,
   Star,
   Receipt,
   CalendarX,
@@ -34,7 +33,6 @@ interface InternalActionCenterTabProps {
   currentStaffName: string;
   onRefresh: () => void;
   onRefreshHardcopies: () => void;
-  onOpenDispatch: (ticket: InternalTicket) => void;
   onOpenStage5Billing: (ticket: InternalTicket) => void;
   onOpenQueue: (view: OperationalView) => void;
   onOpenConversation: (userId: string) => void;
@@ -136,7 +134,6 @@ export default function InternalActionCenterTab({
   currentStaffName,
   onRefresh,
   onRefreshHardcopies,
-  onOpenDispatch,
   onOpenStage5Billing,
   onOpenQueue,
   onOpenConversation,
@@ -150,7 +147,6 @@ export default function InternalActionCenterTab({
   const {
     pendingBookings,
     chatsToAnswer,
-    partsAnswers,
     pendingReviews,
     readyForRelease,
     missedBookings,
@@ -226,15 +222,9 @@ export default function InternalActionCenterTab({
   // ---------------------------------------------------------------------------
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 px-1">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Action Center</h1>
-          <p className="text-xs text-slate-500 font-medium">
-            Everything customers did that needs a response — handle each item right here.
-          </p>
-        </div>
+      <div className="flex justify-end px-1">
         <span
-          className={`self-start sm:self-auto px-3 py-1.5 rounded-full text-xs font-bold border ${
+          className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
             totalActions > 0 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'
           }`}
         >
@@ -369,36 +359,6 @@ export default function InternalActionCenterTab({
           >
             <button type="button" onClick={() => onOpenConversation(c.userId)} className={btn.dark}>
               <Reply className="w-3.5 h-3.5" /> Reply
-            </button>
-          </Row>
-        ))}
-      </Section>
-
-      {/* 3. Parts approvals answered by the customer */}
-      <Section
-        icon={<PackageCheck className="w-4 h-4" />}
-        title="Customer answered a parts request"
-        description="Continue the repair with the approved parts, or adjust the job for declined ones."
-        count={partsAnswers.length}
-        tone="emerald"
-      >
-        {partsAnswers.map((p) => (
-          <Row
-            key={p.key}
-            title={
-              <>
-                <span className={p.approved ? 'text-emerald-700' : 'text-rose-700'}>{p.approved ? 'Approved' : 'Declined'}</span>
-                {` — ${p.itemName}`}
-              </>
-            }
-            subtitle={`#${p.ticket.ticket_code} • ${p.ticket.customer_name || 'Rider Customer'} • ${bikeLabel(p.ticket)}`}
-            meta={timeAgo(p.respondedAt)}
-          >
-            <button type="button" onClick={() => onOpenDispatch(p.ticket)} className={btn.dark}>
-              Open Ticket
-            </button>
-            <button type="button" onClick={() => dismiss([p.key])} className={btn.ghost}>
-              Got it
             </button>
           </Row>
         ))}

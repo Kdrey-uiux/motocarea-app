@@ -9,6 +9,7 @@ import {
   Layers,
   Users,
   ShieldCheck,
+  Star,
   X,
   LogOut,
   LucideIcon,
@@ -25,6 +26,8 @@ interface InternalSidebarProps {
   /** Conversations waiting for a reply from the shop */
   messagesCount: number;
   actionCount?: number;
+  /** Reviews waiting for approval */
+  pendingReviewsCount?: number;
   currentRole: UserRole;
   currentUserName?: string;
   onLogout?: () => void;
@@ -60,7 +63,7 @@ function NavButton({
       type="button"
       onClick={() => onSelect(item.id)}
       aria-current={isActive ? 'page' : undefined}
-      className={`w-full h-10 px-3 rounded-xl flex items-center justify-between gap-2 transition-all duration-150 cursor-pointer ${
+      className={`w-full h-9 px-3 rounded-xl flex items-center justify-between gap-2 transition-all duration-150 cursor-pointer ${
         isActive
           ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -91,6 +94,7 @@ export default function InternalSidebar({
   readyBillingCount,
   messagesCount,
   actionCount = 0,
+  pendingReviewsCount = 0,
   currentRole,
   currentUserName = 'Staff Member',
   onLogout,
@@ -137,6 +141,13 @@ export default function InternalSidebar({
           badge: messagesCount > 0 ? messagesCount : undefined,
           badgeColor: 'bg-sky-500 text-white',
         },
+        {
+          id: 'reviews',
+          label: 'Reviews',
+          icon: Star,
+          badge: pendingReviewsCount > 0 ? pendingReviewsCount : undefined,
+          badgeColor: 'bg-amber-500 text-white',
+        },
       ],
     },
     {
@@ -164,9 +175,9 @@ export default function InternalSidebar({
   const roleLabel = currentRole === 'admin' ? 'Workshop Owner' : 'Staff Member';
 
   const renderNav = (onSelect: (tab: InternalTab) => void) => (
-    <nav className="flex flex-col gap-5 w-full">
+    <nav className="flex flex-col gap-4 w-full">
       {groups.map((group) => (
-        <div key={group.title} className="space-y-1">
+        <div key={group.title} className="space-y-0.5">
           <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{group.title}</p>
           {group.items.map((item) => (
             <NavButton key={item.id} item={item} isActive={activeTab === item.id} onSelect={onSelect} />
@@ -193,8 +204,8 @@ export default function InternalSidebar({
   );
 
   const userCard = (
-    <div className="flex flex-col gap-2 w-full pt-4 border-t border-slate-100 shrink-0">
-      <div className="w-full p-2.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+    <div className="flex flex-col gap-1.5 w-full pt-3 border-t border-slate-100 shrink-0">
+      <div className="w-full p-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
           {userInitial}
         </div>
@@ -220,7 +231,7 @@ export default function InternalSidebar({
     <>
       {/* 1. DESKTOP SIDEBAR (labeled, grouped) */}
       <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-60 p-4 bg-white border border-slate-200/80 rounded-[1.75rem] shadow-xs flex-col justify-between z-40">
-        <div className="flex flex-col gap-6 w-full min-h-0">
+        <div className="flex flex-col gap-4 w-full min-h-0">
           <div className="px-1 pt-1">{brand(() => setActiveTab('actions'))}</div>
           <div className="overflow-y-auto no-scrollbar min-h-0">{renderNav(setActiveTab)}</div>
         </div>

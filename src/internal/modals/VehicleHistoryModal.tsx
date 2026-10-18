@@ -134,24 +134,6 @@ export default function VehicleHistoryModal({
                       )}
                     </div>
 
-                    {/* Parts Replaced in this visit */}
-                    {t.billing_breakdown && t.billing_breakdown.length > 0 && (
-                      <div className="pt-2 border-t border-slate-100">
-                        <span className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                          Parts & Replaced Components:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {t.billing_breakdown.map((item) => (
-                            <span
-                              key={item.id}
-                              className="px-2 py-0.5 bg-slate-50 border border-slate-200 rounded text-[10px] text-slate-700 font-medium"
-                            >
-                              {item.name} ({item.quantity}x)
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>

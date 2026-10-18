@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { InternalTicket } from '../types/internal';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
+import { isAwaitingArrival } from '../utils/ticketActions';
 import { 
-  Wrench, 
   CheckCircle2, 
   ArrowRight, 
   ShieldAlert, 
@@ -162,15 +162,13 @@ export default function InternalBaysTab({
   }, [tickets, maintenanceBays]);
 
 
-  // Queue tickets eligible for dispatch
+  // Checked-in Stage 1 units waiting for a bay (bookings not yet at the shop are excluded)
   const queueTickets = useMemo(() => {
     return tickets.filter(
       (t) =>
         t.stage === 1 &&
-        t.status !== 'COMPLETED' &&
-        t.status !== 'CANCELLED' &&
-        t.status !== 'CANCELLED_BY_ADMIN' &&
-        t.status !== 'MISSED'
+        t.status === 'IN_PROGRESS' &&
+        !isAwaitingArrival(t)
     );
   }, [tickets]);
 
@@ -180,24 +178,8 @@ export default function InternalBaysTab({
 
   return (
     <div className="space-y-6">
-      {/* 1. Header with Operational Summary */}
-      <div className="bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-9 h-9 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
-                Workshop Bays
-              </h2>
-              <p className="text-xs text-slate-500">
-                Monitor active workshop bays and ongoing motorcycle repairs.
-              </p>
-            </div>
-          </div>
-        </div>
-
+      {/* 1. Bay summary (page title lives in the console header) */}
+      <div className="flex justify-end">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/80 shadow-2xs">
             {vacantLiftsCount} Available

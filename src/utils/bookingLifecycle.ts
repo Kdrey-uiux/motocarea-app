@@ -376,7 +376,7 @@ export async function adminLateCheckInOverride(
 
     if (updateErr) return { success: false, error: updateErr.message };
     if (!updatedRows || updatedRows.length === 0) {
-      return { success: false, error: 'Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.' };
+      return { success: false, error: 'Database write permission error. Please run migration 03_service_tickets.sql.' };
     }
 
     return { success: true };

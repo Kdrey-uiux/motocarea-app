@@ -4,6 +4,7 @@ import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, UserRole, InternalTab } from '../types/internal';
 import { canVoidTicket } from '../utils/permissions';
+import { useMechanics, rememberMechanic } from '../utils/mechanics';
 import { acceptOnlineBooking, cancelOrDeclineTicket, isPendingOnlineBooking } from '../utils/ticketActions';
 import {
   adminLateCheckInOverride,
@@ -24,7 +25,6 @@ import {
   User,
   KeyRound,
   CheckCircle2,
-  Stamp,
   History,
   Star,
   MessageSquare,
@@ -38,7 +38,6 @@ import {
 } from 'lucide-react';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
-import CustomerReviewsModal from '../modals/CustomerReviewsModal';
 import { parseTicketReview } from '../../utils/ticketReviews';
 import { parseTicketNotes, formatPhoneNumber } from '../../utils/ticketNotesParser';
 import { InternalStaffMember } from '../types/internal';
@@ -96,10 +95,7 @@ export function InternalQueueTab({
   onOpenJobOrderPrint,
   currentRole,
   currentStaffName = 'Workshop Staff',
-  onOpenHardcopyModal,
-  pendingHardcopyCount = 0,
   onNavigateTab,
-  staffList = [],
   initialView = 'ACTIVE',
 }: InternalQueueTabProps) {
   const [activeView, setActiveView] = useState<OperationalView>(initialView);
@@ -111,7 +107,6 @@ export function InternalQueueTab({
   // Modals state
   const [historyVehicle, setHistoryVehicle] = useState<any | null>(null);
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
-  const [isReviewsModalOpen, setIsReviewsModalOpen] = useState(false);
 
   // Soft Cancellation Void Modal State
   const [voidTarget, setVoidTarget] = useState<InternalTicket | null>(null);
@@ -136,16 +131,8 @@ export function InternalQueueTab({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  // Available mechanics for workshop assignment
-  const availableMechanics = useMemo(() => {
-    const list = (staffList || []).filter((s) => s.isActive !== false);
-    if (list.length > 0) return list;
-    return [
-      { id: 'mech-1', fullName: 'Kurt Andrei Alerta', position: 'Lead Technician', role: 'staff' as const, email: '', phone: '', isActive: true, createdAt: '' },
-      { id: 'mech-2', fullName: 'Service Technician 1', position: 'Floor Mechanic', role: 'staff' as const, email: '', phone: '', isActive: true, createdAt: '' },
-      { id: 'mech-3', fullName: 'Master Mechanic', position: 'Senior Technician', role: 'staff' as const, email: '', phone: '', isActive: true, createdAt: '' },
-    ];
-  }, [staffList]);
+  // Mechanics are names only (no accounts); shared list managed in Team
+  const availableMechanics = useMechanics();
 
   // Helper to determine if a ticket is pending online confirmation
   const isPendingTicket = isPendingOnlineBooking;
@@ -232,49 +219,7 @@ export function InternalQueueTab({
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  // Bay Availability
-  const bayAvailability = useMemo(() => {
-    const occupiedBays = new Set<string>();
-    tickets
-      .filter(
-        (t) =>
-          t.status !== 'COMPLETED' &&
-          t.status !== 'CANCELLED' &&
-          t.status !== 'CANCELLED_BY_ADMIN' &&
-          t.status !== 'MISSED' &&
-          t.status !== 'NO_SHOW' &&
-          t.assigned_bay
-      )
-      .forEach((t) => {
-        if (t.assigned_bay) {
-          occupiedBays.add(t.assigned_bay.toLowerCase().trim());
-        }
-      });
-    const occupiedCount = occupiedBays.size;
-    const availableCount = Math.max(0, 10 - occupiedCount);
-    return {
-      occupiedCount,
-      availableCount,
-      isFull: availableCount === 0,
-    };
-  }, [tickets]);
 
-  // Customer Reviews statistics
-  const reviewStats = useMemo(() => {
-    let sum = 0;
-    let count = 0;
-    tickets.forEach((t) => {
-      const parsed = parseTicketReview(t.notes);
-      if (parsed) {
-        sum += parsed.rating;
-        count++;
-      }
-    });
-    return {
-      count,
-      avg: count > 0 ? (sum / count).toFixed(1) : '5.0',
-    };
-  }, [tickets]);
 
   // Live Counts for Operational Tabs
   // Live Counts for Operational Tabs
@@ -417,8 +362,9 @@ export function InternalQueueTab({
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.');
+        throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
       }
+      if (mechName) rememberMechanic(mechName, currentStaffName);
 
       await recordAuditLog({
         ticketCode: assigningMechanicTicket.ticket_code,
@@ -461,7 +407,7 @@ export function InternalQueueTab({
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.');
+        throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
       }
 
       await recordAuditLog({
@@ -517,7 +463,7 @@ export function InternalQueueTab({
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 20261016_fix_service_tickets_rls.sql.');
+        throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
       }
 
       await recordAuditLog({
@@ -632,55 +578,9 @@ export function InternalQueueTab({
   return (
     <div className="space-y-5">
       
-      {/* 1. Header Row with Live Telemetry Pulse & Action Group */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-1">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1 flex-wrap">
-            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-              Workshop Floor Queue
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Live Floor Telemetry
-            </span>
-          </div>
-          <p className="text-xs text-slate-500 font-medium">
-            Active repair jobs, lift assignments, and shop floor stage tracking.
-          </p>
-        </div>
-
+      {/* 1. Primary action (page title lives in the console header) */}
+      <div className="flex justify-end px-1">
         <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-          {/* Lifts Availability Pill */}
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-semibold text-slate-700 shadow-2xs">
-            <span className={`w-2 h-2 rounded-full ${bayAvailability.isFull ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-            <span>
-              Lifts: <strong className="text-slate-900">{bayAvailability.availableCount} / 10 Free</strong>
-            </span>
-          </div>
-
-          {/* Customer Reviews & Feedback Button */}
-          <button
-            type="button"
-            onClick={() => setIsReviewsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold transition shadow-2xs cursor-pointer"
-            title="View verified customer reviews and feedback"
-          >
-            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-500" />
-            <span>Reviews ({reviewStats.avg} ★ • {reviewStats.count})</span>
-          </button>
-
-          {/* Pending Hardcopy Requests (if any) */}
-          {typeof onOpenHardcopyModal === 'function' && pendingHardcopyCount > 0 && (
-            <button
-              type="button"
-              onClick={onOpenHardcopyModal}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-bold transition shadow-2xs cursor-pointer"
-            >
-              <Stamp className="w-3.5 h-3.5 text-orange-600" />
-              <span>Hardcopies ({pendingHardcopyCount})</span>
-            </button>
-          )}
-
           {/* New Walk-in Ticket Button */}
           <button
             type="button"
@@ -700,8 +600,6 @@ export function InternalQueueTab({
           {[
             { id: 'ACTIVE' as OperationalView, label: 'Active Floor Repairs', count: counts.active },
             { id: 'SCHEDULED' as OperationalView, label: 'Scheduled Appointments', count: counts.scheduled, alert: counts.scheduled > 0 },
-            { id: 'PENDING' as OperationalView, label: 'Pending Online Bookings', count: counts.pending, alert: counts.pending > 0 },
-            { id: 'READY_RELEASE' as OperationalView, label: 'Ready for Pickup', count: counts.readyRelease },
             { id: 'COMPLETED' as OperationalView, label: 'Released & History', count: counts.completed },
             { id: 'MISSED' as OperationalView, label: 'Cancelled / Missed', count: counts.missed },
           ].map((tab) => {
@@ -757,7 +655,8 @@ export function InternalQueueTab({
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-end">
-            {/* My Assigned Tasks Toggle */}
+            {/* My Assigned Tasks Toggle (mechanics only) */}
+            {currentRole === 'staff' && (
             <button
               type="button"
               onClick={() => setMyTasksOnly(!myTasksOnly)}
@@ -773,6 +672,7 @@ export function InternalQueueTab({
                 {counts.myAssigned}
               </span>
             </button>
+            )}
 
             {/* Layout Toggle: Grid vs Compact Table */}
             <div className="flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
@@ -1023,10 +923,6 @@ export function InternalQueueTab({
             const arrivalWindow = ticket.dropoff_window || parsedNotes.arrivalWindow || null;
             const symptoms = parsedNotes.symptoms || null;
 
-            const additionalAuthorizations = Array.isArray(ticket.billing_breakdown)
-              ? ticket.billing_breakdown.filter((item) => item.isAdditional)
-              : [];
-
             return (
               <div
                 key={ticket.id}
@@ -1195,7 +1091,7 @@ export function InternalQueueTab({
                     </div>
                     <button
                       type="button"
-                      onClick={() => setIsReviewsModalOpen(true)}
+                      onClick={() => onNavigateTab?.('reviews')}
                       className="px-2.5 py-1 text-[11px] font-bold text-amber-900 bg-amber-200/80 hover:bg-amber-300 rounded-lg transition shrink-0 cursor-pointer"
                     >
                       View All Reviews →
@@ -1203,46 +1099,7 @@ export function InternalQueueTab({
                   </div>
                 )}
 
-                {/* 5. Additional Parts Authorization Status */}
-                {additionalAuthorizations.length > 0 && (
-                  <div className="space-y-1.5">
-                    {additionalAuthorizations.map((auth) => (
-                      <div
-                        key={auth.id}
-                        className={`p-2.5 rounded-xl border text-xs flex items-center justify-between gap-2 ${
-                          auth.approvalStatus === 'APPROVED'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                            : auth.approvalStatus === 'DECLINED'
-                            ? 'bg-slate-100 border-slate-200 text-slate-600'
-                            : 'bg-amber-50 border-amber-200 text-amber-900'
-                        }`}
-                      >
-                        <div className="min-w-0">
-                          <span className="font-bold block truncate">
-                            {auth.name} — ₱{auth.unitPrice.toLocaleString()}
-                          </span>
-                          {auth.reason && (
-                            <span className="text-[10px] text-slate-500 block truncate">
-                              Finding: {auth.reason}
-                            </span>
-                          )}
-                        </div>
-
-                        <span className={`px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase shrink-0 ${
-                          auth.approvalStatus === 'APPROVED'
-                            ? 'bg-emerald-200 text-emerald-900'
-                            : auth.approvalStatus === 'DECLINED'
-                            ? 'bg-slate-200 text-slate-700'
-                            : 'bg-amber-200 text-amber-900'
-                        }`}>
-                          {auth.approvalStatus === 'APPROVED' ? '✓ Customer Approved' : auth.approvalStatus === 'DECLINED' ? '✕ Declined' : 'Waiting on Rider'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* 6. Footer Action Bar */}
+                {/* 5. Footer Action Bar */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-2 border-t border-slate-100">
                   {/* Left: Bay, Mechanic & Secondary Quick Actions */}
                   <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -1504,13 +1361,6 @@ export function InternalQueueTab({
         />
       )}
 
-      {/* Customer Reviews & Feedback Modal */}
-      <CustomerReviewsModal
-        isOpen={isReviewsModalOpen}
-        onClose={() => setIsReviewsModalOpen(false)}
-        tickets={tickets}
-        currentStaffName={currentStaffName}
-      />
 
       {/* Soft Cancellation / Void Modal */}
       {voidTarget && (
@@ -1651,13 +1501,13 @@ export function InternalQueueTab({
                 Select Technician
               </label>
               <div className="grid grid-cols-1 gap-1.5 max-h-52 overflow-y-auto pr-1">
-                {availableMechanics.map((m) => {
-                  const isSelected = selectedMechanicName.toLowerCase() === m.fullName.toLowerCase();
+                {availableMechanics.map((name) => {
+                  const isSelected = selectedMechanicName.trim().toLowerCase() === name.toLowerCase();
                   return (
                     <button
-                      key={m.id}
+                      key={name}
                       type="button"
-                      onClick={() => setSelectedMechanicName(m.fullName)}
+                      onClick={() => setSelectedMechanicName(name)}
                       className={`w-full text-left p-3 rounded-xl border transition flex items-center justify-between cursor-pointer text-xs ${
                         isSelected
                           ? 'border-orange-500 bg-orange-50/70 text-slate-900 font-bold shadow-2xs'
@@ -1669,8 +1519,7 @@ export function InternalQueueTab({
                           <User className="w-3.5 h-3.5" />
                         </div>
                         <div>
-                          <div className="font-bold">{m.fullName}</div>
-                          <div className="text-[11px] text-slate-400 font-medium">{m.position || 'Technician'}</div>
+                          <div className="font-bold">{name}</div>
                         </div>
                       </div>
                       {isSelected && <Check className="w-4 h-4 text-orange-600 stroke-[3]" />}

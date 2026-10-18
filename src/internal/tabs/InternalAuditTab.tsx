@@ -3,7 +3,6 @@ import { UserRole, AuditLogEntry } from '../types/internal';
 import { canViewAuditLogs } from '../utils/permissions';
 import { fetchDatabaseAuditLogs } from '../utils/databaseAuditLogger';
 import { 
-  ShieldCheck, 
   Download, 
   Search, 
   ShieldAlert, 
@@ -141,18 +140,7 @@ export default function InternalAuditTab({ currentRole }: InternalAuditTabProps)
   return (
     <div className="space-y-6">
       {/* Header and Controls */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ShieldCheck className="w-5 h-5 text-orange-600" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Cross-Device Workshop Audit Trail & Event Logs
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            Immutable floor activity log, stage progressions, bay assignments, and releases.
-          </p>
-        </div>
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-end gap-4">
 
         <div className="flex items-center gap-2">
           <button

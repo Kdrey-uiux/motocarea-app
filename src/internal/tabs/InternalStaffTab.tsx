@@ -23,6 +23,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from '../utils/toast';
+import MechanicsManager from '../components/MechanicsManager';
 
 interface InternalStaffTabProps {
   currentRole: UserRole;
@@ -220,17 +221,20 @@ export default function InternalStaffTab({
 
   return (
     <div className="space-y-6">
+      {/* Shop mechanics (names only, no accounts) */}
+      <MechanicsManager currentStaffName={currentStaffName} />
+
       {/* Header and Controls */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Users className="w-5 h-5 text-orange-600" />
             <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Staff Management
+              Staff accounts
             </h2>
           </div>
           <p className="text-xs text-slate-500">
-            Manage workshop staff accounts, roles, and profile information.
+            People who can log in to this console.
           </p>
         </div>
 

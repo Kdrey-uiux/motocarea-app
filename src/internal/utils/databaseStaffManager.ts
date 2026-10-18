@@ -141,44 +141,65 @@ export async function createDatabaseStaffMember({
   const cleanPhone = phone.trim();
   const cleanPosition = position.trim();
 
-  try {
-    // 1. Create auth user in Supabase using non-persisting provisioning client
-    let createdAuthId = '';
-    if (password) {
-      const { data: authData, error: authError } = await staffProvisioningClient.auth.signUp({
-        email: cleanEmail,
-        password,
-        options: {
-          data: {
-            full_name: cleanName,
-            phone_number: cleanPhone,
-            role: 'staff',
-            position: cleanPosition,
-          },
-        },
-      });
+  if (!password || password.length < 8) {
+    return { success: false, error: 'Set a password of at least 8 characters for the staff account.' };
+  }
 
-      if (!authError && authData.user) {
-        createdAuthId = authData.user.id;
-      }
+  try {
+    // 1. Never turn an existing account (e.g. a customer) into staff
+    const { data: existing } = await supabase
+      .from('profiles')
+      .select('id, role')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+    if (existing) {
+      return {
+        success: false,
+        error:
+          existing.role === 'customer'
+            ? 'This email belongs to a customer account. Use a different email for the staff member.'
+            : 'A staff or admin account with this email already exists.',
+      };
     }
 
-    // 2. Try inserting/upserting into profiles table gracefully
-    const fallbackId = createdAuthId || `staff-${Date.now()}`;
-    try {
-      await supabase.from('profiles').upsert({
-        id: fallbackId,
-        full_name: cleanName,
-        phone_number: cleanPhone,
-        role: 'staff',
-        updated_at: new Date().toISOString(),
-      });
-    } catch {
-      // ignore schema differences if SQL migration hasn't run yet
+    // 2. Create the Supabase Auth user with a non-persisting provisioning client
+    const { data: authData, error: authError } = await staffProvisioningClient.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          full_name: cleanName,
+          phone_number: cleanPhone,
+          position: cleanPosition,
+        },
+      },
+    });
+    if (authError) {
+      return { success: false, error: authError.message };
+    }
+    // Supabase returns a user without identities when the email is already registered
+    if (!authData.user || authData.user.identities?.length === 0) {
+      return { success: false, error: 'An account with this email already exists.' };
+    }
+    const createdAuthId = authData.user.id;
+
+    // 3. Promote the new profile (auto-created as customer by the signup trigger) to staff
+    const { error: profileError } = await supabase.from('profiles').upsert({
+      id: createdAuthId,
+      full_name: cleanName,
+      email: cleanEmail,
+      phone_number: cleanPhone || 'N/A',
+      role: 'staff',
+      position: cleanPosition || 'Service Advisor',
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    });
+    if (profileError) {
+      return { success: false, error: `Account created, but the staff profile could not be saved: ${profileError.message}` };
     }
 
     const newStaff: InternalStaffMember = {
-      id: fallbackId,
+      id: createdAuthId,
       fullName: cleanName,
       email: cleanEmail,
       phone: cleanPhone || 'N/A',

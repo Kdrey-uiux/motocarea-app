@@ -1019,26 +1019,6 @@ export default function ServiceHistoryTab({
                 </div>
               </div>
 
-              {/* Parts used (declined additional parts were not installed) */}
-              {(() => {
-                const installedParts = (selectedTicket.billing_breakdown || []).filter(
-                  (item) => item.approvalStatus !== 'DECLINED'
-                );
-                return installedParts.length > 0 ? (
-                  <div className="pt-2 border-t border-dashed border-slate-200 space-y-1">
-                    <div className="text-[10px] text-slate-400 font-semibold uppercase">Parts Used (Estimated Prices)</div>
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200 divide-y divide-slate-100 text-[11px]">
-                      {installedParts.map((item, idx) => (
-                        <div key={item.id || idx} className="py-1 flex justify-between">
-                          <span className="text-slate-700">{item.name} × {item.quantity}</span>
-                          <span className="font-semibold text-slate-900">₱{(item.subtotal || 0).toLocaleString()}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null;
-              })()}
-
               {/* Payment happens at the counter, outside the system: show the estimate only */}
               <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
                 <div>

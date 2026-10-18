@@ -17,6 +17,14 @@
     background-color: #ffffff;
     -webkit-font-smoothing: antialiased;
   }
+
+  /* Placeholders must never look like real values: lighter + italic */
+  input::placeholder,
+  textarea::placeholder {
+    color: #cbd5e1;
+    font-style: italic;
+    opacity: 1;
+  }
 }
 
 /* =========================================================================

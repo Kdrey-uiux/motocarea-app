@@ -23,10 +23,15 @@ export function parseTicketNotes(notes?: string | null): ParsedTicketNotes {
     };
   }
 
-  // 1. Strip raw system / bracket metadata
-  let cleaned = notes
+  // 1. Strip raw system / bracket metadata (booking state, reviews, check-in/missed/grace
+  //    markers like [CHECKED_IN: ...], and reschedule stamps) so they never show as rider text
+  const cleaned = notes
     .replace(/\[BOOKING:[^\]]+\]/gi, '')
     .replace(/\[REVIEW:[\s\S]*?\]/gi, '')
+    .replace(/\[[A-Z][A-Z_]+(?::[^\]]*)?\]/g, '')
+    .replace(/\[Rescheduled to [^\]]*\]/g, '')
+    .replace(/(\s*\|\s*){2,}/g, ' | ')
+    .replace(/^[\s|]+|[\s|]+$/g, '')
     .trim();
 
   // 2. Extract Customer Name
@@ -55,12 +60,15 @@ export function parseTicketNotes(notes?: string | null): ParsedTicketNotes {
 
   // 5. Extract Symptoms / Complaint
   let symptoms = '';
-  const symptomsMatch = cleaned.match(/Reported Symptoms:\s*([^|\n]+?)(?:,?\s*Arrival Window:|$)/i);
+  // Notes are " | "-separated; legacy notes used commas before "Arrival Window:"
+  const symptomsMatch = cleaned.match(/Reported Symptoms:\s*([^|\n]+?)(?=\s*\||,?\s*Arrival Window:|\n|$)/i);
   if (symptomsMatch && symptomsMatch[1]) {
     symptoms = symptomsMatch[1].trim();
   } else {
     // If there is no explicit "Reported Symptoms:" label, clean out known key-values
     const remaining = cleaned
+      .replace(/Mechanic Findings:\s*[^|\n]*/gi, '')
+      .replace(/(?:Odometer|Intake by):\s*[^|\n]*/gi, '')
       .replace(/Customer:\s*[^|,\n]+/gi, '')
       .replace(/Contact:\s*[+0-9\s()-]{7,18}/gi, '')
       .replace(/Arrival Window:\s*[^,\n|]+/gi, '')

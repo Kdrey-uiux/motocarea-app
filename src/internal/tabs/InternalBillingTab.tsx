@@ -86,18 +86,7 @@ export default function InternalBillingTab({
   return (
     <div className="space-y-6">
       {/* 1. Header Banner */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <ClipboardCheck className="w-5 h-5 text-orange-600" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Counter Release
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500 font-medium">
-            Customer verification, vehicle inspection sign-off, and key release.
-          </p>
-        </div>
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-end gap-4">
 
         <div className="flex items-center gap-2">
           <span className="px-3 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold flex items-center gap-1.5">

@@ -14,6 +14,23 @@ export function isPendingOnlineBooking(t: { status: string; notes?: string | nul
   return t.status === 'PENDING_CONFIRMATION' || Boolean(t.notes && t.notes.includes('[BOOKING:PENDING_CONFIRMATION]'));
 }
 
+/**
+ * True when an online booking's motorcycle is not at the shop yet (pending approval,
+ * scheduled for a later date, or confirmed but not checked in). Such units must be
+ * checked in before they can be put on a bay.
+ */
+export function isAwaitingArrival(t: {
+  status: string;
+  notes?: string | null;
+  dropoff_date?: string | null;
+  is_walk_in?: boolean;
+}): boolean {
+  if (t.is_walk_in) return false;
+  if (isPendingOnlineBooking(t)) return true;
+  if (t.notes?.includes('[BOOKING:PENDING_DROPOFF]')) return true;
+  return Boolean(t.dropoff_date && t.dropoff_date > todayDateString());
+}
+
 function todayDateString(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

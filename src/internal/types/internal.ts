@@ -7,6 +7,7 @@ export type InternalTab =
   | 'bays'
   | 'billing'
   | 'staff'
+  | 'reviews'
   | 'audit'
   | 'messages'
   | 'fleet'

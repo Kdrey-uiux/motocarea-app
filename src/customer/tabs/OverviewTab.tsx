@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { parseTicketReview, submitTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
@@ -14,8 +13,7 @@ import {
   AlertTriangle,
   CalendarSync,
   Star,
-  Loader2,
-  CheckCircle2
+  Loader2
 } from 'lucide-react';
 
 interface OverviewTabProps {
@@ -94,19 +92,11 @@ export default function OverviewTab({
     );
   }, [serviceHistory]);
 
-  const pendingAuthorizations = useMemo(() => {
-    if (!activeTicket || !Array.isArray(activeTicket.billing_breakdown)) return [];
-    return activeTicket.billing_breakdown.filter(
-      (item: any) => item.isAdditional && item.approvalStatus === 'PENDING'
-    );
-  }, [activeTicket]);
-
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [reviewComment, setReviewComment] = useState<string>('');
   const [isSubmittingReview, setIsSubmittingReview] = useState<boolean>(false);
   const [submittedReviewTicketId, setSubmittedReviewTicketId] = useState<string | null>(null);
-  const [isSubmittingAuth, setIsSubmittingAuth] = useState<boolean>(false);
 
   const recentUnreviewedCompleted = useMemo(() => {
     return (serviceHistory || []).find(
@@ -116,68 +106,6 @@ export default function OverviewTab({
         t.id !== submittedReviewTicketId
     );
   }, [serviceHistory, submittedReviewTicketId]);
-
-  const handleApproveAuthorization = async (itemId: string) => {
-    if (!activeTicket) return;
-    setIsSubmittingAuth(true);
-    try {
-      const currentList: any[] = Array.isArray(activeTicket.billing_breakdown)
-        ? [...activeTicket.billing_breakdown]
-        : [];
-      const updated = currentList.map((item) =>
-        item.id === itemId
-          ? { ...item, approvalStatus: 'APPROVED', respondedAt: new Date().toISOString() }
-          : item
-      );
-
-      const { error } = await supabase
-        .from('service_tickets')
-        .update({ billing_breakdown: updated })
-        .eq('id', activeTicket.id);
-
-      if (error) throw error;
-
-      broadcastTicketSync({ ticketId: activeTicket.id, action: 'AUTH_APPROVED' });
-
-      if (onRefreshData) onRefreshData();
-    } catch (err) {
-      console.error('Failed to approve authorization:', err);
-      alert('Failed to update authorization. Please check network connection.');
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
-
-  const handleDeclineAuthorization = async (itemId: string) => {
-    if (!activeTicket) return;
-    setIsSubmittingAuth(true);
-    try {
-      const currentList: any[] = Array.isArray(activeTicket.billing_breakdown)
-        ? [...activeTicket.billing_breakdown]
-        : [];
-      const updated = currentList.map((item) =>
-        item.id === itemId
-          ? { ...item, approvalStatus: 'DECLINED', respondedAt: new Date().toISOString() }
-          : item
-      );
-
-      const { error } = await supabase
-        .from('service_tickets')
-        .update({ billing_breakdown: updated })
-        .eq('id', activeTicket.id);
-
-      if (error) throw error;
-
-      broadcastTicketSync({ ticketId: activeTicket.id, action: 'AUTH_DECLINED' });
-
-      if (onRefreshData) onRefreshData();
-    } catch (err) {
-      console.error('Failed to decline authorization:', err);
-      alert('Failed to update authorization. Please check network connection.');
-    } finally {
-      setIsSubmittingAuth(false);
-    }
-  };
 
   const handleSubmitReview = async (ticket: ServiceTicket) => {
     if (reviewRating < 1) {
@@ -439,73 +367,6 @@ export default function OverviewTab({
               <span>Cancel Request</span>
             </button>
           )}
-        </div>
-      )}
-
-      {/* 1.95 Additional Work & Parts Authorization Required Card */}
-      {pendingAuthorizations.length > 0 && (
-        <div className="bg-gradient-to-r from-orange-50 via-amber-50/50 to-white border-2 border-orange-400/80 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-sm space-y-3.5 animate-in fade-in duration-200">
-          <div className="flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <span className="text-xs font-bold text-orange-950 uppercase tracking-wider block">
-                  Workshop Authorization Required
-                </span>
-                <p className="text-xs text-slate-600 mt-0.5">
-                  During inspection, the mechanic discovered additional parts or repairs recommended for your vehicle:
-                </p>
-              </div>
-            </div>
-            <span className="px-2.5 py-1 rounded-full bg-orange-100 text-orange-800 text-[11px] font-bold border border-orange-200 shrink-0">
-              {pendingAuthorizations.length} Pending
-            </span>
-          </div>
-
-          <div className="space-y-2.5">
-            {pendingAuthorizations.map((item: any) => (
-              <div
-                key={item.id}
-                className="p-3 sm:p-4 bg-white border border-slate-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs"
-              >
-                <div className="space-y-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-slate-900">{item.name}</span>
-                    <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-md border border-orange-200/60">
-                      ₱{item.unitPrice.toLocaleString()}
-                    </span>
-                  </div>
-                  {item.reason && (
-                    <p className="text-[11px] text-slate-500 italic">
-                      Finding: {item.reason}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    disabled={isSubmittingAuth}
-                    onClick={() => handleDeclineAuthorization(item.id)}
-                    className="flex-1 sm:flex-none px-3.5 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold text-xs transition cursor-pointer"
-                  >
-                    Decline
-                  </button>
-                  <button
-                    type="button"
-                    disabled={isSubmittingAuth}
-                    onClick={() => handleApproveAuthorization(item.id)}
-                    className="flex-1 sm:flex-none px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Approve & Proceed</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       )}
 
