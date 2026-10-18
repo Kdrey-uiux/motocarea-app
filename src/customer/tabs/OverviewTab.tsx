@@ -15,6 +15,7 @@ import {
   Star,
   Loader2
 } from 'lucide-react';
+import { getTicketDisplayDate } from '../../utils/ticketDates';
 
 interface OverviewTabProps {
   userProfile?: UserProfile | null;
@@ -556,7 +557,7 @@ export default function OverviewTab({
                   Workshop Progress
                 </h3>
                 <p className="text-xs text-slate-400 truncate">
-                  {activeTicket ? `${activeBikeModel} (${activeBikePlate})` : 'Click any stage to inspect details'}
+                  {activeTicket ? `${activeBikeModel} (${activeBikePlate})` : 'No motorcycle in the shop — tap a stage to see what happens'}
                 </p>
               </div>
             </div>
@@ -565,7 +566,7 @@ export default function OverviewTab({
               <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-[11px] font-medium text-slate-600">
                 <span className="px-2.5 py-0.5 rounded-full">Stages</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-semibold shadow-xs">
-                  {activeTicket ? (isPending ? 'Pending Review' : isReady ? 'Ready for Pickup' : `Stage ${currentStage}`) : 'Interactive'}
+                  {activeTicket ? (isPending ? 'Pending Review' : isReady ? 'Ready for Pickup' : `Stage ${currentStage}`) : 'Guide'}
                 </span>
               </div>
             </div>
@@ -575,9 +576,8 @@ export default function OverviewTab({
           <div className="pt-2 sm:pt-3">
             <div className="flex items-end justify-between gap-1.5 sm:gap-2.5 h-36 sm:h-40 px-0.5 sm:px-2 pb-2">
               {stages.map((st) => {
-                const isActivePillar = activeTicket
-                  ? st.step === currentStage
-                  : st.step === inspectedStageStep;
+                // Only a real job gets the orange "current stage" pillar
+                const isActivePillar = Boolean(activeTicket) && st.step === currentStage;
                 const isPassedPillar = activeTicket ? st.step < currentStage : false;
                 const isInspected = st.step === inspectedStageStep;
 
@@ -594,7 +594,7 @@ export default function OverviewTab({
                       <div className="absolute -top-4 left-0 right-0 flex justify-center pointer-events-none z-10">
                         <div className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md flex items-center gap-1 whitespace-nowrap animate-bounce">
                           <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                          <span>{activeTicket ? (isReady && st.step === 5 ? 'Ready' : 'Current') : 'Selected'}</span>
+                          <span>{isReady && st.step === 5 ? 'Ready' : 'Current'}</span>
                         </div>
                       </div>
                     )}
@@ -684,11 +684,11 @@ export default function OverviewTab({
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Assigned Bay</span>
-                  <span className="font-bold text-slate-800 block">{activeTicket.assigned_bay}</span>
+                  <span className="font-bold text-slate-800 block">{activeTicket.assigned_bay || 'To be assigned'}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Lead Mechanic</span>
-                  <span className="font-bold text-slate-800 truncate block">{activeTicket.assigned_mechanic}</span>
+                  <span className="font-bold text-slate-800 truncate block">{activeTicket.assigned_mechanic || 'To be assigned'}</span>
                 </div>
               </div>
 
@@ -722,9 +722,15 @@ export default function OverviewTab({
               </div>
             </div>
           ) : (
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
-              <span>All workshop service bays ready for booking</span>
-              <span className="text-slate-400">0 Ongoing Maintenance</span>
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+              <span>No active service right now.</span>
+              <button
+                type="button"
+                onClick={() => onBookClick()}
+                className="text-orange-600 hover:text-orange-700 font-semibold cursor-pointer shrink-0"
+              >
+                Book a service →
+              </button>
             </div>
           )}
         </div>
@@ -778,7 +784,7 @@ export default function OverviewTab({
                   <div className="space-y-0.5">
                     <div className="font-bold text-xs text-slate-900">{item.service_type}</div>
                     <div className="text-[11px] text-slate-500">
-                      {new Date(item.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {getTicketDisplayDate(item).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
                 </div>
@@ -813,7 +819,7 @@ export default function OverviewTab({
                         <span className="truncate max-w-[180px] sm:max-w-xs">{item.service_type}</span>
                       </td>
                       <td className="py-3.5 text-slate-500 whitespace-nowrap">
-                        {new Date(item.created_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {getTicketDisplayDate(item).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="py-3.5 whitespace-nowrap text-right">
                         {item.status === 'MISSED' || item.status === 'NO_SHOW' ? (

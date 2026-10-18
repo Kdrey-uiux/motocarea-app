@@ -1783,7 +1783,7 @@ export default function BookServiceTab({
                     <CheckCircle2 className="w-4 h-4 text-orange-600 shrink-0" />
                     <span className="text-xs font-bold text-slate-900">
                       Selected Date:{' '}
-                      {new Date(dropoffDate).toLocaleDateString('en-US', {
+                      {new Date(`${dropoffDate}T00:00:00`).toLocaleDateString('en-US', {
                         weekday: 'long',
                         month: 'short',
                         day: 'numeric',
@@ -1907,7 +1907,7 @@ export default function BookServiceTab({
                 </span>
                 <strong className="text-sm font-bold text-slate-900 block mt-1">
                   {dropoffDate
-                    ? new Date(dropoffDate).toLocaleDateString('en-US', {
+                    ? new Date(`${dropoffDate}T00:00:00`).toLocaleDateString('en-US', {
                         weekday: 'short',
                         month: 'short',
                         day: 'numeric',

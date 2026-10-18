@@ -22,6 +22,7 @@ import {
   Star,
   Loader2
 } from 'lucide-react';
+import { getTicketDisplayDate } from '../../utils/ticketDates';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
@@ -339,7 +340,7 @@ export default function ServiceHistoryTab({
               </span>
               <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
                 {filteredHistory[0]
-                  ? new Date(filteredHistory[0].created_at).toLocaleDateString('en-US', {
+                  ? getTicketDisplayDate(filteredHistory[0]).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                     })
@@ -577,7 +578,7 @@ export default function ServiceHistoryTab({
                         {item.status === 'MISSED' || item.status === 'NO_SHOW' ? 'Scheduled Date' : 'Date Completed'}
                       </span>
                       <span className="font-semibold text-slate-800">
-                        {new Date(item.dropoff_date || item.created_at).toLocaleDateString('en-US', {
+                        {getTicketDisplayDate(item).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
                           year: 'numeric',
@@ -664,7 +665,7 @@ export default function ServiceHistoryTab({
                           </span>
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap font-medium text-slate-600">
-                          {new Date(item.created_at).toLocaleDateString('en-US', {
+                          {getTicketDisplayDate(item).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
@@ -870,7 +871,7 @@ export default function ServiceHistoryTab({
                           #{cleanRef}
                         </td>
                         <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
-                          {new Date(item.created_at).toLocaleDateString('en-US', {
+                          {getTicketDisplayDate(item).toLocaleDateString('en-US', {
                             month: 'short',
                             day: 'numeric',
                             year: 'numeric',
