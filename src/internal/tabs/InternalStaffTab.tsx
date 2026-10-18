@@ -21,7 +21,6 @@ import {
   X
 } from 'lucide-react';
 import { toast } from '../utils/toast';
-import MechanicsManager from '../components/MechanicsManager';
 
 // Random 12-character starting password (no look-alike characters), shown once to the admin
 function generateStaffPassword(): string {
@@ -240,8 +239,6 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Shop mechanics (names only, no accounts) */}
-      <MechanicsManager currentStaffName={currentStaffName} />
 
       {feedback && (
         <div

@@ -11,7 +11,7 @@ export const INTERNAL_TAB_INFO: Record<InternalTab, { title: string; subtitle: s
   fleet: { title: 'Vehicles', subtitle: 'Customer motorcycles and the motorcycle model catalog.' },
   services: { title: 'Services & Prices', subtitle: 'Service packages and estimated prices customers can book.' },
   dashboard: { title: 'Owner Dashboard', subtitle: 'Overview of today’s workshop activity.' },
-  staff: { title: 'Team', subtitle: 'Mechanics and staff accounts.' },
+  staff: { title: 'Team', subtitle: 'Owner and staff accounts.' },
   audit: { title: 'Activity Logs', subtitle: 'Who did what, and when.' },
 };
 

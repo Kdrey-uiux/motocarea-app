@@ -4,7 +4,7 @@ import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, UserRole, InternalTab } from '../types/internal';
 import { canVoidTicket } from '../utils/permissions';
-import { useMechanics, rememberMechanic } from '../utils/mechanics';
+import { useMechanics } from '../utils/mechanics';
 import { acceptOnlineBooking, cancelOrDeclineTicket, isPendingOnlineBooking } from '../utils/ticketActions';
 import {
   adminLateCheckInOverride,
@@ -368,7 +368,6 @@ export function InternalQueueTab({
       if (!data || data.length === 0) {
         throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
       }
-      if (mechName) rememberMechanic(mechName, currentStaffName);
 
       await recordAuditLog({
         ticketCode: assigningMechanicTicket.ticket_code,

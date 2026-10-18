@@ -3,7 +3,6 @@ import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, InternalStaffMember } from '../types/internal';
-import { rememberMechanic } from '../utils/mechanics';
 import { readSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { parseTicketNotes } from '../../utils/ticketNotesParser';
 import MechanicPicker from '../components/MechanicPicker';
@@ -194,9 +193,6 @@ export default function DispatchTicketModal({
           'Database rejected update due to PostgreSQL Row-Level Security. Please run migration 03_service_tickets.sql in Supabase SQL Editor.'
         );
       }
-      // New names typed here become pickable next time
-      rememberMechanic(assignedMechanic, currentStaffName);
-
       broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
 
       if (ticket.stage !== Number(stage)) {

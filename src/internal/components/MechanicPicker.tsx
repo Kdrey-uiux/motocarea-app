@@ -7,8 +7,7 @@ interface MechanicPickerProps {
 }
 
 /**
- * Type a mechanic's name or tap one from the saved list.
- * New names are saved to the list when the job is saved (see rememberMechanic).
+ * Type a mechanic's name or tap one of the active staff from Team.
  */
 export default function MechanicPicker({ value, onChange }: MechanicPickerProps) {
   const mechanics = useMechanics();
