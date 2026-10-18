@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { InternalTicket } from '../types/internal';
 import { 
@@ -91,7 +91,7 @@ export default function InternalMessagesTab({
   // Fetch messages from Supabase
   const fetchMessages = useCallback(async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('messages')
         .select('*')
         .order('created_at', { ascending: true });
@@ -119,7 +119,7 @@ export default function InternalMessagesTab({
 
       if (uniqueUserIds.length > 0) {
         try {
-          const { data: profs } = await supabase
+          const { data: profs } = await db()
             .from('profiles')
             .select('id, full_name, phone_number')
             .in('id', uniqueUserIds);
@@ -133,7 +133,7 @@ export default function InternalMessagesTab({
             }
           });
 
-          const { data: bikes } = await supabase
+          const { data: bikes } = await db()
             .from('motorcycles')
             .select('user_id, model')
             .in('user_id', uniqueUserIds);
@@ -188,7 +188,8 @@ export default function InternalMessagesTab({
     fetchMessages();
 
     // Realtime chat subscription
-    const messageChannel = supabase
+    const realtimeClient = db();
+    const messageChannel = realtimeClient
       .channel('internal_messages_realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => {
         fetchMessages();
@@ -199,7 +200,7 @@ export default function InternalMessagesTab({
     const pollInterval = setInterval(fetchMessages, 10000);
 
     return () => {
-      supabase.removeChannel(messageChannel);
+      realtimeClient.removeChannel(messageChannel);
       clearInterval(pollInterval);
     };
   }, [fetchMessages]);
@@ -227,7 +228,7 @@ export default function InternalMessagesTab({
     setSending(true);
     try {
       // 1. Attempt insert with sender_name
-      let { error } = await supabase.from('messages').insert({
+      let { error } = await db().from('messages').insert({
         user_id: selectedUserId,
         sender_role: 'staff',
         sender_name: currentStaffName,
@@ -236,7 +237,7 @@ export default function InternalMessagesTab({
 
       // 2. Fallback without sender_name if column not in schema cache
       if (error && (error.code === 'PGRST204' || error.message?.includes('sender_name'))) {
-        const fallback = await supabase.from('messages').insert({
+        const fallback = await db().from('messages').insert({
           user_id: selectedUserId,
           sender_role: 'staff',
           message: textToSend.trim(),

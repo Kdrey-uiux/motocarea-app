@@ -1,5 +1,5 @@
 import { BikeModel } from '../types/dashboard';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/supabase';
 
 export interface OfficialBikeModel extends BikeModel {
   id?: string;
@@ -323,7 +323,7 @@ export async function getCompleteMotorcycleCatalog(): Promise<OfficialBikeModel[
 
   // 3. I-query ang Supabase `motorcycle_models` table
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('motorcycle_models')
       .select('id, brand, name, category, cc_displacement, is_active')
       .order('name');

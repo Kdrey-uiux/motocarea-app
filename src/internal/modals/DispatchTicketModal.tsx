@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, InternalStaffMember } from '../types/internal';
@@ -182,7 +182,7 @@ export default function DispatchTicketModal({
         notes: withFindings(ticket.notes, findings) || null,
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('service_tickets')
         .update(updates)
         .eq('id', ticket.id)

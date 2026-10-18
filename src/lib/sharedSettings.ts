@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { db } from './supabase';
 
 /**
  * Workshop-wide settings stored in the Supabase `app_settings` table.
@@ -76,7 +76,7 @@ export async function saveSharedSetting(
 ): Promise<{ success: boolean; error?: string }> {
   applyToCache(setting, value);
   try {
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('app_settings')
       .upsert({ key: setting.key, value, updated_by: updatedBy ?? null })
       .select('key');
@@ -105,7 +105,7 @@ export function startSharedSettingsSync(): void {
     if (setting && row?.value !== undefined) applyToCache(setting, row.value);
   };
 
-  supabase
+  db()
     .from('app_settings')
     .select('key, value')
     .then(({ data, error }) => {
@@ -116,7 +116,7 @@ export function startSharedSettingsSync(): void {
       data?.forEach(applyRow);
     });
 
-  supabase
+  db()
     .channel('motocare_app_settings_sync')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, (payload) => {
       applyRow(payload.new as { key?: string; value?: unknown });

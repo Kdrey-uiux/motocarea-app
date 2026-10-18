@@ -25,6 +25,14 @@ import {
 import { toast } from '../utils/toast';
 import MechanicsManager from '../components/MechanicsManager';
 
+// Random 12-character starting password (no look-alike characters), shown once to the admin
+function generateStaffPassword(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const bytes = new Uint32Array(12);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
+}
+
 interface InternalStaffTabProps {
   currentRole: UserRole;
   currentStaffName?: string;
@@ -49,6 +57,10 @@ export default function InternalStaffTab({
     );
   }
 
+  return <StaffManagement currentStaffName={currentStaffName} />;
+}
+
+function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
   const [staffList, setStaffList] = useState<InternalStaffMember[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,7 +79,7 @@ export default function InternalStaffTab({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [position, setPosition] = useState('Service Advisor & Intake Officer');
-  const [password, setPassword] = useState('MotoStaff2026!');
+  const [password, setPassword] = useState(generateStaffPassword);
   const [formError, setFormError] = useState<string | null>(null);
 
   // Edit Form State
@@ -140,7 +152,7 @@ export default function InternalStaffTab({
       setEmail('');
       setPhone('');
       setPosition('Service Advisor & Intake Officer');
-      setPassword('MotoStaff2026!');
+      setPassword(generateStaffPassword());
     } else {
       setFormError(result.error || 'Failed to provision staff account.');
     }
@@ -513,13 +525,27 @@ export default function InternalStaffTab({
 
               <div>
                 <label className="font-bold text-slate-700 block mb-1">Initial Password</label>
-                <input
-                  type="text"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    required
+                    minLength={8}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPassword(generateStaffPassword())}
+                    className="px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer shrink-0"
+                    title="Generate a new random password"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Copy this and give it to the staff member. They can change it later via Reset Pass.
+                </p>
               </div>
 
               <div className="pt-2 flex items-center justify-end gap-2">

@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from './databaseAuditLogger';
 import { InternalTicket } from '../types/internal';
@@ -57,7 +57,7 @@ export async function acceptOnlineBooking(
     notes: cleanedNotes,
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('service_tickets')
     .update(updates)
     .eq('id', ticket.id)
@@ -101,7 +101,7 @@ export async function cancelOrDeclineTicket(
     notes: (ticket.notes || '').replace('[BOOKING:PENDING_CONFIRMATION]', '').trim(),
   };
 
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('service_tickets')
     .update(updates)
     .eq('id', ticket.id)

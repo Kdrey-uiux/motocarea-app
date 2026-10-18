@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { db } from './supabase';
 
 export interface HardcopyRequest {
   id: string; // e.g. "HR-7719"
@@ -15,14 +15,15 @@ export interface HardcopyRequest {
   claimedAt?: string;
 }
 
-const BROADCAST_CHANNEL = 'motocare_hardcopy_realtime';
+export const HARDCOPY_BROADCAST_CHANNEL = 'motocare_hardcopy_realtime';
+const BROADCAST_CHANNEL = HARDCOPY_BROADCAST_CHANNEL;
 
 /**
  * Extract structured hardcopy requests from messages table
  */
 export async function fetchHardcopyRequests(userId?: string): Promise<HardcopyRequest[]> {
   try {
-    let query = supabase
+    let query = db()
       .from('messages')
       .select('*')
       .order('created_at', { ascending: true });
@@ -34,7 +35,9 @@ export async function fetchHardcopyRequests(userId?: string): Promise<HardcopyRe
     const { data, error } = await query;
     if (error || !data) return [];
 
+    // Request ids are only unique per customer, so key by owner + id
     const requestMap = new Map<string, HardcopyRequest>();
+    const keyOf = (ownerId: string, requestId: string) => `${ownerId}:${requestId}`;
 
     data.forEach((msg) => {
       const text: string = msg.message || '';
@@ -43,7 +46,7 @@ export async function fetchHardcopyRequests(userId?: string): Promise<HardcopyRe
           const jsonStr = text.replace('[HARDCOPY_REQUEST]', '').trim();
           const req = JSON.parse(jsonStr) as HardcopyRequest;
           if (req.id) {
-            requestMap.set(req.id, {
+            requestMap.set(keyOf(msg.user_id, req.id), {
               ...req,
               userId: req.userId || msg.user_id,
               createdAt: req.createdAt || msg.created_at,
@@ -56,9 +59,10 @@ export async function fetchHardcopyRequests(userId?: string): Promise<HardcopyRe
         try {
           const jsonStr = text.replace('[HARDCOPY_STATUS_UPDATE]', '').trim();
           const update = JSON.parse(jsonStr);
-          if (update.requestId && requestMap.has(update.requestId)) {
-            const existing = requestMap.get(update.requestId)!;
-            requestMap.set(update.requestId, {
+          const key = update.requestId ? keyOf(msg.user_id, update.requestId) : '';
+          if (key && requestMap.has(key)) {
+            const existing = requestMap.get(key)!;
+            requestMap.set(key, {
               ...existing,
               status: update.status || existing.status,
               readyAt: update.readyAt || existing.readyAt,
@@ -93,7 +97,7 @@ export async function createHardcopyRequest(params: {
   notes?: string;
 }): Promise<HardcopyRequest | null> {
   try {
-    const requestId = `HR-${Math.floor(1000 + Math.random() * 9000)}`;
+    const requestId = `HR-${Math.floor(100000 + Math.random() * 900000)}`;
     const newReq: HardcopyRequest = {
       id: requestId,
       userId: params.userId,
@@ -108,7 +112,7 @@ export async function createHardcopyRequest(params: {
     };
 
     // 1. Insert into messages table
-    const { error } = await supabase.from('messages').insert({
+    const { error } = await db().from('messages').insert({
       user_id: params.userId,
       sender_role: 'customer',
       message: `[HARDCOPY_REQUEST] ${JSON.stringify(newReq)}`,
@@ -121,7 +125,7 @@ export async function createHardcopyRequest(params: {
 
     // 2. Broadcast realtime event to Admin
     try {
-      const channel = supabase.channel(BROADCAST_CHANNEL);
+      const channel = db().channel(BROADCAST_CHANNEL);
       await channel.send({
         type: 'broadcast',
         event: 'NEW_HARDCOPY_REQUEST',
@@ -162,7 +166,7 @@ export async function updateHardcopyStatus(params: {
         : `Official hardcopy record #${params.requestId} for ${params.bikeModel} has been claimed. Thank you!`;
 
     // 1. Insert update message
-    const { error } = await supabase.from('messages').insert({
+    const { error } = await db().from('messages').insert({
       user_id: params.userId,
       sender_role: 'admin',
       message: `[HARDCOPY_STATUS_UPDATE] ${JSON.stringify(updatePayload)}`,
@@ -174,7 +178,7 @@ export async function updateHardcopyStatus(params: {
     }
 
     // Also send friendly text chat so customer sees the update in their regular chat feed
-    await supabase.from('messages').insert({
+    await db().from('messages').insert({
       user_id: params.userId,
       sender_role: 'admin',
       message: friendlyMsg,
@@ -182,7 +186,7 @@ export async function updateHardcopyStatus(params: {
 
     // 2. Broadcast realtime update
     try {
-      const channel = supabase.channel(BROADCAST_CHANNEL);
+      const channel = db().channel(BROADCAST_CHANNEL);
       await channel.send({
         type: 'broadcast',
         event: 'HARDCOPY_STATUS_CHANGED',

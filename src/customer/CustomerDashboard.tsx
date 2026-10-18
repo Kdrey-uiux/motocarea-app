@@ -76,7 +76,7 @@ export default function CustomerDashboard() {
           .from('service_tickets')
           .select(`*, motorcycles (model, plate_number)`)
           .eq('user_id', uid)
-          .in('status', ['PENDING_CONFIRMATION', 'IN_PROGRESS', 'READY_FOR_PICKUP'])
+          .in('status', ['PENDING_CONFIRMATION', 'PENDING_DROPOFF', 'CONFIRMED_APPOINTMENT', 'IN_PROGRESS', 'READY_FOR_PICKUP'])
           .order('created_at', { ascending: false }),
         supabase
           .from('service_tickets')
@@ -284,18 +284,22 @@ export default function CustomerDashboard() {
     if (!cancellingTicket) return;
     setIsCancellingTicket(true);
     try {
-      // Attempt status update to CANCELLED first, fallback to delete
-      const { error: updateErr } = await supabase
+      // Soft cancel only (history stays). cancelled_by stays empty so the shop sees it as a customer cancellation.
+      const { data: cancelledRows, error: updateErr } = await supabase
         .from('service_tickets')
-        .update({ status: 'CANCELLED' })
-        .eq('id', cancellingTicket.id);
+        .update({
+          status: 'CANCELLED',
+          cancelled_at: new Date().toISOString(),
+          cancellation_reason: 'Cancelled by customer',
+        })
+        .eq('id', cancellingTicket.id)
+        .eq('user_id', userId)
+        .eq('stage', 1)
+        .select('id');
 
-      if (updateErr) {
-        const { error: delErr } = await supabase
-          .from('service_tickets')
-          .delete()
-          .eq('id', cancellingTicket.id);
-        if (delErr) throw delErr;
+      if (updateErr) throw updateErr;
+      if (!cancelledRows || cancelledRows.length === 0) {
+        throw new Error('This booking can no longer be cancelled online.');
       }
 
       // Broadcast real-time cancellation to Admin and Staff consoles live

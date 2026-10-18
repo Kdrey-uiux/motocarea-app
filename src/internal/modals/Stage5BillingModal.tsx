@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { InternalTicket } from '../types/internal';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
@@ -72,7 +72,7 @@ export default function Stage5BillingModal({
         notes: handoverNotes ? `${ticket.notes ? `${ticket.notes}\n` : ''}[Turnover]: ${handoverNotes}` : ticket.notes,
       };
 
-      const { error } = await supabase
+      const { error } = await db()
         .from('service_tickets')
         .update(updates)
         .eq('id', ticket.id);

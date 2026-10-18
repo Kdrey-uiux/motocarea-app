@@ -1,21 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { InternalStaffMember } from '../types/internal';
-import { supabase } from '../../lib/supabase';
+import { db, supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../../lib/supabase';
 import { recordAuditLog } from './databaseAuditLogger';
 
 const STAFF_REALTIME_CHANNEL = 'motocare_staff_realtime';
 const STAFF_STORAGE_KEY = 'motocare_internal_staff_registry';
 
-const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL || 'https://cqkwlyqajtajkvctgdeu.supabase.co';
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_q09s0Ukkdx0uTDeunRfUGA_BWx4uwNb';
-
 /**
  * Ephemeral non-persisting client used strictly for provisioning new staff accounts
  * so that calling `auth.signUp` never overwrites the currently logged-in Admin session.
  */
-const staffProvisioningClient = createClient(supabaseUrl, supabaseAnonKey, {
+const staffProvisioningClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
@@ -80,13 +75,14 @@ export async function fetchDatabaseStaffMembers(): Promise<InternalStaffMember[]
   const localList = getLocalStaffRegistry();
 
   try {
-    const { data, error } = await supabase
+    const client = db();
+    const { data, error } = await client
       .from('profiles')
-      .select('*')
+      .select('id, full_name, email, phone_number, position, role, is_active, created_at')
       .in('role', ['staff', 'admin']);
 
-    if (!error && data && data.length > 0) {
-      const dbMapped: InternalStaffMember[] = data.map((p: any) => ({
+    if (!error && data) {
+      const dbMapped: InternalStaffMember[] = data.map((p) => ({
         id: p.id,
         fullName: p.full_name || 'Personnel Member',
         email: p.email || 'N/A',
@@ -97,19 +93,9 @@ export async function fetchDatabaseStaffMembers(): Promise<InternalStaffMember[]
         createdAt: p.created_at || new Date().toISOString(),
       }));
 
-      // Merge DB profiles with local registry so newly created/default staff always appear
-      const mergedMap = new Map<string, InternalStaffMember>();
-      for (const item of localList) {
-        mergedMap.set(item.email.toLowerCase(), item);
-      }
-      for (const dbItem of dbMapped) {
-        if (dbItem.email && dbItem.email !== 'N/A') {
-          mergedMap.set(dbItem.email.toLowerCase(), dbItem);
-        } else {
-          mergedMap.set(dbItem.id, dbItem);
-        }
-      }
-      return Array.from(mergedMap.values());
+      // The database is the source of truth; refresh the local display cache from it
+      saveLocalStaffRegistry(dbMapped);
+      return dbMapped;
     }
   } catch (err) {
     console.warn('Error fetching staff profiles from database:', err);
@@ -147,7 +133,8 @@ export async function createDatabaseStaffMember({
 
   try {
     // 1. Never turn an existing account (e.g. a customer) into staff
-    const { data: existing } = await supabase
+    const client = db();
+    const { data: existing } = await client
       .from('profiles')
       .select('id, role')
       .eq('email', cleanEmail)
@@ -184,7 +171,7 @@ export async function createDatabaseStaffMember({
     const createdAuthId = authData.user.id;
 
     // 3. Promote the new profile (auto-created as customer by the signup trigger) to staff
-    const { error: profileError } = await supabase.from('profiles').upsert({
+    const { error: profileError } = await client.from('profiles').upsert({
       id: createdAuthId,
       full_name: cleanName,
       email: cleanEmail,
@@ -225,7 +212,7 @@ export async function createDatabaseStaffMember({
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('motocare_staff_updated'));
-      supabase.channel(STAFF_REALTIME_CHANNEL).send({
+      db().channel(STAFF_REALTIME_CHANNEL).send({
         type: 'broadcast',
         event: 'STAFF_SYNC',
         payload: { event: 'created', staffId: newStaff.id },
@@ -264,17 +251,17 @@ export async function updateDatabaseStaffMember({
     );
     saveLocalStaffRegistry(updatedList);
 
-    try {
-      await supabase
-        .from('profiles')
-        .update({
-          full_name: fullName.trim(),
-          phone_number: phone.trim(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-    } catch {
-      // ignore if row only in local registry
+    const client = db();
+    const { error } = await client
+      .from('profiles')
+      .update({
+        full_name: fullName.trim(),
+        phone_number: phone.trim() || 'N/A',
+        position: position.trim(),
+      })
+      .eq('id', id);
+    if (error) {
+      return { success: false, error: error.message };
     }
 
     await recordAuditLog({
@@ -287,7 +274,7 @@ export async function updateDatabaseStaffMember({
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('motocare_staff_updated'));
-      supabase.channel(STAFF_REALTIME_CHANNEL).send({
+      db().channel(STAFF_REALTIME_CHANNEL).send({
         type: 'broadcast',
         event: 'STAFF_SYNC',
         payload: { event: 'updated', staffId: id },
@@ -310,26 +297,34 @@ export async function toggleDatabaseStaffStatus(
   reason?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const currentList = getLocalStaffRegistry();
-    const target = currentList.find((s) => s.id === staffId);
-    const currentStatus = target ? target.isActive !== false : true;
-    const newStatus = !currentStatus;
-
-    const updatedList = currentList.map((s) =>
-      s.id === staffId ? { ...s, isActive: newStatus } : s
-    );
-    saveLocalStaffRegistry(updatedList);
-
-    try {
-      await supabase
-        .from('profiles')
-        .update({
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', staffId);
-    } catch {
-      // ignore if column is_active is not yet migrated in SQL
+    const client = db();
+    const { data: profile, error: readError } = await client
+      .from('profiles')
+      .select('id, full_name, role, is_active')
+      .eq('id', staffId)
+      .maybeSingle();
+    if (readError || !profile) {
+      return { success: false, error: readError?.message || 'Staff account not found in the database.' };
     }
+    if (profile.role === 'admin') {
+      return { success: false, error: 'The Shop Owner (admin) account cannot be deactivated.' };
+    }
+
+    const currentStatus = profile.is_active !== false;
+    const newStatus = !currentStatus;
+    const target = { fullName: profile.full_name as string };
+
+    const { error: updateError } = await client
+      .from('profiles')
+      .update({ is_active: newStatus })
+      .eq('id', staffId);
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    saveLocalStaffRegistry(
+      getLocalStaffRegistry().map((s) => (s.id === staffId ? { ...s, isActive: newStatus } : s))
+    );
 
     // Record Audit Trail
     await recordAuditLog({
@@ -345,7 +340,7 @@ export async function toggleDatabaseStaffStatus(
 
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('motocare_staff_updated'));
-      supabase.channel(STAFF_REALTIME_CHANNEL).send({
+      db().channel(STAFF_REALTIME_CHANNEL).send({
         type: 'broadcast',
         event: 'STAFF_SYNC',
         payload: { event: 'status_toggled', staffId, newStatus },

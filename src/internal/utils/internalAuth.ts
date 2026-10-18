@@ -1,29 +1,11 @@
-import { createClient } from '@supabase/supabase-js';
-import { supabase } from '../../lib/supabase';
+import { workshopSupabase, WORKSHOP_TOKEN_STORAGE_KEY } from '../../lib/supabase';
 
 const INTERNAL_AUTH_KEY = 'motocare_internal_auth_session';
-const INTERNAL_SUPABASE_TOKEN_KEY = 'motocare_internal_tab_auth_token';
+const INTERNAL_SUPABASE_TOKEN_KEY = WORKSHOP_TOKEN_STORAGE_KEY;
 const REMEMBERED_EMAIL_KEY = 'motocare_remembered_internal_email';
 
-const supabaseUrl =
-  import.meta.env.VITE_SUPABASE_URL || 'https://cqkwlyqajtajkvctgdeu.supabase.co';
-const supabaseAnonKey =
-  import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_q09s0Ukkdx0uTDeunRfUGA_BWx4uwNb';
-
-/**
- * Dedicated Tab-Isolated Supabase Auth Client using sessionStorage.
- * Prevents Admin, Staff, and Customer tabs in the same browser from overwriting
- * or logging out each other's sessions.
- */
-const internalTabAuthClient = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    storage: typeof window !== 'undefined' ? window.sessionStorage : undefined,
-    storageKey: INTERNAL_SUPABASE_TOKEN_KEY,
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: false,
-  },
-});
+/** Tab-isolated staff/admin Supabase client (see lib/supabase). */
+const internalTabAuthClient = workshopSupabase;
 
 export interface InternalSession {
   userId: string;
@@ -82,23 +64,7 @@ export function getInternalSession(): InternalSession | null {
       return null;
     }
 
-    if (session) {
-      // Automatic Purge: sanitize any stale 'Kuya Jun' or legacy name
-      if (
-        session.role === 'admin' ||
-        (session.fullName && (session.fullName.toLowerCase().includes('kuya') || session.fullName.toLowerCase().includes('jun')))
-      ) {
-        if (session.role === 'admin') {
-          session.fullName = 'Admin';
-        } else if (session.fullName && (session.fullName.toLowerCase().includes('kuya') || session.fullName.toLowerCase().includes('jun'))) {
-          session.fullName = 'Staff Member';
-        }
-        sessionStorage.setItem(INTERNAL_AUTH_KEY, JSON.stringify(session));
-      }
-      return session;
-    }
-
-    return null;
+    return session;
   } catch {
     return null;
   }
@@ -176,18 +142,14 @@ export async function authenticateInternal(
       });
 
     if (!authError && authData.user) {
-      // Inspect user profile in Supabase profiles table using select('*') to avoid missing-column errors
-      const { data: profile } = await supabase
+      // The role comes only from the profiles table (signup metadata is user-editable)
+      const { data: profile } = await internalTabAuthClient
         .from('profiles')
-        .select('*')
+        .select('full_name, role, position, is_active')
         .eq('id', authData.user.id)
         .maybeSingle();
 
-      const resolvedRole = (
-        profile?.role ||
-        authData.user.user_metadata?.role ||
-        'customer'
-      ).toLowerCase();
+      const resolvedRole = String(profile?.role || 'customer').toLowerCase();
 
       // STRICT ROLE GUARD: Customers are forbidden from the internal workshop floor
       if (resolvedRole !== 'admin' && resolvedRole !== 'staff') {

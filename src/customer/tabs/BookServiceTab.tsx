@@ -42,7 +42,7 @@ import {
   getCompleteMotorcycleCatalog,
   registerNewMotorcycleModel
 } from '../../utils/motorcycleCatalog';
-import { rescheduleServiceTicket } from '../../utils/bookingLifecycle';
+import { rescheduleServiceTicket, isArrivalWindowOver } from '../../utils/bookingLifecycle';
 
 interface BookServiceTabProps {
   userId: string | null;
@@ -319,7 +319,7 @@ export default function BookServiceTab({
     if (!bikeIdOrPlate || !bikeIdOrPlate.trim()) return null;
     const clean = cleanPlate(bikeIdOrPlate);
     return (activeTickets || []).find((ticket) => {
-      if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' || ticket.status === 'MISSED' || ticket.status === 'NO_SHOW') return false;
+      if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' || ticket.status === 'MISSED' || ticket.status === 'NO_SHOW' || ticket.status === 'CANCELLED_BY_ADMIN') return false;
       if (activeReschedule && ticket.id === activeReschedule.id) return false;
       const matchId = ticket.motorcycle_id && ticket.motorcycle_id === bikeIdOrPlate;
       const matchPlate = ticket.motorcycles?.plate_number && cleanPlate(ticket.motorcycles.plate_number) === clean;
@@ -337,7 +337,7 @@ export default function BookServiceTab({
       if (!newBikePlate.trim()) return null;
       return getActiveTicketForBike(newBikePlate);
     }
-  }, [bikeMode, selectedBikeId, motorcycles, newBikePlate, activeTickets]);
+  }, [bikeMode, selectedBikeId, motorcycles, newBikePlate, activeTickets, activeReschedule]);
 
   // Duplicate Check: Same motorcycle cannot be scheduled if it has an active ticket OR already booked on the selected date
   const activeDuplicate = useMemo(() => {
@@ -355,7 +355,7 @@ export default function BookServiceTab({
     const cleanTarget = cleanPlate(targetPlate);
 
     return (activeTickets || []).find((ticket) => {
-      if (ticket.status === 'CANCELLED' || ticket.status === 'COMPLETED' || ticket.status === 'MISSED' || ticket.status === 'NO_SHOW') return false;
+      if (ticket.status === 'CANCELLED' || ticket.status === 'COMPLETED' || ticket.status === 'MISSED' || ticket.status === 'NO_SHOW' || ticket.status === 'CANCELLED_BY_ADMIN') return false;
       if (activeReschedule && ticket.id === activeReschedule.id) return false;
       const ticketPlate = ticket.motorcycles?.plate_number
         ? cleanPlate(ticket.motorcycles.plate_number)
@@ -601,6 +601,10 @@ export default function BookServiceTab({
         setErrorMsg('Please select your preferred arrival time window.');
         return;
       }
+      if (isArrivalWindowOver(dropoffDate, selectedTimeWindow)) {
+        setErrorMsg('This arrival window has already ended today. Please pick a later window or another date.');
+        return;
+      }
       if (activeDuplicate) {
         setErrorMsg(
           `Active booking detected for this motorcycle (Ticket #${activeDuplicate.ticket_code}). Cannot create duplicate reservations.`
@@ -625,6 +629,11 @@ export default function BookServiceTab({
 
     if (isDateFullyBooked) {
       setErrorMsg(`This date (${dropoffDate}) is fully booked. Please select another date.`);
+      return;
+    }
+
+    if (isArrivalWindowOver(dropoffDate, selectedTimeWindow)) {
+      setErrorMsg('This arrival window has already ended today. Please pick a later window or another date.');
       return;
     }
 
@@ -759,24 +768,29 @@ export default function BookServiceTab({
       const pendingTag = '[BOOKING:PENDING_CONFIRMATION]';
       const notesWithTag = combinedNotes ? `${combinedNotes}\n${pendingTag}` : pendingTag;
 
-      const randomCode = `MC-${Math.floor(1000 + Math.random() * 9000)}`;
-
-      const { error: ticketError } = await supabase.from('service_tickets').insert({
-        user_id: userId,
-        motorcycle_id: targetMotorcycleId,
-        ticket_code: randomCode,
-        service_type: serviceType,
-        stage: 1,
-        assigned_bay: null,
-        assigned_mechanic: null,
-        estimated_pickup: 'To be assessed upon arrival',
-        total_estimate: selectedPackage?.estimatedCost || 'Quoted on Inspection',
-        status: 'IN_PROGRESS',
-        dropoff_date: dropoffDate,
-        notes: notesWithTag,
-      });
-
-      if (ticketError) throw ticketError;
+      // ticket_code is UNIQUE: retry with a fresh code on a collision (longer codes after a few tries)
+      let randomCode = '';
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        randomCode = attempt <= 3
+          ? `MC-${Math.floor(1000 + Math.random() * 9000)}`
+          : `MC-${Math.floor(100000 + Math.random() * 900000)}`;
+        const { error: ticketError } = await supabase.from('service_tickets').insert({
+          user_id: userId,
+          motorcycle_id: targetMotorcycleId,
+          ticket_code: randomCode,
+          service_type: serviceType,
+          stage: 1,
+          assigned_bay: null,
+          assigned_mechanic: null,
+          estimated_pickup: 'To be assessed upon arrival',
+          total_estimate: selectedPackage?.estimatedCost || 'Quoted on Inspection',
+          status: 'IN_PROGRESS',
+          dropoff_date: dropoffDate,
+          notes: notesWithTag,
+        });
+        if (!ticketError) break;
+        if (ticketError.code !== '23505' || attempt === 5) throw ticketError;
+      }
 
       // Broadcast real-time new booking to Admin and Staff consoles live
       broadcastTicketSync({ action: 'NEW_BOOKING', ticket_code: randomCode });
@@ -1657,17 +1671,31 @@ export default function BookServiceTab({
                     const isSelected = dropoffDate === dateKey;
                     const isFull = capacity?.status === 'FULL';
                     const isLimited = capacity?.status === 'LIMITED';
-                    const isDisabled = isPast || isFull || Boolean(isSunday);
+                    // Today closes once every arrival window has ended
+                    const isTodayClosed = Boolean(
+                      isToday && dateKey && TIME_WINDOWS.every((w) => isArrivalWindowOver(dateKey, w.id))
+                    );
+                    const isDisabled = isPast || isTodayClosed || isFull || Boolean(isSunday);
 
                     return (
                       <button
                         key={cell.key}
                         type="button"
                         disabled={isDisabled}
-                        title={isSunday ? 'MotoCare is closed on Sundays (Shop rest day)' : undefined}
+                        title={
+                          isSunday
+                            ? 'MotoCare is closed on Sundays (Shop rest day)'
+                            : isTodayClosed
+                            ? 'All arrival windows for today have ended'
+                            : undefined
+                        }
                         onClick={() => {
                           if (!isDisabled && dateKey) {
                             setDropoffDate(dateKey);
+                            if (isArrivalWindowOver(dateKey, selectedTimeWindow)) {
+                              const firstOpen = TIME_WINDOWS.find((w) => !isArrivalWindowOver(dateKey, w.id));
+                              if (firstOpen) setSelectedTimeWindow(firstOpen.id);
+                            }
                             if (errorMsg) setErrorMsg(null);
                           }
                         }}
@@ -1677,7 +1705,7 @@ export default function BookServiceTab({
                             : isDisabled
                             ? isSunday
                               ? 'bg-slate-100/70 border border-slate-200/80 text-slate-400 cursor-not-allowed select-none opacity-80'
-                              : isPast
+                              : isPast || isTodayClosed
                               ? 'bg-slate-50/60 border border-slate-100 text-slate-300 cursor-not-allowed opacity-40 select-none'
                               : 'bg-rose-50/40 border border-rose-200/60 text-rose-800 cursor-not-allowed opacity-80'
                             : isLimited
@@ -1809,16 +1837,19 @@ export default function BookServiceTab({
               >
                 {TIME_WINDOWS.map((w) => {
                   const isSelected = selectedTimeWindow === w.id;
+                  const isOver = Boolean(dropoffDate) && isArrivalWindowOver(dropoffDate, w.id);
                   return (
                     <div
                       key={w.id}
                       onClick={() => {
-                        if (dropoffDate) setSelectedTimeWindow(w.id);
+                        if (dropoffDate && !isOver) setSelectedTimeWindow(w.id);
                       }}
-                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all ${
-                        isSelected && dropoffDate
-                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        isOver
+                          ? 'border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed'
+                          : isSelected && dropoffDate
+                          ? 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20 cursor-pointer'
+                          : 'border-slate-200 hover:border-slate-300 bg-white cursor-pointer'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-1">
@@ -1834,7 +1865,7 @@ export default function BookServiceTab({
                         </div>
                       </div>
                       <p className="text-xs text-orange-600 font-semibold">{w.time}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{w.desc}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{isOver ? 'Closed for today' : w.desc}</p>
                     </div>
                   );
                 })}

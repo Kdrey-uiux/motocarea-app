@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/supabase';
 
 /**
  * MotoCare Customer Review & Post-Service Feedback Utility
@@ -73,7 +73,7 @@ export async function submitTicketReview(
 ): Promise<{ updatedNotes: string }> {
   const updatedNotes = attachTicketReview(ticket.notes || '', review);
 
-  const { error: ticketError } = await supabase
+  const { error: ticketError } = await db()
     .from('service_tickets')
     .update({ notes: updatedNotes })
     .eq('id', ticket.id);
@@ -81,7 +81,7 @@ export async function submitTicketReview(
 
   // The public landing-page copy is secondary: never fail the customer's review because of it.
   // Missed copies can be re-synced from the notes with 09_backfill_customer_reviews.sql.
-  const { error: reviewError } = await supabase.from('customer_reviews').upsert(
+  const { error: reviewError } = await db().from('customer_reviews').upsert(
     {
       ticket_id: ticket.id,
       user_id: ticket.user_id || null,

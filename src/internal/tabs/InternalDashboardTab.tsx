@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, InternalStaffMember, UserRole, InternalTab } from '../types/internal';
@@ -362,7 +362,7 @@ export function WorkshopDashboard({
   // Customer rating: same published numbers the public sees on the landing page
   const [reviewStats, setReviewStats] = useState<{ count: number; avg: string }>({ count: 0, avg: '0.0' });
   useEffect(() => {
-    supabase
+    db()
       .from('customer_review_stats')
       .select('review_count, average_rating')
       .maybeSingle()
@@ -521,7 +521,7 @@ export function WorkshopDashboard({
       try {
         setUpdatingTicketId(ticket.id);
         const nextStage = ticket.stage + 1;
-        const { error } = await supabase
+        const { error } = await db()
           .from('service_tickets')
           .update({ stage: nextStage })
           .eq('id', ticket.id);

@@ -250,28 +250,6 @@ export default function RiderTutorialModal({
     }
   }, [isOpen]);
 
-  // Keyboard navigation (Esc to close, Arrow keys for step navigation)
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleDismiss();
-      } else if (e.key === 'ArrowRight') {
-        if (currentStepIndex < STEPS.length - 1) {
-          setCurrentStepIndex((prev) => prev + 1);
-        }
-      } else if (e.key === 'ArrowLeft') {
-        if (currentStepIndex > 0) {
-          setCurrentStepIndex((prev) => prev - 1);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, currentStepIndex]);
-
-  if (!isOpen) return null;
-
   const currentStep = STEPS[currentStepIndex];
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === STEPS.length - 1;
@@ -316,6 +294,28 @@ export default function RiderTutorialModal({
       onStartBooking();
     }
   };
+
+  // Keyboard navigation (Esc to close, Arrow keys for step navigation)
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleDismiss();
+      } else if (e.key === 'ArrowRight') {
+        if (currentStepIndex < STEPS.length - 1) {
+          setCurrentStepIndex((prev) => prev + 1);
+        }
+      } else if (e.key === 'ArrowLeft') {
+        if (currentStepIndex > 0) {
+          setCurrentStepIndex((prev) => prev - 1);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, currentStepIndex, handleDismiss]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200">

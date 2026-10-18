@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { getCompleteMotorcycleCatalog, OfficialBikeModel } from '../../utils/motorcycleCatalog';
@@ -131,7 +131,7 @@ export default function NewWalkInTicketModal({
         setErrorMessage('The workshop is closed on Sundays. Walk-in tickets cannot be created today.');
         return;
       }
-      const { count: todayCount } = await supabase
+      const { count: todayCount } = await db()
         .from('service_tickets')
         .select('id', { count: 'exact', head: true })
         .eq('dropoff_date', todayStr)
@@ -145,7 +145,7 @@ export default function NewWalkInTicketModal({
 
       // 1. Reuse the motorcycle if this plate is already on file, otherwise register it
       let motorcycleId: string;
-      const { data: existingBike } = await supabase
+      const { data: existingBike } = await db()
         .from('motorcycles')
         .select('id')
         .eq('plate_number', cleanPlate)
@@ -156,10 +156,10 @@ export default function NewWalkInTicketModal({
       if (existingBike) {
         motorcycleId = existingBike.id;
         if (cleanOdometer) {
-          await supabase.from('motorcycles').update({ odometer: `${cleanOdometer} km` }).eq('id', motorcycleId);
+          await db().from('motorcycles').update({ odometer: `${cleanOdometer} km` }).eq('id', motorcycleId);
         }
       } else {
-        const { data: newBike, error: bikeError } = await supabase
+        const { data: newBike, error: bikeError } = await db()
           .from('motorcycles')
           .insert({
             plate_number: cleanPlate,
@@ -190,7 +190,7 @@ export default function NewWalkInTicketModal({
       let ticketCode = '';
       for (let attempt = 1; attempt <= MAX_CODE_ATTEMPTS; attempt++) {
         ticketCode = newWalkInCode();
-        const { error: ticketError } = await supabase.from('service_tickets').insert({
+        const { error: ticketError } = await db().from('service_tickets').insert({
           ticket_code: ticketCode,
           motorcycle_id: motorcycleId,
           service_type: selectedService,

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, UserRole, InternalTab } from '../types/internal';
@@ -354,7 +354,7 @@ export function InternalQueueTab({
         assigned_mechanic: mechName,
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('service_tickets')
         .update(updates)
         .eq('id', assigningMechanicTicket.id)
@@ -399,7 +399,7 @@ export function InternalQueueTab({
         notes: cleanedNotes ? `${cleanedNotes} | ${checkInTag}` : checkInTag,
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('service_tickets')
         .update(updates)
         .eq('id', ticket.id)
@@ -455,7 +455,7 @@ export function InternalQueueTab({
         status: nextStage === 5 ? 'READY_FOR_PICKUP' : 'IN_PROGRESS',
       };
 
-      const { data, error } = await supabase
+      const { data, error } = await db()
         .from('service_tickets')
         .update(updates)
         .eq('id', ticket.id)

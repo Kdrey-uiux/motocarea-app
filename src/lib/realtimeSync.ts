@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { db } from './supabase';
 
 /**
  * Single shared realtime channel used by every screen (Customer, Admin, Staff)
@@ -16,7 +16,7 @@ export const TICKET_SYNC_EVENT = 'TICKET_DISPATCH_SYNC';
 export function broadcastTicketSync(payload: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
   try {
-    supabase
+    db()
       .channel(TICKET_SYNC_CHANNEL)
       .send({ type: 'broadcast', event: TICKET_SYNC_EVENT, payload })
       .catch(() => {});

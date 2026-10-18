@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { InternalTicket } from '../types/internal';
 import { getInternalSession } from '../utils/internalAuth';
 import { 
@@ -92,7 +92,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
   const fetchDatabaseBikes = async () => {
     setLoadingBikes(true);
     try {
-      const { data: bikes } = await supabase
+      const { data: bikes } = await db()
         .from('motorcycles')
         .select('*')
         .order('created_at', { ascending: false });
@@ -101,7 +101,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
         setDbBikes(bikes);
         const uids = Array.from(new Set(bikes.map((b) => b.user_id).filter(Boolean)));
         if (uids.length > 0) {
-          const { data: profs } = await supabase
+          const { data: profs } = await db()
             .from('profiles')
             .select('id, full_name, phone_number')
             .in('id', uids);
@@ -166,7 +166,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
       const cleanPlate = regPlate.trim().toUpperCase();
       const cleanModel = regModel.trim();
 
-      await supabase.from('motorcycles').insert({
+      await db().from('motorcycles').insert({
         plate_number: cleanPlate,
         model: cleanModel,
         year_model: regYear.trim() || '2024',

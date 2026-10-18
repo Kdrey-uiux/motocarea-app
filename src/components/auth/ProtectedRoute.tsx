@@ -47,9 +47,13 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     window.addEventListener('pageshow', handlePageShow);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (isMounted) {
-        setIsAuthenticated(!!session);
+    // Logging out drops access at once; a new or refreshed login is re-verified as a customer
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!isMounted) return;
+      if (!session) {
+        setIsAuthenticated(false);
+      } else if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        checkAuth();
       }
     });
 

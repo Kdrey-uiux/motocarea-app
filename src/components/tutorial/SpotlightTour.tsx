@@ -321,24 +321,6 @@ export default function SpotlightTour({
     };
   }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Keyboard navigation
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleDismiss();
-      } else if (e.key === 'ArrowRight' && !isTransitioning) {
-        handleNext();
-      } else if (e.key === 'ArrowLeft' && !isTransitioning) {
-        handlePrev();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, isTransitioning, currentStepIdx]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (!isOpen) return null;
-
   const handleDismiss = () => {
     try {
       const storageKey = userId ? `motocare_tour_seen_${userId}` : 'motocare_tour_seen_guest';
@@ -365,6 +347,24 @@ export default function SpotlightTour({
       navigateToStep(currentStepIdx - 1);
     }
   };
+
+  // Keyboard navigation
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        handleDismiss();
+      } else if (e.key === 'ArrowRight' && !isTransitioning) {
+        handleNext();
+      } else if (e.key === 'ArrowLeft' && !isTransitioning) {
+        handlePrev();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isTransitioning, currentStepIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!isOpen) return null;
 
   const StepIcon = currentStep.icon;
   const isMobile = viewport.width < 768;

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/supabase';
 import { 
   InternalTab, 
   InternalTicket, 
@@ -8,7 +8,7 @@ import {
   InternalStaffMember, 
   NotificationAlert 
 } from './types/internal';
-import { getInternalSession, clearInternalSession, getInternalAuthedClient } from './utils/internalAuth';
+import { getInternalSession, clearInternalSession } from './utils/internalAuth';
 import { canAccessTab } from './utils/permissions';
 import { INTERNAL_TAB_TITLES } from './utils/tabTitles';
 import { fetchDatabaseStaffMembers } from './utils/databaseStaffManager';
@@ -29,7 +29,7 @@ import OfficialReceiptPrintModal from './modals/OfficialReceiptPrintModal';
 import JobOrderPrintModal from './modals/JobOrderPrintModal';
 import HardcopyRequestsModal from './modals/HardcopyRequestsModal';
 import InternalReviewsTab from './tabs/InternalReviewsTab';
-import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
+import { HardcopyRequest, fetchHardcopyRequests, HARDCOPY_BROADCAST_CHANNEL } from '../lib/hardcopyService';
 
 // Tabs
 import InternalActionCenterTab from './tabs/InternalActionCenterTab';
@@ -49,58 +49,29 @@ export default function InternalConsole() {
   const session = getInternalSession();
   const currentRole: UserRole = session?.role || 'staff';
 
-  const sanitizeName = (rawName?: string | null, role: UserRole = 'staff') => {
-    if (role === 'admin') return 'Admin';
-    if (!rawName) return 'Staff Member';
-    const trimmed = rawName.trim();
-    if (trimmed.toLowerCase().includes('kuya') || trimmed.toLowerCase().includes('jun') || trimmed.toLowerCase() === 'shop owner') {
-      return 'Staff Member';
-    }
-    return trimmed;
-  };
+  const displayName = (rawName?: string | null) =>
+    rawName?.trim() || (currentRole === 'admin' ? 'Shop Owner' : 'Staff Member');
 
-  const initialName = useMemo(() => {
-    return sanitizeName(session?.fullName, currentRole);
-  }, [session, currentRole]);
+  const [currentUserName, setCurrentUserName] = useState<string>(() => displayName(session?.fullName));
 
-  const [currentUserName, setCurrentUserName] = useState<string>(initialName);
-
-  // Fetch live dynamic user profile from Supabase profiles table
+  // Keep the shown name in sync with the live profile (e.g. after the admin renames a staff member)
+  const sessionUserId = session?.userId;
   useEffect(() => {
-    if (!session?.userId) return;
+    if (!sessionUserId) return;
 
     let isMounted = true;
-    const fetchLiveProfile = async () => {
-      try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, role')
-          .eq('id', session.userId)
-          .maybeSingle();
-
-        if (profile && isMounted) {
-          const cleanName = sanitizeName(profile.full_name, currentRole);
-          setCurrentUserName(cleanName);
-
-          // Proactively heal Supabase profile if it still contains 'Kuya' or 'Jun'
-          if (profile.full_name && (profile.full_name.toLowerCase().includes('kuya') || profile.full_name.toLowerCase().includes('jun'))) {
-            supabase
-              .from('profiles')
-              .update({ full_name: cleanName })
-              .eq('id', session.userId)
-              .then(() => {});
-          }
-        }
-      } catch (err) {
-        console.warn('Could not fetch live staff profile:', err);
-      }
-    };
-
-    fetchLiveProfile();
+    db()
+      .from('profiles')
+      .select('full_name')
+      .eq('id', sessionUserId)
+      .maybeSingle()
+      .then(({ data: profile }) => {
+        if (profile?.full_name && isMounted) setCurrentUserName(profile.full_name.trim());
+      });
     return () => {
       isMounted = false;
     };
-  }, [session?.userId, currentRole]);
+  }, [sessionUserId]);
 
   const [activeTab, setActiveTab] = useState<InternalTab>('actions');
   // One-shot focus targets used when the Action Center deep-links into another tab
@@ -165,38 +136,36 @@ export default function InternalConsole() {
     return () => window.removeEventListener('pageshow', handlePageShow);
   }, []);
 
-  // 1. Session Guard & Resilient Wi-Fi Heartbeat
+  // 1. Session Guard & heartbeat: sign out at once if the owner deactivates this account
   useEffect(() => {
-    if (!session || session.isActive === false) {
+    if (!sessionUserId) {
       window.location.replace('/internal/login');
       return;
     }
 
-    // Check reactive status every 15s in Supabase database
     const checkDeactivated = async () => {
       try {
-        if (session.userId && !session.userId.startsWith('seed-')) {
-          const { data: prof, error } = await supabase
-            .from('profiles')
-            .select('is_active, role')
-            .eq('id', session.userId)
-            .maybeSingle();
+        const { data: prof, error } = await db()
+          .from('profiles')
+          .select('is_active, role')
+          .eq('id', sessionUserId)
+          .maybeSingle();
 
-          // Resilient Wi-Fi check: DO NOT logout if simple network drop or offline error
-          if (!error && prof && (prof.is_active === false || prof.role === 'customer')) {
-            clearInternalSession();
-            alert('Session Terminated: Your account has been suspended or deactivated by the Shop Owner.');
-            window.location.replace('/internal/login');
-          }
+        // A network drop (error) never logs anyone out
+        if (!error && prof && (prof.is_active === false || prof.role === 'customer')) {
+          clearInternalSession();
+          alert('Session Terminated: Your account has been suspended or deactivated by the Shop Owner.');
+          window.location.replace('/internal/login');
         }
       } catch {
         // Network drop or temporary timeout - do NOT logout
       }
     };
 
+    checkDeactivated();
     const interval = setInterval(checkDeactivated, 15000);
     return () => clearInterval(interval);
-  }, [session]);
+  }, [sessionUserId]);
 
   // Tab Guard: If Staff tries to access admin-only tab, redirect to queue
   useEffect(() => {
@@ -223,7 +192,7 @@ export default function InternalConsole() {
       runMissedBookingScanInBackground();
 
       // Query only columns verified to exist in public.service_tickets
-      const { data: ticketData, error } = await supabase
+      const { data: ticketData, error } = await db()
         .from('service_tickets')
         .select(`
           id,
@@ -277,9 +246,7 @@ export default function InternalConsole() {
 
       if (userIds.length > 0) {
         try {
-          const authedClient = await getInternalAuthedClient();
-          const clientToUse = authedClient || supabase;
-          const { data: profs } = await clientToUse
+          const { data: profs } = await db()
             .from('profiles')
             .select('id, full_name, phone_number')
             .in('id', userIds);
@@ -343,7 +310,8 @@ export default function InternalConsole() {
     }, 400);
 
     // Realtime channel subscriptions
-    const ticketChannel = supabase
+    const realtimeClient = db();
+    const ticketChannel = realtimeClient
       .channel('internal_tickets_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'service_tickets' }, (payload) => {
         debouncedTicketRefresh();
@@ -365,14 +333,14 @@ export default function InternalConsole() {
       })
       .subscribe();
 
-    const dispatchBroadcast = supabase
+    const dispatchBroadcast = realtimeClient
       .channel(TICKET_SYNC_CHANNEL)
       .on('broadcast', { event: TICKET_SYNC_EVENT }, () => {
         debouncedTicketRefresh();
       })
       .subscribe();
 
-    const messageChannel = supabase
+    const messageChannel = realtimeClient
       .channel('internal_messages_notif')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         if (payload.new?.sender_role === 'customer') {
@@ -391,8 +359,8 @@ export default function InternalConsole() {
       })
       .subscribe();
 
-    const hardcopyChannel = supabase
-      .channel('internal_hardcopy_realtime')
+    const hardcopyChannel = realtimeClient
+      .channel(HARDCOPY_BROADCAST_CHANNEL)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         loadHardcopies();
       })
@@ -426,10 +394,10 @@ export default function InternalConsole() {
 
     return () => {
       debouncedTicketRefresh.cancel();
-      supabase.removeChannel(ticketChannel);
-      supabase.removeChannel(dispatchBroadcast);
-      supabase.removeChannel(messageChannel);
-      supabase.removeChannel(hardcopyChannel);
+      realtimeClient.removeChannel(ticketChannel);
+      realtimeClient.removeChannel(dispatchBroadcast);
+      realtimeClient.removeChannel(messageChannel);
+      realtimeClient.removeChannel(hardcopyChannel);
       clearInterval(pollInterval);
     };
   }, [fetchTickets, loadStaff, loadHardcopies]);

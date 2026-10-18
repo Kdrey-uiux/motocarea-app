@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { db } from '../lib/supabase';
 import { broadcastTicketSync } from '../lib/realtimeSync';
 
 export interface TimeSlotConfig {
@@ -30,6 +30,18 @@ export function parseTimeSlotFromNotes(notes?: string): TimeSlotConfig | null {
 }
 
 /**
+ * True when the arrival window on the given YYYY-MM-DD date has already ended
+ * (only possible for today), so it can no longer be booked.
+ */
+export function isArrivalWindowOver(dateKey: string, windowId: string, now: Date = new Date()): boolean {
+  const slot = TIME_SLOTS.find((s) => s.id === windowId);
+  const parts = dateKey.split('-').map((p) => parseInt(p, 10));
+  if (!slot || parts.length !== 3 || parts.some(isNaN)) return false;
+  const windowEnd = new Date(parts[0], parts[1] - 1, parts[2], slot.endHour, slot.endMinute, 0);
+  return now >= windowEnd;
+}
+
+/**
  * Evaluates whether a booking has exceeded its drop-off window without technician intake
  */
 export function isBookingExpiredOrMissed(ticket: {
@@ -44,7 +56,7 @@ export function isBookingExpiredOrMissed(ticket: {
   if (ticket.status === 'MISSED' || ticket.status === 'NO_SHOW') return true;
 
   // Completed, cancelled, or stage > 1 (already inspected/serviced by mechanic) cannot be missed
-  if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED') return false;
+  if (ticket.status === 'COMPLETED' || ticket.status === 'CANCELLED' || ticket.status === 'CANCELLED_BY_ADMIN') return false;
   if (ticket.stage > 1) return false;
   if (!ticket.dropoff_date) return false;
 
@@ -101,7 +113,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
   expiredTickets: Array<{ id: string; ticket_code: string; user_id?: string }>;
 }> {
   try {
-    const { data: tickets, error } = await supabase
+    const { data: tickets, error } = await db()
       .from('service_tickets')
       .select('id, ticket_code, user_id, dropoff_date, notes, stage, status, service_type, is_walk_in, assigned_bay, motorcycles(model, plate_number)')
       .eq('stage', 1)
@@ -125,7 +137,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
         ? currentNotes
         : `${currentNotes} | [MISSED_EXPIRATION: Drop-off window ended without check-in. Slot released.]`.trim();
 
-      const { error: updateError } = await supabase
+      const { error: updateError } = await db()
         .from('service_tickets')
         .update({
           status: 'MISSED',
@@ -157,7 +169,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
           };
 
           try {
-            await supabase.from('messages').insert({
+            await db().from('messages').insert({
               user_id: ticket.user_id,
               sender_role: 'admin',
               message: `[MISSED_BOOKING_NOTICE] ${JSON.stringify(notificationPayload)}`,
@@ -207,8 +219,10 @@ export function runMissedBookingScanInBackground(force = false): void {
  */
 export async function checkAndSendBookingReminders(userId: string): Promise<void> {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const { data: todayBookings } = await supabase
+    // Local calendar date (toISOString is UTC, which is still "yesterday" before 8 AM in PH)
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const { data: todayBookings } = await db()
       .from('service_tickets')
       .select('id, ticket_code, user_id, dropoff_date, notes, stage, status, service_type, motorcycles(model, plate_number)')
       .eq('user_id', userId)
@@ -226,15 +240,16 @@ export async function checkAndSendBookingReminders(userId: string): Promise<void
       const plateNum = bikeRec?.plate_number || 'N/A';
 
       // Verify if reminder was already delivered today
-      const { data: existingMsg } = await supabase
+      const { data: existingMsgs, error: lookupError } = await db()
         .from('messages')
         .select('id')
         .eq('user_id', userId)
         .like('message', `%${b.ticket_code}%`)
         .like('message', '%[BOOKING_REMINDER]%')
-        .maybeSingle();
+        .like('message', `%${todayStr}%`)
+        .limit(1);
 
-      if (!existingMsg) {
+      if (!lookupError && (!existingMsgs || existingMsgs.length === 0)) {
         const reminderPayload = {
           type: 'BOOKING_REMINDER',
           ticketCode: b.ticket_code,
@@ -245,7 +260,7 @@ export async function checkAndSendBookingReminders(userId: string): Promise<void
           message: `Reminder from MotoCare: Your ${bikeModel} (${plateNum}) is scheduled for drop-off today during the ${slotLabel}. Please bring it to the MotoCare reception desk.`,
         };
 
-        await supabase.from('messages').insert({
+        await db().from('messages').insert({
           user_id: userId,
           sender_role: 'admin',
           message: `[BOOKING_REMINDER] ${JSON.stringify(reminderPayload)}`,
@@ -276,7 +291,7 @@ export async function rescheduleServiceTicket({
   userId?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: currentTicket, error: fetchError } = await supabase
+    const { data: currentTicket, error: fetchError } = await db()
       .from('service_tickets')
       .select('notes, user_id')
       .eq('id', ticketId)
@@ -304,7 +319,7 @@ export async function rescheduleServiceTicket({
     const timestampStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     updatedNotes = `${updatedNotes} | [Rescheduled to ${newDropoffDate} on ${timestampStr}]`;
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await db()
       .from('service_tickets')
       .update({
         dropoff_date: newDropoffDate,
@@ -328,7 +343,7 @@ export async function rescheduleServiceTicket({
         message: `Your appointment #${ticketCode} has been rescheduled to ${newDropoffDate} (${newTimeWindow}). The MotoCare reception desk is ready for your arrival.`,
       };
       try {
-        await supabase.from('messages').insert({
+        await db().from('messages').insert({
           user_id: targetUserId,
           sender_role: 'admin',
           message: `[RESCHEDULE_CONFIRMED] ${JSON.stringify(confirmPayload)}`,
@@ -354,7 +369,7 @@ export async function adminLateCheckInOverride(
   actorName: string = 'Service Advisor'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const { data: ticket, error: fetchErr } = await supabase
+    const { data: ticket, error: fetchErr } = await db()
       .from('service_tickets')
       .select('id, ticket_code, notes, stage, status')
       .eq('id', ticketId)
@@ -364,7 +379,7 @@ export async function adminLateCheckInOverride(
 
     const updatedNotes = `${ticket.notes || ''} | [LATE_CHECKIN_OVERRIDE: Approved by ${actorName} at ${new Date().toLocaleTimeString()}]`.trim();
 
-    const { data: updatedRows, error: updateErr } = await supabase
+    const { data: updatedRows, error: updateErr } = await db()
       .from('service_tickets')
       .update({
         stage: 1,
@@ -394,7 +409,7 @@ export async function adminExtendGracePeriod(
   actorName: string = 'Service Advisor'
 ): Promise<boolean> {
   try {
-    const { data: ticket } = await supabase
+    const { data: ticket } = await db()
       .from('service_tickets')
       .select('id, ticket_code, notes')
       .eq('id', ticketId)
@@ -404,7 +419,7 @@ export async function adminExtendGracePeriod(
 
     const updatedNotes = `${ticket.notes || ''} | [GRACE_EXTENDED: +${extraHours}h by ${actorName}]`.trim();
 
-    await supabase
+    await db()
       .from('service_tickets')
       .update({
         notes: updatedNotes,

@@ -1,5 +1,5 @@
 import { AuditLogEntry } from '../types/internal';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 
 const AUDIT_STORAGE_KEY = 'motocare_internal_audit_logs';
 const AUDIT_REALTIME_CHANNEL = 'motocare_audit_realtime';
@@ -7,7 +7,7 @@ const AUDIT_REALTIME_CHANNEL = 'motocare_audit_realtime';
 // Setup Supabase Realtime channel listener for cross-device audit sync
 if (typeof window !== 'undefined') {
   try {
-    supabase
+    db()
       .channel(AUDIT_REALTIME_CHANNEL)
       .on('broadcast', { event: 'AUDIT_LOG_ENTRY' }, (payload) => {
         if (payload.payload && payload.payload.log) {
@@ -45,7 +45,7 @@ function getLocalAuditLogs(): AuditLogEntry[] {
 export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
   try {
     // Try fetching from Supabase database table `audit_logs` first
-    const { data, error } = await supabase
+    const { data, error } = await db()
       .from('audit_logs')
       .select('*')
       .order('timestamp', { ascending: false })
@@ -93,7 +93,7 @@ export async function recordAuditLog(entry: {
 
   // 1. Try persisting to Supabase `audit_logs` database table
   try {
-    await supabase.from('audit_logs').insert({
+    await db().from('audit_logs').insert({
       id: newLog.id,
       timestamp: newLog.timestamp,
       ticket_code: newLog.ticketCode,
@@ -120,7 +120,7 @@ export async function recordAuditLog(entry: {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('motocare_audit_updated'));
     try {
-      supabase.channel(AUDIT_REALTIME_CHANNEL).send({
+      db().channel(AUDIT_REALTIME_CHANNEL).send({
         type: 'broadcast',
         event: 'AUDIT_LOG_ENTRY',
         payload: { log: newLog },

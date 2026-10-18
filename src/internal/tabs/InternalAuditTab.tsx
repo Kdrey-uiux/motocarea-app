@@ -32,6 +32,10 @@ export default function InternalAuditTab({ currentRole }: InternalAuditTabProps)
     );
   }
 
+  return <AuditTrail />;
+}
+
+function AuditTrail() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

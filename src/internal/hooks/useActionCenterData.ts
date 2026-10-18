@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { db } from '../../lib/supabase';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { HardcopyRequest } from '../../lib/hardcopyService';
 import { isPendingOnlineBooking } from '../utils/ticketActions';
@@ -78,7 +78,7 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
 
   // Customers whose latest real chat message is theirs (no reply from the shop yet)
   const loadWaitingChats = useCallback(() => {
-    supabase
+    db()
       .from('messages')
       .select('user_id, sender_role, message, created_at')
       .order('created_at', { ascending: false })
@@ -95,7 +95,7 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
         const missingNames = waiting.map((m) => m.user_id).filter((id) => !ticketByUser.get(id)?.customer_name);
         const names = new Map<string, string>();
         if (missingNames.length > 0) {
-          const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', missingNames);
+          const { data: profs } = await db().from('profiles').select('id, full_name').in('id', missingNames);
           profs?.forEach((p) => names.set(p.id, p.full_name));
         }
 
@@ -120,7 +120,9 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
     loadWaitingChats();
     reloadReviews();
 
-    const channel = supabase
+    const realtimeClient = db();
+
+    const channel = realtimeClient
       .channel('action_center_messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => loadWaitingChats())
       .subscribe();
@@ -130,7 +132,7 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
     }, 30000);
 
     return () => {
-      supabase.removeChannel(channel);
+      realtimeClient.removeChannel(channel);
       clearInterval(poll);
     };
   }, [loadWaitingChats, reloadReviews]);
