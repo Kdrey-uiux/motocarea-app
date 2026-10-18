@@ -219,7 +219,7 @@ export default function InternalBaysTab({
               <div className="space-y-3">
                 {/* Bay Header */}
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     <div
                       className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
                         isMaintenance

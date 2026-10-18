@@ -425,6 +425,8 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
                 </button>
               </div>
 
+              {/* The shop owner (admin) account can't be deactivated */}
+              {staff.role !== 'admin' && (
               <button
                 type="button"
                 onClick={() => setStatusTarget(staff)}
@@ -446,6 +448,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
                   </>
                 )}
               </button>
+              )}
             </div>
           </div>
         ))}

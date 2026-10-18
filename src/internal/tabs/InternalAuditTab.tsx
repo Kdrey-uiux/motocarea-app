@@ -148,7 +148,7 @@ function AuditTrail() {
   return (
     <div className="space-y-6">
       {/* Header and Controls */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-end gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-2 px-1">
 
         <div className="flex items-center gap-2">
           <button

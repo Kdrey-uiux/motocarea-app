@@ -330,8 +330,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
   return (
     <div className="space-y-6">
       {/* Top Banner & Sub-Tab Switcher */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-end gap-4">
-
+      <div className="flex flex-wrap items-center justify-end gap-2 px-1">
         {/* Sub-tab Navigation */}
         <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200/80 self-start md:self-auto">
           <button

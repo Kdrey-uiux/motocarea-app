@@ -394,7 +394,11 @@ export function InternalQueueTab({
   const handleCheckInMotorcycle = async (ticket: InternalTicket) => {
     setUpdatingId(ticket.id);
     try {
-      const cleanedNotes = (ticket.notes || '').replace('[BOOKING:PENDING_DROPOFF]', '').trim();
+      // Replace (not stack) any earlier check-in marker if staff check the unit in again
+      const cleanedNotes = (ticket.notes || '')
+        .replace('[BOOKING:PENDING_DROPOFF]', '')
+        .replace(/\s*\|?\s*\[CHECKED_IN:[^\]]*\]/g, '')
+        .trim();
       // Arrival marker so the missed-booking scan never expires a motorcycle that is already at the shop
       const checkInTag = `[CHECKED_IN: by ${currentStaffName} at ${new Date().toLocaleTimeString()}]`;
       const updates = {

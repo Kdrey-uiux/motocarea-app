@@ -299,6 +299,12 @@ export default function InternalConsole() {
       .catch(() => {});
   }, []);
 
+  // Staff added/changed on the Team page also refresh the dashboard's staff list
+  useEffect(() => {
+    window.addEventListener('motocare_staff_updated', loadStaff);
+    return () => window.removeEventListener('motocare_staff_updated', loadStaff);
+  }, [loadStaff]);
+
   useEffect(() => {
     loadTickets();
     loadStaff();

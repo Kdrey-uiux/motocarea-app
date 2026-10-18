@@ -171,7 +171,7 @@ export default function InternalSidebar({
     .filter((group) => group.items.length > 0);
 
   const userInitial =
-    currentRole === 'admin' ? 'A' : currentUserName ? currentUserName.trim().charAt(0).toUpperCase() : 'S';
+    currentUserName ? currentUserName.trim().charAt(0).toUpperCase() : currentRole === 'admin' ? 'A' : 'S';
   const roleLabel = currentRole === 'admin' ? 'Workshop Owner' : 'Staff Member';
 
   const renderNav = (onSelect: (tab: InternalTab) => void) => (

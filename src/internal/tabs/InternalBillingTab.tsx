@@ -86,7 +86,7 @@ export default function InternalBillingTab({
   return (
     <div className="space-y-6">
       {/* 1. Header Banner */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-end gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-2 px-1">
 
         <div className="flex items-center gap-2">
           <span className="px-3 py-1.5 rounded-full bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold flex items-center gap-1.5">

@@ -13,6 +13,7 @@ const STAFF_STORAGE_KEY = 'motocare_internal_staff_registry';
 const staffProvisioningClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     persistSession: false,
+    storageKey: 'motocare_staff_provisioning',
     autoRefreshToken: false,
     detectSessionInUrl: false,
   },
@@ -87,7 +88,13 @@ export async function fetchDatabaseStaffMembers(): Promise<InternalStaffMember[]
         fullName: p.full_name || 'Personnel Member',
         email: p.email || 'N/A',
         phone: p.phone_number || 'N/A',
-        position: p.position || (p.role === 'admin' ? 'Shop Owner' : 'Service Advisor'),
+        // New profiles start with position "Customer"; never show that for a staff/admin account
+        position:
+          p.position && p.position !== 'Customer'
+            ? p.position
+            : p.role === 'admin'
+            ? 'Shop Owner'
+            : 'Service Advisor',
         role: p.role === 'admin' ? 'admin' : 'staff',
         isActive: p.is_active !== false,
         createdAt: p.created_at || new Date().toISOString(),

@@ -78,7 +78,7 @@ export default function InternalHeader({
     onLogout();
   };
 
-  const userInitial = currentRole === 'admin' ? 'A' : (currentUserName ? currentUserName.trim().charAt(0).toUpperCase() : 'S');
+  const userInitial = currentUserName ? currentUserName.trim().charAt(0).toUpperCase() : currentRole === 'admin' ? 'A' : 'S';
 
   return (
     <>
@@ -231,7 +231,7 @@ export default function InternalHeader({
                 </div>
                 <div className="hidden sm:block text-left">
                   <span className="text-xs font-semibold text-slate-800 max-w-[110px] truncate block leading-tight">
-                    {currentRole === 'admin' ? 'Admin' : currentUserName.split(' ')[0]}
+                    {currentUserName.split(' ')[0]}
                   </span>
                   <span className={`text-[9px] font-bold uppercase tracking-wider block ${
                     currentRole === 'admin' ? 'text-orange-600' : 'text-blue-600'
@@ -255,7 +255,7 @@ export default function InternalHeader({
                     </div>
                     <div className="truncate">
                       <div className="text-xs font-bold text-slate-900 truncate">
-                        {currentRole === 'admin' ? 'Admin' : currentUserName}
+                        {currentUserName}
                       </div>
                       <div className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
                         {currentRole === 'admin' ? 'Workshop Administrator' : 'Service Staff'}

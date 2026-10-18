@@ -607,7 +607,7 @@ export function WorkshopDashboard({
             >
               <Calendar className="w-3.5 h-3.5 text-blue-600" />
               <span className="text-[11px] font-semibold text-blue-700">Scheduled:</span>
-              <span>{scheduledTodayCount} / {todayCapacityLimit} Slots</span>
+              <span>{todayCapacityLimit === 0 ? 'Closed today' : `${scheduledTodayCount} / ${todayCapacityLimit} Slots`}</span>
             </div>
 
             <button

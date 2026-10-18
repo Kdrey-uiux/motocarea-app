@@ -239,7 +239,7 @@ export default function InternalMessagesTab({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-end gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-2 px-1">
 
         <button
           type="button"
@@ -397,7 +397,7 @@ export default function InternalMessagesTab({
                         </p>
                       </div>
                       <span className="text-[10px] text-slate-400 mt-1 px-1">
-                        {isStaff ? 'Workshop Staff' : currentConvo.customerName} •{' '}
+                        {isStaff ? msg.sender_name || 'Workshop Staff' : currentConvo.customerName} •{' '}
                         {new Date(msg.created_at).toLocaleTimeString([], {
                           hour: '2-digit',
                           minute: '2-digit',
