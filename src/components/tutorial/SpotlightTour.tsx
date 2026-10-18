@@ -24,7 +24,7 @@ export interface TourStep {
   tip: { en: string; tl: string };
 }
 
-export const TOUR_STEPS: TourStep[] = [
+const TOUR_STEPS: TourStep[] = [
   {
     id: 1,
     targetSelector: '#tour-nav-tabs',

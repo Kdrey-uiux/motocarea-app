@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
+import { isAwaitingArrival } from '../utils/ticketActions';
+import { toast } from '../utils/toast';
+import { useNow } from '../hooks/useNow';
 import { InternalTicket, InternalStaffMember, UserRole, InternalTab } from '../types/internal';
 import { 
   Plus, 
@@ -21,6 +24,7 @@ import {
   getDailyCapacityLimit
 } from '../../utils/workshopCapacity';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
+import { normalizeBayNumber } from '../utils/bays';
 
 // ============================================================================
 // TypeScript Interfaces (Strict Mode)
@@ -37,16 +41,6 @@ export interface DashboardKPIs {
 }
 
 const BAY_MAINTENANCE_KEY = 'motocare_bay_maintenance_flags';
-
-export function normalizeBayNumber(bayStr?: string | null): number | null {
-  if (!bayStr) return null;
-  const match = bayStr.match(/(?:bay|lift|#)?[\s-]*0?(\d+)/i);
-  if (match && match[1]) {
-    const num = parseInt(match[1], 10);
-    return isNaN(num) ? null : num;
-  }
-  return null;
-}
 
 const OFFICIAL_BAYS = [
   { id: 'bay-1', searchKey: 'bay 01', bayNumber: 1, name: 'Bay 01', title: 'Quick Service & Oil Express' },
@@ -108,18 +102,43 @@ export interface WorkshopDashboardProps {
   currentUserName?: string;
 }
 
+/** Does a date fall inside the selected dashboard period (Today / Yesterday / This Week)? */
+function matchesPeriod(dateStr: string | null | undefined, period: DatePeriod): boolean {
+  if (!dateStr) return false;
+  const ticketDate = new Date(dateStr);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (period === 'TODAY') {
+    return ticketDate >= today;
+  }
+  if (period === 'YESTERDAY') {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    return ticketDate >= yesterday && ticketDate < today;
+  }
+  if (period === 'THIS_WEEK') {
+    const startOfWeek = new Date(today);
+    const day = startOfWeek.getDay() || 7;
+    startOfWeek.setDate(startOfWeek.getDate() - day + 1);
+    return ticketDate >= startOfWeek;
+  }
+  return true;
+}
+
 export function WorkshopDashboard({
   tickets = [],
   staffList = [],
   loading: _loading,
   onRefresh,
-  onOpenDispatch: _onOpenDispatch,
+  onOpenDispatch,
   onOpenStage5Billing,
   setActiveTab,
   currentRole: _currentRole,
   currentUserName = 'Admin',
 }: WorkshopDashboardProps) {
   const navigate = useNavigate();
+  const now = useNow();
   const [selectedPeriod, setSelectedPeriod] = useState<DatePeriod>('TODAY');
   const [volumeView, setVolumeView] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
@@ -131,16 +150,9 @@ export function WorkshopDashboard({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const [capacityVersion, setCapacityVersion] = useState(0);
-  useEffect(() => {
-    const handleCapChange = () => setCapacityVersion((v) => v + 1);
-    window.addEventListener('motocare_capacity_updated', handleCapChange);
-    return () => window.removeEventListener('motocare_capacity_updated', handleCapChange);
-  }, []);
-
   const todayCapacityLimit = useMemo(() => {
     return getDailyCapacityLimit(todayDateStr);
-  }, [todayDateStr, capacityVersion]);
+  }, [todayDateStr]);
 
   // Dynamic Workshop Bay Maintenance Sync
   const [maintenanceBays, setMaintenanceBays] = useState<Record<string, boolean>>(() => {
@@ -181,29 +193,6 @@ export function WorkshopDashboard({
     );
   };
 
-  // Helper: check if date matches selected period
-  const matchesPeriod = (dateStr?: string | null, period: DatePeriod = selectedPeriod) => {
-    if (!dateStr) return false;
-    const ticketDate = new Date(dateStr);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (period === 'TODAY') {
-      return ticketDate >= today;
-    }
-    if (period === 'YESTERDAY') {
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-      return ticketDate >= yesterday && ticketDate < today;
-    }
-    if (period === 'THIS_WEEK') {
-      const startOfWeek = new Date(today);
-      const day = startOfWeek.getDay() || 7;
-      startOfWeek.setDate(startOfWeek.getDate() - day + 1);
-      return ticketDate >= startOfWeek;
-    }
-    return true;
-  };
 
   // Safe navigation helper (supports internal tab switching or router navigation)
   const handleNavigate = (pathOrTab: InternalTab | string) => {
@@ -215,6 +204,7 @@ export function WorkshopDashboard({
   };
 
   // 1. Live Active Floor Tickets
+  // Motorcycles physically in the shop (bookings that haven't arrived yet are left out)
   const activeFloorTickets = useMemo(() => {
     return tickets.filter(
       (t) =>
@@ -222,7 +212,8 @@ export function WorkshopDashboard({
         t.status !== 'CANCELLED' &&
         t.status !== 'CANCELLED_BY_ADMIN' &&
         t.status !== 'MISSED' &&
-        t.status !== 'NO_SHOW'
+        t.status !== 'NO_SHOW' &&
+        !isAwaitingArrival(t)
     );
   }, [tickets]);
 
@@ -377,7 +368,7 @@ export function WorkshopDashboard({
   // 6. Elapsed Time Helper
   const getElapsedTimeBadge = (createdStr?: string) => {
     if (!createdStr) return '15m';
-    const diffMs = Date.now() - new Date(createdStr).getTime();
+    const diffMs = now - new Date(createdStr).getTime();
     const diffMins = Math.max(1, Math.floor(diffMs / 60000));
     if (diffMins < 60) return `${diffMins}m elapsed`;
     const hours = Math.floor(diffMins / 60);
@@ -507,8 +498,9 @@ export function WorkshopDashboard({
   }, [staffList, activeFloorTickets, tickets]);
 
   // Quick Advance Action
+  // Stage 1 → pick a bay first; 2-3 → next stage; 4 → ready for pickup; 5 → release at the counter
   const handleQuickAdvance = async (ticket: InternalTicket) => {
-    if (ticket.stage === 4) {
+    if (ticket.stage >= 5) {
       if (onOpenStage5Billing) {
         onOpenStage5Billing(ticket);
       } else {
@@ -517,19 +509,27 @@ export function WorkshopDashboard({
       return;
     }
 
-    if (ticket.stage < 4) {
+    if (ticket.stage === 1 || !ticket.assigned_bay) {
+      onOpenDispatch?.(ticket);
+      return;
+    }
+
+    {
       try {
         setUpdatingTicketId(ticket.id);
         const nextStage = ticket.stage + 1;
-        const { error } = await db()
+        const updates = { stage: nextStage, status: nextStage === 5 ? 'READY_FOR_PICKUP' : 'IN_PROGRESS' };
+        const { data: savedRows, error } = await db()
           .from('service_tickets')
-          .update({ stage: nextStage })
-          .eq('id', ticket.id);
+          .update(updates)
+          .eq('id', ticket.id)
+          .select('id');
 
         if (error) throw error;
+        if (!savedRows || savedRows.length === 0) throw new Error('The stage change was not saved.');
 
         // Realtime cross-device broadcast
-        broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, stage: nextStage });
+        broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
 
         await recordAuditLog({
           ticketCode: ticket.ticket_code,
@@ -543,6 +543,7 @@ export function WorkshopDashboard({
         if (onRefresh) onRefresh();
       } catch (err) {
         console.error('Failed to advance stage:', err);
+        toast.error(err instanceof Error ? err.message : 'Failed to advance stage.');
       } finally {
         setUpdatingTicketId(null);
       }
@@ -937,7 +938,7 @@ export function WorkshopDashboard({
               </div>
               <p className="text-xs font-bold text-slate-700">No active repairs on floor</p>
               <p className="text-[11px] text-slate-400 max-w-sm">
-                All 4 hydraulic bays are clear and ready for walk-in or scheduled motorcycle intake.
+                All workshop bays are clear and ready for walk-in or scheduled motorcycle intake.
               </p>
               <button
                 type="button"
@@ -1029,7 +1030,15 @@ export function WorkshopDashboard({
                         onClick={() => handleQuickAdvance(t)}
                         className="px-3.5 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 shrink-0"
                       >
-                        <span>{t.stage === 4 ? 'Release ➔' : 'Advance ➔'}</span>
+                        <span>
+                          {t.stage >= 5
+                            ? 'Release ➔'
+                            : t.stage === 1 || !t.assigned_bay
+                            ? 'Assign Bay ➔'
+                            : t.stage === 4
+                            ? 'Mark Ready ➔'
+                            : 'Advance ➔'}
+                        </span>
                       </button>
                     </div>
                   </div>

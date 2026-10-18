@@ -38,17 +38,23 @@ export default function Stage5BillingModal({
   const [handoverNotes, setHandoverNotes] = useState('');
   const [releaseSuccess, setReleaseSuccess] = useState<InternalTicket | null>(null);
   
-  // Handover Checklist State
-  const [checkTasksDone, setCheckTasksDone] = useState(true);
-  const [checkKeysReady, setCheckKeysReady] = useState(true);
-  const [checkWalkaround, setCheckWalkaround] = useState(true);
+  // Handover Checklist State (staff tick each item at the counter)
+  const [checkTasksDone, setCheckTasksDone] = useState(false);
+  const [checkKeysReady, setCheckKeysReady] = useState(false);
+  const [checkWalkaround, setCheckWalkaround] = useState(false);
 
+  // Fresh form for every ticket opened
+  const ticketId = ticket?.id;
   useEffect(() => {
     if (isOpen) {
       setReleaseSuccess(null);
       setErrorMsg(null);
+      setHandoverNotes('');
+      setCheckTasksDone(false);
+      setCheckKeysReady(false);
+      setCheckWalkaround(false);
     }
-  }, [isOpen, ticket]);
+  }, [isOpen, ticketId]);
 
   if (!isOpen || !ticket) return null;
 
@@ -57,6 +63,11 @@ export default function Stage5BillingModal({
   const handleConfirmHandoverAndRelease = async () => {
     if (!checkTasksDone || !checkKeysReady || !checkWalkaround) {
       setErrorMsg('Please confirm all 3 handover verification checklist items before release.');
+      return;
+    }
+
+    if (['CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'].includes(ticket.status)) {
+      setErrorMsg('This ticket is cancelled or missed and cannot be released.');
       return;
     }
 
@@ -72,12 +83,16 @@ export default function Stage5BillingModal({
         notes: handoverNotes ? `${ticket.notes ? `${ticket.notes}\n` : ''}[Turnover]: ${handoverNotes}` : ticket.notes,
       };
 
-      const { error } = await db()
+      const { data: releasedRows, error } = await db()
         .from('service_tickets')
         .update(updates)
-        .eq('id', ticket.id);
+        .eq('id', ticket.id)
+        .select('id');
 
       if (error) throw error;
+      if (!releasedRows || releasedRows.length === 0) {
+        throw new Error('The release was not saved (no permission to update this ticket). Please sign in again.');
+      }
 
       // Realtime cross-device broadcast
       broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });

@@ -41,6 +41,29 @@ const getAuthRedirectUrl = (path: string = '/login?verified=true') => {
   return `${base}${cleanPath}`;
 };
 
+const AUTH_TIMEOUT_MS = 25000;
+
+/**
+ * Stops the form from spinning forever when Supabase Auth doesn't answer
+ * (e.g. the confirmation email is stuck in the built-in mail service).
+ */
+function withAuthTimeout<T>(request: Promise<T>): Promise<T> {
+  return Promise.race([
+    request,
+    new Promise<T>((_, reject) =>
+      setTimeout(
+        () =>
+          reject(
+            new Error(
+              'The server is taking too long to respond. Please check your connection and try again in a minute. If you just signed up, check your email before trying again.'
+            )
+          ),
+        AUTH_TIMEOUT_MS
+      )
+    ),
+  ]);
+}
+
 export default function Login() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -396,19 +419,19 @@ export default function Login() {
     setErrorMessage(null);
 
     try {
-      const { error } = await supabase.auth.resend({
+      const { error } = await withAuthTimeout(supabase.auth.resend({
         type: 'signup',
         email: email.trim().toLowerCase(),
         options: {
           emailRedirectTo: getAuthRedirectUrl('/login?verified=true'),
         },
-      });
+      }));
 
       if (error) throw error;
       setResendCooldown(60);
       setSuccessMessage('Verification link resent! Please check your email.');
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to resend verification link. Please wait a moment.');
+    } catch (err: unknown) {
+      setErrorMessage((err instanceof Error && err.message) || 'Failed to resend verification link. Please wait a moment.');
     } finally {
       setIsResending(false);
     }
@@ -468,7 +491,7 @@ export default function Login() {
         const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
         // Create Account via Supabase
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await withAuthTimeout(supabase.auth.signUp({
           email: cleanEmail,
           password: registerPassword,
           options: {
@@ -480,7 +503,7 @@ export default function Login() {
             },
             emailRedirectTo: getAuthRedirectUrl('/login?verified=true'),
           },
-        });
+        }));
 
         if (signUpError) {
           const msg = signUpError.message.toLowerCase();
@@ -491,6 +514,11 @@ export default function Login() {
             throw new Error('Too many registration attempts. Please wait a few moments before trying again.');
           }
           throw signUpError;
+        }
+
+        // With email confirmation ON, Supabase answers an existing email with a user that has no identities
+        if (signUpData.user && signUpData.user.identities?.length === 0) {
+          throw new Error('An account with this email already exists. Please sign in instead.');
         }
 
         // Direct session handling (if email confirmation is turned off in Supabase)
@@ -530,10 +558,10 @@ export default function Login() {
         }
         const targetEmail = rawInput.toLowerCase();
 
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        const { data: authData, error: authError } = await withAuthTimeout(supabase.auth.signInWithPassword({
           email: targetEmail,
           password: signInPassword,
-        });
+        }));
 
         if (authError) {
           const msg = authError.message.toLowerCase();
@@ -560,17 +588,17 @@ export default function Login() {
         }
         const recoveryEmail = rawInput.toLowerCase();
 
-        const { error } = await supabase.auth.resetPasswordForEmail(recoveryEmail, {
+        const { error } = await withAuthTimeout(supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: getAuthRedirectUrl('/reset-password'),
-        });
+        }));
 
         if (error) throw error;
         setSuccessMessage(
           `Password recovery link sent to your registered email (${maskEmail(recoveryEmail)})! Please check your inbox.`
         );
       }
-    } catch (err: any) {
-      setErrorMessage(err.message || 'An unexpected authentication error occurred.');
+    } catch (err: unknown) {
+      setErrorMessage((err instanceof Error && err.message) || 'An unexpected authentication error occurred.');
     } finally {
       setLoading(false);
     }

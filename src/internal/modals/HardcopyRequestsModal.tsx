@@ -146,7 +146,7 @@ export default function HardcopyRequestsModal({
                 <button
                   key={tab.id}
                   type="button"
-                  onClick={() => setStatusFilter(tab.id as any)}
+                  onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
                     statusFilter === tab.id
                       ? 'bg-slate-900 text-white shadow-xs'

@@ -52,7 +52,9 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
 
   // Fleet Sub-tab state
   const [searchQuery, setSearchQuery] = useState('');
-  const [dbBikes, setDbBikes] = useState<any[]>([]);
+  const [dbBikes, setDbBikes] = useState<
+    { id: string; user_id: string | null; model: string | null; plate_number: string | null; year_model: string | null; odometer: string | null }[]
+  >([]);
   const [dbProfiles, setDbProfiles] = useState<Map<string, { full_name: string; phone_number: string }>>(new Map());
   const [loadingBikes, setLoadingBikes] = useState(false);
 
@@ -61,8 +63,6 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
 
   // Register Vehicle Modal State
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [regOwnerName, setRegOwnerName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
   const [regModel, setRegModel] = useState('');
   const [regPlate, setRegPlate] = useState('');
   const [regYear, setRegYear] = useState('2024');
@@ -166,22 +166,23 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
       const cleanPlate = regPlate.trim().toUpperCase();
       const cleanModel = regModel.trim();
 
-      await db().from('motorcycles').insert({
+      const { error } = await db().from('motorcycles').insert({
         plate_number: cleanPlate,
         model: cleanModel,
         year_model: regYear.trim() || '2024',
         odometer: regOdometer.trim() ? `${regOdometer.trim()} km` : '0 km',
       });
+      if (error) throw error;
 
+      toast.success(`${cleanModel} (${cleanPlate}) registered.`);
       setIsRegisterOpen(false);
-      setRegOwnerName('');
-      setRegPhone('');
       setRegModel('');
       setRegPlate('');
       setRegOdometer('');
       fetchDatabaseBikes();
     } catch (err) {
       console.error('Error saving vehicle:', err);
+      toast.error(err instanceof Error ? err.message : 'Failed to register the vehicle.');
     } finally {
       setRegistering(false);
     }
@@ -251,7 +252,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
         odometer: b.odometer || '0 km',
         owner_name: profile?.full_name || 'Rider Customer',
         owner_phone: profile?.phone_number || 'N/A',
-        owner_id: b.user_id,
+        owner_id: b.user_id ?? undefined,
         ticketsCount: 0,
       });
     });
@@ -686,28 +687,6 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
             </div>
 
             <form onSubmit={handleRegisterVehicle} className="space-y-3">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Customer / Owner Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Juan Dela Cruz"
-                  value={regOwnerName}
-                  onChange={(e) => setRegOwnerName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Mobile Contact Number</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 0917-123-4567"
-                  value={regPhone}
-                  onChange={(e) => setRegPhone(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-
               <div className="relative" ref={regDropdownRef}>
                 <label className="font-bold text-slate-700 block mb-1">Motorcycle Model *</label>
                 <div className="relative">

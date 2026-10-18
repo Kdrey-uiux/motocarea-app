@@ -10,21 +10,12 @@ import {
   X
 } from 'lucide-react';
 import { toast } from '../utils/toast';
+import { normalizeBayNumber } from '../utils/bays';
 
 interface InternalBaysTabProps {
   tickets: InternalTicket[];
   onOpenDispatch: (ticket: InternalTicket) => void;
   onRefresh?: () => void;
-}
-
-export function normalizeBayNumber(bayStr?: string | null): number | null {
-  if (!bayStr) return null;
-  const match = bayStr.match(/(?:bay|lift|#)?[\s-]*0?(\d+)/i);
-  if (match && match[1]) {
-    const num = parseInt(match[1], 10);
-    return isNaN(num) ? null : num;
-  }
-  return null;
 }
 
 const ALL_WORKSHOP_BAYS = [
@@ -111,6 +102,19 @@ export default function InternalBaysTab({
   const [dispatchTargetBay, setDispatchTargetBay] = useState<string | null>(null);
 
   const toggleMaintenance = (bayId: string) => {
+    // A bay with a motorcycle on it must be cleared first, or the unit would disappear from view
+    const bayNum = parseInt(ALL_WORKSHOP_BAYS.find((b) => b.id === bayId)?.bayNumber || '', 10);
+    const occupant = !maintenanceBays[bayId]
+      ? tickets.find(
+          (t) =>
+            !['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'].includes(t.status) &&
+            normalizeBayNumber(t.assigned_bay) === bayNum
+        )
+      : undefined;
+    if (occupant) {
+      toast.error(`#${occupant.ticket_code} is still on this bay. Move it to another bay before maintenance.`);
+      return;
+    }
     const updated = { ...maintenanceBays, [bayId]: !maintenanceBays[bayId] };
     setMaintenanceBays(updated);
     saveSharedSetting(SHARED_SETTINGS.bayMaintenance, updated).then((res) => {

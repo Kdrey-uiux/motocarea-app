@@ -12,6 +12,7 @@ import {
   Inbox 
 } from 'lucide-react';
 import { toast } from '../utils/toast';
+import { isSystemMessage, summarizeMessage } from '../../utils/systemMessages';
 
 interface InternalMessagesTabProps {
   tickets: InternalTicket[];
@@ -355,7 +356,7 @@ export default function InternalMessagesTab({
                         {c.bikeModel} • {c.customerPhone}
                       </p>
                       <p className="text-xs text-slate-600 truncate font-medium pt-0.5">
-                        {c.latestMessage || 'No message content'}
+                        {summarizeMessage(c.latestMessage) || 'No message content'}
                       </p>
                     </div>
                   </div>
@@ -418,7 +419,9 @@ export default function InternalMessagesTab({
                             : 'bg-white text-slate-900 border border-slate-200 rounded-bl-xs shadow-2xs'
                         }`}
                       >
-                        <p>{msg.message}</p>
+                        <p className={isSystemMessage(msg.message) ? 'italic opacity-90' : undefined}>
+                          {summarizeMessage(msg.message)}
+                        </p>
                       </div>
                       <span className="text-[10px] text-slate-400 mt-1 px-1">
                         {isStaff ? 'Workshop Staff' : currentConvo.customerName} •{' '}

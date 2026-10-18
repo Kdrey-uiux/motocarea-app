@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 /**
  * Helper para magpadala ng HTTP request sa Node.js backend na may kalakip na Supabase auth token
  */
-export async function apiFetch<T = any>(
+export async function apiFetch<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; message?: string }> {
@@ -29,11 +29,11 @@ export async function apiFetch<T = any>(
 
     const result = await response.json();
     return result;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`API Fetch Error (${endpoint}):`, error);
     return {
       success: false,
-      message: error.message || 'Network error occurred connecting to backend.',
+      message: (error instanceof Error && error.message) || 'Network error occurred connecting to backend.',
     };
   }
 }

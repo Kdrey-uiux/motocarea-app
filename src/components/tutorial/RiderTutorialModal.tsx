@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   X,
   ChevronLeft,
@@ -263,7 +263,7 @@ export default function RiderTutorialModal({
     }
   };
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     try {
       const storageKey = userId ? `motocare_tutorial_completed_${userId}` : 'motocare_tutorial_completed_guest';
       localStorage.setItem(storageKey, 'true');
@@ -272,7 +272,7 @@ export default function RiderTutorialModal({
       // ignore
     }
     onClose();
-  };
+  }, [userId, onClose]);
 
   const handleNext = () => {
     if (!isLastStep) {

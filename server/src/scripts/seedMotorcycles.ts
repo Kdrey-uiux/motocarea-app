@@ -227,7 +227,7 @@ export const MOTORCYCLE_CATALOG_SEEDS: BikeModelSeed[] = [
 export async function seedMotorcycles(): Promise<void> {
   console.log('🔄 Checking motorcycle_models table in Supabase...');
 
-  const { data: existing, error: checkError } = await supabaseAdmin
+  const { error: checkError } = await supabaseAdmin
     .from('motorcycle_models')
     .select('id')
     .limit(1);

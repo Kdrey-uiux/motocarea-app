@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, type ComponentProps } from 'react';
 import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
@@ -9,8 +9,11 @@ import { acceptOnlineBooking, cancelOrDeclineTicket, isPendingOnlineBooking } fr
 import {
   adminLateCheckInOverride,
   adminAssistedReschedule,
+  isArrivalWindowOver,
   TIME_SLOTS
 } from '../../utils/bookingLifecycle';
+import { getDailyCapacityLimit, isSundayDate } from '../../utils/workshopCapacity';
+import { useNow } from '../hooks/useNow';
 import { 
   Search, 
   Wrench, 
@@ -105,7 +108,7 @@ export function InternalQueueTab({
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Modals state
-  const [historyVehicle, setHistoryVehicle] = useState<any | null>(null);
+  const [historyVehicle, setHistoryVehicle] = useState<ComponentProps<typeof VehicleHistoryModal>['vehicle'] | null>(null);
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
 
   // Soft Cancellation Void Modal State
@@ -126,21 +129,22 @@ export function InternalQueueTab({
   const [selectedMechanicName, setSelectedMechanicName] = useState<string>('');
   const [isAssigningMechanic, setIsAssigningMechanic] = useState(false);
 
+  const now = useNow();
+
+  // Follows the clock, so a console left open overnight rolls over to the new day
   const todayDateStr = useMemo(() => {
-    const d = new Date();
+    const d = new Date(now);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }, []);
+  }, [now]);
 
   // Mechanics are names only (no accounts); shared list managed in Team
   const availableMechanics = useMechanics();
 
-  // Helper to determine if a ticket is pending online confirmation
-  const isPendingTicket = isPendingOnlineBooking;
 
   // Helper to determine if a ticket is a confirmed scheduled advance booking awaiting physical arrival
-  const isScheduledBooking = (t: InternalTicket) => {
+  const isScheduledBooking = useCallback((t: InternalTicket) => {
     if (t.is_walk_in) return false;
-    if (isPendingTicket(t)) return false;
+    if (isPendingOnlineBooking(t)) return false;
     if (
       t.status === 'COMPLETED' ||
       t.status === 'CANCELLED' ||
@@ -149,6 +153,8 @@ export function InternalQueueTab({
       t.status === 'NO_SHOW'
     ) return false;
     if (t.stage > 4) return false;
+    // Already at the shop (checked in or late arrival approved)
+    if (t.notes && (t.notes.includes('[CHECKED_IN') || t.notes.includes('[LATE_CHECKIN_OVERRIDE'))) return false;
 
     // Explicit dropoff pending status or confirmed advance booking
     if (t.status === 'PENDING_DROPOFF' || t.status === 'CONFIRMED_APPOINTMENT') return true;
@@ -165,11 +171,11 @@ export function InternalQueueTab({
     }
 
     return false;
-  };
+  }, [todayDateStr]);
 
   // Helper to determine if a ticket is physically on the active shop floor
-  const isActiveFloorTicket = (t: InternalTicket) => {
-    if (isPendingTicket(t)) return false;
+  const isActiveFloorTicket = useCallback((t: InternalTicket) => {
+    if (isPendingOnlineBooking(t)) return false;
     if (isScheduledBooking(t)) return false;
     if (
       t.status === 'COMPLETED' ||
@@ -180,7 +186,7 @@ export function InternalQueueTab({
     ) return false;
     if (t.stage > 4) return false;
     return true;
-  };
+  }, [isScheduledBooking]);
 
   // Date formatters
   const formatAppointmentDate = (dateStr?: string | null) => {
@@ -226,7 +232,7 @@ export function InternalQueueTab({
   const counts = useMemo(() => {
     const active = tickets.filter((t) => isActiveFloorTicket(t)).length;
     const scheduled = tickets.filter((t) => isScheduledBooking(t)).length;
-    const pending = tickets.filter((t) => isPendingTicket(t)).length;
+    const pending = tickets.filter((t) => isPendingOnlineBooking(t)).length;
 
     const readyRelease = tickets.filter(
       (t) =>
@@ -250,12 +256,12 @@ export function InternalQueueTab({
     ).length;
 
     return { active, scheduled, pending, readyRelease, completed, missed, myAssigned };
-  }, [tickets, currentStaffName, todayDateStr]);
+  }, [tickets, currentStaffName, isActiveFloorTicket, isScheduledBooking]);
 
   // Filtered & Sorted Tickets
   const filteredTickets = useMemo(() => {
     const filtered = tickets.filter((t) => {
-      const isPending = isPendingTicket(t);
+      const isPending = isPendingOnlineBooking(t);
       const isScheduled = isScheduledBooking(t);
       const isActiveFloor = isActiveFloorTicket(t);
       const isCompleted = t.status === 'COMPLETED';
@@ -332,7 +338,7 @@ export function InternalQueueTab({
     }
 
     return filtered;
-  }, [tickets, activeView, myTasksOnly, searchQuery, currentStaffName, todayDateStr]);
+  }, [tickets, activeView, myTasksOnly, searchQuery, currentStaffName, isActiveFloorTicket, isScheduledBooking]);
 
   // Open Quick Assign Mechanic Modal
   const handleOpenAssignMechanic = (ticket: InternalTicket) => {
@@ -397,6 +403,8 @@ export function InternalQueueTab({
         status: 'IN_PROGRESS',
         stage: 1,
         notes: cleanedNotes ? `${cleanedNotes} | ${checkInTag}` : checkInTag,
+        // Arrived earlier than booked: the unit is on the floor today
+        ...(ticket.dropoff_date && ticket.dropoff_date > todayDateStr ? { dropoff_date: todayDateStr } : {}),
       };
 
       const { data, error } = await db()
@@ -541,6 +549,28 @@ export function InternalQueueTab({
       toast.error('Please select a new appointment date.');
       return;
     }
+    if (rescheduleDate < todayDateStr) {
+      toast.error('Please pick today or a future date.');
+      return;
+    }
+    if (isSundayDate(rescheduleDate)) {
+      toast.error('The shop is closed on Sundays. Please pick Monday to Saturday.');
+      return;
+    }
+    if (isArrivalWindowOver(rescheduleDate, rescheduleSlot)) {
+      toast.error('That time slot has already ended today. Please pick a later slot or date.');
+      return;
+    }
+    const bookedThatDay = tickets.filter(
+      (t) =>
+        t.id !== rescheduleTarget.id &&
+        t.dropoff_date === rescheduleDate &&
+        !['CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'].includes(t.status)
+    ).length;
+    if (bookedThatDay >= getDailyCapacityLimit(rescheduleDate)) {
+      toast.error(`${rescheduleDate} is fully booked (${bookedThatDay} bookings). Please pick another date.`);
+      return;
+    }
 
     setIsRescheduling(true);
     const result = await adminAssistedReschedule(
@@ -564,7 +594,6 @@ export function InternalQueueTab({
   // Elapsed time helper
   const getElapsedText = (createdAtStr: string) => {
     const created = new Date(createdAtStr).getTime();
-    const now = Date.now();
     const diffMins = Math.max(1, Math.floor((now - created) / 60000));
 
     if (diffMins < 60) {
@@ -741,7 +770,7 @@ export function InternalQueueTab({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredTickets.map((ticket) => {
-                  const isPending = isPendingTicket(ticket);
+                  const isPending = isPendingOnlineBooking(ticket);
                   const isScheduled = isScheduledBooking(ticket);
                   const isCompleted = ticket.status === 'COMPLETED';
                   const parsedNotes = parseTicketNotes(ticket.notes);
@@ -902,7 +931,7 @@ export function InternalQueueTab({
         /* ================= CARD GRID VIEW ================= */
         <div className={`grid gap-4.5 ${filteredTickets.length === 1 ? 'grid-cols-1 max-w-3xl' : 'grid-cols-1 xl:grid-cols-2'}`}>
           {filteredTickets.map((ticket) => {
-            const isPending = isPendingTicket(ticket);
+            const isPending = isPendingOnlineBooking(ticket);
             const isScheduled = isScheduledBooking(ticket);
             const isCompleted = ticket.status === 'COMPLETED';
             const isCancelled = ticket.status === 'CANCELLED' || ticket.status === 'CANCELLED_BY_ADMIN';
@@ -1368,7 +1397,7 @@ export function InternalQueueTab({
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div>
               <h3 className="font-bold text-base text-slate-900">
-                {isPendingTicket(voidTarget) ? 'Decline Online Booking' : 'Cancel & Void Service Ticket'}
+                {isPendingOnlineBooking(voidTarget) ? 'Decline Online Booking' : 'Cancel & Void Service Ticket'}
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 Ticket <strong className="text-orange-600 font-mono">#{voidTarget.ticket_code}</strong> • {voidTarget.customer_name}

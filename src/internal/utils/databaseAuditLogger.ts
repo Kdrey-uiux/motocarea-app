@@ -4,6 +4,19 @@ import { db } from '../../lib/supabase';
 const AUDIT_STORAGE_KEY = 'motocare_internal_audit_logs';
 const AUDIT_REALTIME_CHANNEL = 'motocare_audit_realtime';
 
+/** Row shape of public.audit_logs (migration 05) */
+interface AuditLogRow {
+  id: string;
+  timestamp: string | null;
+  created_at: string | null;
+  ticket_code: string | null;
+  action: string | null;
+  actor: string | null;
+  details: string | null;
+  previous_value: string | null;
+  new_value: string | null;
+}
+
 // Setup Supabase Realtime channel listener for cross-device audit sync
 if (typeof window !== 'undefined') {
   try {
@@ -52,15 +65,15 @@ export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
       .limit(300);
 
     if (!error && Array.isArray(data) && data.length > 0) {
-      const dbLogs: AuditLogEntry[] = data.map((d: any) => ({
+      const dbLogs: AuditLogEntry[] = (data as AuditLogRow[]).map((d) => ({
         id: String(d.id || d.ticket_code),
         timestamp: d.timestamp || d.created_at || new Date().toISOString(),
-        ticketCode: d.ticket_code || d.ticketCode || 'SYSTEM',
+        ticketCode: d.ticket_code || 'SYSTEM',
         action: d.action || 'LOG',
         actor: d.actor || 'System',
         details: d.details || '',
-        previousValue: d.previous_value || d.previousValue,
-        newValue: d.new_value || d.newValue,
+        previousValue: d.previous_value || undefined,
+        newValue: d.new_value || undefined,
       }));
       localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(dbLogs));
       return dbLogs;

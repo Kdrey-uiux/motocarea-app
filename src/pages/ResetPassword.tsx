@@ -24,18 +24,31 @@ export default function ResetPassword() {
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    if (password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { data: updated, error } = await supabase.auth.updateUser({
         password: password,
       });
 
       if (error) throw error;
+
+      // Staff/admin links come from the Team page; send them back to the workshop login
+      let loginPath = '/login';
+      if (updated.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', updated.user.id)
+          .maybeSingle();
+        if (profile?.role === 'admin' || profile?.role === 'staff') loginPath = '/internal/login';
+      }
+      // The reset link signed this browser in; sign out so the new password is used to log in
+      await supabase.auth.signOut({ scope: 'local' });
 
       // Magpadala ng signal sa lumang Tab 1 na tapos na ang reset
       const authChannel = new BroadcastChannel('motocare_auth_sync');
@@ -44,10 +57,10 @@ export default function ResetPassword() {
 
       setSuccessMessage('Password successfully updated! Redirecting to Sign In...');
       setTimeout(() => {
-        navigate('/login', { replace: true });
+        navigate(loginPath, { replace: true });
       }, 1500);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Failed to update password. Link may have expired.');
+    } catch (err: unknown) {
+      setErrorMessage((err instanceof Error && err.message) || 'Failed to update password. Link may have expired.');
     } finally {
       setLoading(false);
     }
@@ -101,7 +114,7 @@ export default function ResetPassword() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
+                placeholder="At least 8 characters"
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:bg-white text-xs sm:text-sm transition"
               />
               <button

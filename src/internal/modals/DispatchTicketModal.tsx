@@ -4,6 +4,7 @@ import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, InternalStaffMember } from '../types/internal';
 import { rememberMechanic } from '../utils/mechanics';
+import { readSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { parseTicketNotes } from '../../utils/ticketNotesParser';
 import MechanicPicker from '../components/MechanicPicker';
 import {
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import VehicleHistoryModal from './VehicleHistoryModal';
 import { toast } from '../utils/toast';
+import { normalizeBayNumber } from '../utils/bays';
 
 interface DispatchTicketModalProps {
   ticket: InternalTicket | null;
@@ -29,16 +31,6 @@ interface DispatchTicketModalProps {
   staffList: InternalStaffMember[];
   onOpenStage5Billing?: (ticket: InternalTicket) => void;
   currentStaffName?: string;
-}
-
-function normalizeBayNumber(bayStr?: string | null): number | null {
-  if (!bayStr) return null;
-  const match = bayStr.match(/(?:bay|lift|#)?[\s-]*0?(\d+)/i);
-  if (match && match[1]) {
-    const num = parseInt(match[1], 10);
-    return isNaN(num) ? null : num;
-  }
-  return null;
 }
 
 const BAYS = [
@@ -129,6 +121,12 @@ export default function DispatchTicketModal({
     return map;
   }, [allTickets, ticket]);
 
+  // Bays switched to maintenance on the Bays page can't take a motorcycle
+  const maintenanceBays = isOpen
+    ? readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {})
+    : {};
+  const isUnderMaintenance = (bayNum: number) => Boolean(maintenanceBays[`bay-${bayNum}`]);
+
   // Load the form once per opened ticket. Live ticket refreshes (realtime) must not
   // reset what staff are typing, so later bay-occupancy changes are ignored here.
   const loadedTicketId = useRef<string | null>(null);
@@ -143,7 +141,8 @@ export default function DispatchTicketModal({
       // Keep the current bay, or suggest the first free one
       let initialBay = ticket.assigned_bay;
       if (!initialBay) {
-        const firstFreeBay = BAYS.find((b) => !bayOccupancyMap.has(b.num));
+        const maint = readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {});
+        const firstFreeBay = BAYS.find((b) => !bayOccupancyMap.has(b.num) && !maint[`bay-${b.num}`]);
         initialBay = firstFreeBay ? firstFreeBay.id : 'Bay 01';
       }
       setAssignedBay(initialBay);
@@ -177,7 +176,8 @@ export default function DispatchTicketModal({
         assigned_bay: assignedBay,
         assigned_mechanic: assignedMechanic.trim() || null,
         stage: Number(stage),
-        status: isMarkingReady ? 'READY_FOR_PICKUP' : status,
+        // Moving a ready unit back to Stage 2-4 puts it back in progress
+        status: isMarkingReady ? 'READY_FOR_PICKUP' : status === 'READY_FOR_PICKUP' ? 'IN_PROGRESS' : status,
         estimated_pickup: estimatedPickup.trim() || null,
         notes: withFindings(ticket.notes, findings) || null,
       };
@@ -367,18 +367,25 @@ export default function DispatchTicketModal({
             <div className="grid grid-cols-5 gap-1.5">
               {BAYS.map((b) => {
                 const occupant = bayOccupancyMap.get(b.num);
+                const inMaintenance = isUnderMaintenance(b.num);
                 const isSelected = assignedBay === b.id;
                 return (
                   <button
                     key={b.id}
                     type="button"
-                    disabled={Boolean(occupant)}
+                    disabled={Boolean(occupant) || (inMaintenance && !isSelected)}
                     onClick={() => setAssignedBay(b.id)}
-                    title={occupant ? `In use by #${occupant.ticketCode} (${occupant.bikeModel})` : `${b.id} — ${b.type}`}
+                    title={
+                      occupant
+                        ? `In use by #${occupant.ticketCode} (${occupant.bikeModel})`
+                        : inMaintenance
+                        ? `${b.id} is under maintenance`
+                        : `${b.id} — ${b.type}`
+                    }
                     className={`py-2 px-1 rounded-xl border text-center transition ${
                       isSelected
                         ? 'border-orange-500 bg-orange-500 text-white shadow-xs'
-                        : occupant
+                        : occupant || inMaintenance
                         ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
                         : 'border-slate-200 bg-white text-slate-800 hover:border-orange-300 cursor-pointer'
                     }`}
@@ -389,13 +396,13 @@ export default function DispatchTicketModal({
                         isSelected ? 'text-orange-100' : occupant ? 'text-slate-400' : 'text-slate-500'
                       }`}
                     >
-                      {occupant ? `#${occupant.ticketCode}` : b.type}
+                      {occupant ? `#${occupant.ticketCode}` : inMaintenance ? 'Maintenance' : b.type}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[10px] text-slate-400">Grey bays are in use by another motorcycle.</p>
+            <p className="text-[10px] text-slate-400">Grey bays are in use by another motorcycle or under maintenance.</p>
           </section>
 
           {/* 3. Mechanic & ETA */}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { Motorcycle, BikeModel, ServiceTicket } from '../../types/dashboard';
@@ -84,7 +84,7 @@ export interface ServicePackageOption {
   isDiagnostic?: boolean;
 }
 
-export const getActiveServicePackages = (): ServicePackageOption[] => {
+const getActiveServicePackages = (): ServicePackageOption[] => {
   const shared = getSharedServiceCatalog();
   return shared.map((s) => ({
     id: s.id,
@@ -105,8 +105,6 @@ export const getActiveServicePackages = (): ServicePackageOption[] => {
     isDiagnostic: s.isDiagnostic || s.category === 'diagnostic',
   }));
 };
-
-export const MOTORCYCLE_SERVICE_PACKAGES: ServicePackageOption[] = getActiveServicePackages();
 
 const TIME_WINDOWS = [
   { id: '08:00 AM - 10:00 AM', label: 'Morning Slot', time: '08:00 AM - 10:00 AM', desc: 'Fastest turnaround, early morning priority' },
@@ -204,13 +202,30 @@ export default function BookServiceTab({
   const [notes, setNotes] = useState('');
 
   // Dynamic workshop capacity sync (workshop-wide from database)
-  const [capacityVersion, setCapacityVersion] = useState(0);
   const [workshopBookings, setWorkshopBookings] = useState<{ dropoff_date: string; status: string }[]>([]);
 
   useEffect(() => {
     let isMounted = true;
     const loadWorkshopBookings = async () => {
       try {
+        // Shop-wide counts per day (migration 11). Customers can't read other riders' tickets,
+        // so the database function returns only the dates and how many bookings each has.
+        const { data: counts, error: rpcError } = await supabase.rpc('get_booking_counts');
+        if (!rpcError && Array.isArray(counts)) {
+          if (isMounted) {
+            setWorkshopBookings(
+              (counts as { dropoff_date: string; booking_count: number }[]).flatMap((row) =>
+                Array.from({ length: Number(row.booking_count) || 0 }, () => ({
+                  dropoff_date: row.dropoff_date,
+                  status: 'IN_PROGRESS',
+                }))
+              )
+            );
+          }
+          return;
+        }
+
+        // Before migration 11: read the tickets directly
         const { data } = await supabase
           .from('service_tickets')
           .select('dropoff_date, status')
@@ -224,6 +239,8 @@ export default function BookServiceTab({
     };
 
     loadWorkshopBookings();
+    // Other riders' bookings don't reach this screen through realtime, so refresh regularly
+    const pollInterval = setInterval(loadWorkshopBookings, 60000);
 
     const channel = supabase
       .channel('motocare_capacity_sync')
@@ -235,12 +252,10 @@ export default function BookServiceTab({
       })
       .subscribe();
 
-    const handleCapChange = () => setCapacityVersion((v) => v + 1);
-    window.addEventListener('motocare_capacity_updated', handleCapChange);
     return () => {
       isMounted = false;
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
-      window.removeEventListener('motocare_capacity_updated', handleCapChange);
     };
   }, []);
 
@@ -315,7 +330,7 @@ export default function BookServiceTab({
   }, [activeReschedule, motorcycles, setSelectedBikeId]);
 
   // Helper: Find if a motorcycle (by ID or Plate) already has an active ongoing ticket in the workshop
-  const getActiveTicketForBike = (bikeIdOrPlate?: string) => {
+  const getActiveTicketForBike = useCallback((bikeIdOrPlate?: string) => {
     if (!bikeIdOrPlate || !bikeIdOrPlate.trim()) return null;
     const clean = cleanPlate(bikeIdOrPlate);
     return (activeTickets || []).find((ticket) => {
@@ -325,7 +340,7 @@ export default function BookServiceTab({
       const matchPlate = ticket.motorcycles?.plate_number && cleanPlate(ticket.motorcycles.plate_number) === clean;
       return matchId || matchPlate;
     });
-  };
+  }, [activeTickets, activeReschedule]);
 
   // Real-time detection: Does the currently selected motorcycle have an active ticket in progress?
   const activeTicketForSelectedBike = useMemo(() => {
@@ -337,7 +352,7 @@ export default function BookServiceTab({
       if (!newBikePlate.trim()) return null;
       return getActiveTicketForBike(newBikePlate);
     }
-  }, [bikeMode, selectedBikeId, motorcycles, newBikePlate, activeTickets, activeReschedule]);
+  }, [bikeMode, selectedBikeId, motorcycles, newBikePlate, getActiveTicketForBike]);
 
   // Duplicate Check: Same motorcycle cannot be scheduled if it has an active ticket OR already booked on the selected date
   const activeDuplicate = useMemo(() => {
@@ -474,7 +489,7 @@ export default function BookServiceTab({
       monthLabel: calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       cells,
     };
-  }, [calendarMonth, workshopBookings, capacityVersion]);
+  }, [calendarMonth, workshopBookings]);
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date();
@@ -539,7 +554,7 @@ export default function BookServiceTab({
       status,
       isSunday: false,
     };
-  }, [dropoffDate, workshopBookings, capacityVersion]);
+  }, [dropoffDate, workshopBookings]);
 
   const isDateFullyBooked = dropoffDate
     ? isSundayDate(dropoffDate) || currentCapacity.status === 'FULL' || currentCapacity.status === 'CLOSED'

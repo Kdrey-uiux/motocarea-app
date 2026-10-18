@@ -10,6 +10,7 @@ import {
 } from './types/internal';
 import { getInternalSession, clearInternalSession } from './utils/internalAuth';
 import { canAccessTab } from './utils/permissions';
+import { normalizeBayNumber } from './utils/bays';
 import { INTERNAL_TAB_TITLES } from './utils/tabTitles';
 import { fetchDatabaseStaffMembers } from './utils/databaseStaffManager';
 import { runMissedBookingScanInBackground } from '../utils/bookingLifecycle';
@@ -206,7 +207,9 @@ export default function InternalConsole() {
           status,
           notes,
           dropoff_date,
+          dropoff_window,
           created_at,
+          updated_at,
           user_id,
           parts_cost,
           labor_cost,
@@ -262,7 +265,8 @@ export default function InternalConsole() {
         }
       }
 
-      const populated: InternalTicket[] = rawTickets.map((t: any) => {
+      // Supabase returns the joined motorcycle as a single object here (many-to-one)
+      const populated: InternalTicket[] = (rawTickets as unknown as InternalTicket[]).map((t) => {
         const prof = t.user_id ? profileMap.get(t.user_id) : undefined;
         const parsed = parseTicketNotes(t.notes);
 
@@ -364,9 +368,9 @@ export default function InternalConsole() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => {
         loadHardcopies();
       })
-      .on('broadcast', { event: 'NEW_HARDCOPY_REQUEST' }, (payload: any) => {
+      .on('broadcast', { event: 'NEW_HARDCOPY_REQUEST' }, (message) => {
         loadHardcopies();
-        const req = payload?.payload as HardcopyRequest;
+        const req = message.payload as HardcopyRequest | undefined;
         if (req?.id) {
           setNotifications((prev) => [
             {
@@ -425,7 +429,7 @@ export default function InternalConsole() {
   }, [tickets]);
 
   const occupiedBaysCount = useMemo(() => {
-    const bays = new Set<string>();
+    const bays = new Set<number>();
     tickets
       .filter(
         (t) =>
@@ -437,8 +441,8 @@ export default function InternalConsole() {
           t.assigned_bay
       )
       .forEach((t) => {
-        const b = t.assigned_bay?.toLowerCase().slice(0, 6);
-        if (b) bays.add(b);
+        const bayNum = normalizeBayNumber(t.assigned_bay);
+        if (bayNum) bays.add(bayNum);
       });
     return bays.size;
   }, [tickets]);

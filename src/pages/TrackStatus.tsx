@@ -33,7 +33,35 @@ interface PublicTicket {
   } | null;
 }
 
-export function normalizeTicketCode(input: string): string {
+const FUNCTION_NOT_FOUND = 'PGRST202';
+
+/**
+ * Public ticket lookup. Uses the track_ticket() database function (migration 11), which
+ * returns only public-safe fields. Falls back to a direct read on older databases.
+ */
+async function lookupPublicTicket(code: string): Promise<PublicTicket | null> {
+  const { data: rpcData, error: rpcError } = await supabase.rpc('track_ticket', { p_code: code });
+  if (!rpcError) return (rpcData as PublicTicket | null) || null;
+  if (rpcError.code !== FUNCTION_NOT_FOUND) throw rpcError;
+
+  const { data, error } = await supabase
+    .from('service_tickets')
+    .select(
+      'id, ticket_code, service_type, stage, assigned_bay, assigned_mechanic, estimated_pickup, total_estimate, status, dropoff_date, created_at, motorcycles (model, plate_number)'
+    )
+    .eq('ticket_code', code)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+
+  const rawBike = data.motorcycles as PublicTicket['motorcycles'] | PublicTicket['motorcycles'][];
+  return {
+    ...data,
+    motorcycles: (Array.isArray(rawBike) ? rawBike[0] : rawBike) || null,
+  } as PublicTicket;
+}
+
+function normalizeTicketCode(input: string): string {
   let cleaned = input.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
   if (!cleaned) return '';
   if (cleaned.startsWith('MC-')) {
@@ -65,57 +93,17 @@ export default function TrackStatus() {
     setErrorMsg(null);
 
     try {
-      const { data, error } = await supabase
-        .from('service_tickets')
-        .select(`
-          id,
-          ticket_code,
-          service_type,
-          stage,
-          assigned_bay,
-          assigned_mechanic,
-          estimated_pickup,
-          total_estimate,
-          status,
-          dropoff_date,
-          created_at,
-          motorcycles (
-            model,
-            plate_number
-          )
-        `)
-        .eq('ticket_code', cleanCode)
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await lookupPublicTicket(cleanCode);
 
       if (!data) {
         setTicket(null);
         setErrorMsg(`No service record found for ticket code "${cleanCode}". Please verify your ticket reference.`);
       } else {
-        const rawBike: any = data.motorcycles;
-        const bikeObj = Array.isArray(rawBike) ? rawBike[0] : rawBike;
-
-        const formattedTicket: PublicTicket = {
-          id: data.id,
-          ticket_code: data.ticket_code,
-          service_type: data.service_type,
-          stage: data.stage,
-          assigned_bay: data.assigned_bay,
-          assigned_mechanic: data.assigned_mechanic,
-          estimated_pickup: data.estimated_pickup,
-          total_estimate: data.total_estimate,
-          status: data.status,
-          dropoff_date: data.dropoff_date,
-          created_at: data.created_at,
-          motorcycles: bikeObj || null,
-        };
-
-        setTicket(formattedTicket);
+        setTicket(data);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Track lookup error:', err);
-      setErrorMsg(err.message || 'Unable to fetch ticket details.');
+      setErrorMsg(err instanceof Error ? err.message : 'Unable to fetch ticket details.');
       setTicket(null);
     } finally {
       setLoading(false);
@@ -155,7 +143,7 @@ export default function TrackStatus() {
       .on(
         'broadcast',
         { event: 'TICKET_DISPATCH_SYNC' },
-        (payload: any) => {
+        (payload: { payload?: { ticket_code?: string; id?: string } }) => {
           if (
             payload?.payload?.ticket_code === currentTicketCode ||
             payload?.payload?.id === currentTicketId
@@ -166,7 +154,11 @@ export default function TrackStatus() {
       )
       .subscribe();
 
+    // Visitors who aren't signed in don't receive database change events, so also poll
+    const pollInterval = setInterval(() => fetchTicket(currentTicketCode), 30000);
+
     return () => {
+      clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
   }, [ticket?.id, ticket?.ticket_code]);
@@ -213,7 +205,37 @@ export default function TrackStatus() {
   ];
 
   const isCompleted = ticket?.status === 'COMPLETED';
+  const isCancelled = ticket?.status === 'CANCELLED' || ticket?.status === 'CANCELLED_BY_ADMIN';
+  const isMissed = ticket?.status === 'MISSED' || ticket?.status === 'NO_SHOW';
+  const isReady = !isCompleted && (ticket?.status === 'READY_FOR_PICKUP' || ticket?.stage === 5);
+  const isWalkIn = Boolean(ticket?.ticket_code?.startsWith('MC-W-'));
+  // An online booking still at Stage 1 without a bay hasn't started intake yet
+  const isWaitingForIntake =
+    !isCompleted && !isCancelled && !isMissed && !isWalkIn && ticket?.stage === 1 && !ticket?.assigned_bay;
+  const isClosedEarly = isCancelled || isMissed;
   const effectiveStage = isCompleted ? 5 : (ticket?.stage || 1);
+
+  const statusBadge = isCompleted
+    ? { label: 'Completed & Released', tone: 'emerald' }
+    : isCancelled
+    ? { label: 'Cancelled', tone: 'slate' }
+    : isMissed
+    ? { label: 'Missed Drop-off', tone: 'rose' }
+    : isReady
+    ? { label: 'Ready for Pickup', tone: 'emerald' }
+    : isWaitingForIntake
+    ? { label: 'Waiting for Intake', tone: 'amber' }
+    : { label: 'In Workshop', tone: 'orange' };
+
+  const phaseText = isCompleted
+    ? 'All services completed! Motorcycle was officially released to customer.'
+    : isCancelled
+    ? 'This booking was cancelled. Book again anytime from your MotoCare account.'
+    : isMissed
+    ? 'The drop-off window passed without check-in. Sign in to your MotoCare account to reschedule.'
+    : isWaitingForIntake
+    ? `Booking received for ${ticket?.dropoff_date || 'your drop-off date'}. Bring your motorcycle to MotoCare reception during your arrival window; intake starts once it is checked in.`
+    : stages[effectiveStage - 1]?.guidance;
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-800 flex flex-col font-sans antialiased selection:bg-orange-500 selection:text-white">
@@ -312,17 +334,24 @@ export default function TrackStatus() {
                   <span className="px-2.5 py-1 rounded-lg bg-orange-50 border border-orange-200/80 text-orange-600 text-xs font-bold font-mono">
                     #{ticket.ticket_code}
                   </span>
-                  {isCompleted ? (
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <span
+                    className={`text-xs font-bold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 border ${
+                      {
+                        emerald: 'text-emerald-700 bg-emerald-50 border-emerald-200',
+                        slate: 'text-slate-600 bg-slate-100 border-slate-200',
+                        rose: 'text-rose-700 bg-rose-50 border-rose-200',
+                        amber: 'text-amber-800 bg-amber-50 border-amber-200',
+                        orange: 'text-orange-700 bg-orange-50 border-orange-200',
+                      }[statusBadge.tone]
+                    }`}
+                  >
+                    {statusBadge.tone === 'emerald' ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      Completed & Released
-                    </span>
-                  ) : (
-                    <span className="text-xs font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5">
+                    ) : statusBadge.tone === 'orange' ? (
                       <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-                      In Workshop
-                    </span>
-                  )}
+                    ) : null}
+                    {statusBadge.label}
+                  </span>
                 </div>
 
                 <div className="pt-1 flex items-center gap-2">
@@ -342,11 +371,15 @@ export default function TrackStatus() {
                   {isCompleted ? 'Completion Date' : 'Estimated Pickup'}
                 </span>
                 <span className="text-sm font-bold text-slate-900 block">
-                  {isCompleted ? 'Service Fully Rendered' : ticket.estimated_pickup}
+                  {isCompleted
+                    ? 'Service Fully Rendered'
+                    : isClosedEarly
+                    ? '—'
+                    : ticket.estimated_pickup || 'To be assessed upon arrival'}
                 </span>
                 <span className="text-[11px] text-slate-500 block">
                   Lead Mechanic:{' '}
-                  <strong className="text-orange-600 font-semibold">{ticket.assigned_mechanic}</strong>
+                  <strong className="text-orange-600 font-semibold">{ticket.assigned_mechanic || 'To be assigned'}</strong>
                 </span>
               </div>
             </div>
@@ -357,15 +390,21 @@ export default function TrackStatus() {
                 <span className="font-bold text-slate-800">
                   {isCompleted ? 'Final Workshop Status' : 'Live Repair Progress'}
                 </span>
-                <span className={`font-semibold ${isCompleted ? 'text-emerald-600 font-bold' : 'text-orange-600'}`}>
-                  {isCompleted ? 'Completed (All 5 Stages Cleared)' : `Stage ${effectiveStage} of 5: ${stages[effectiveStage - 1]?.name}`}
+                <span className={`font-semibold ${isCompleted ? 'text-emerald-600 font-bold' : isClosedEarly ? 'text-slate-500' : 'text-orange-600'}`}>
+                  {isCompleted
+                    ? 'Completed (All 5 Stages Cleared)'
+                    : isClosedEarly
+                    ? statusBadge.label
+                    : isWaitingForIntake
+                    ? 'Waiting for drop-off'
+                    : `Stage ${effectiveStage} of 5: ${stages[effectiveStage - 1]?.name}`}
                 </span>
               </div>
 
               <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
                 {stages.map((st) => {
-                  const isDone = isCompleted || st.step < effectiveStage;
-                  const isCurrent = !isCompleted && st.step === effectiveStage;
+                  const isDone = isCompleted || (!isClosedEarly && !isWaitingForIntake && st.step < effectiveStage);
+                  const isCurrent = !isCompleted && !isClosedEarly && st.step === effectiveStage;
 
                   return (
                     <div key={st.step} className="space-y-1.5 text-center">
@@ -405,16 +444,16 @@ export default function TrackStatus() {
                   Service Bay
                 </span>
                 <span className="font-bold text-slate-800 text-xs block">
-                  {isCompleted ? 'Cleared & Released' : ticket.assigned_bay}
+                  {isCompleted ? 'Cleared & Released' : isClosedEarly ? '—' : ticket.assigned_bay || 'To be assigned'}
                 </span>
               </div>
 
               <div className="p-3.5 rounded-xl sm:rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-1 shadow-2xs">
                 <span className="text-slate-400 text-[10px] block uppercase font-bold tracking-wider">
-                  {isCompleted ? 'Amount Settled' : 'Estimated Cost'}
+                  Estimated Cost
                 </span>
                 <span className="font-extrabold text-emerald-600 text-sm font-mono block">
-                  {ticket.total_estimate}
+                  {ticket.total_estimate || 'Quoted on inspection'}
                 </span>
               </div>
 
@@ -438,9 +477,7 @@ export default function TrackStatus() {
                 </span>
               </div>
               <p className="text-slate-700 font-medium leading-relaxed">
-                {isCompleted
-                  ? 'All services completed! Motorcycle was officially released to customer.'
-                  : stages[effectiveStage - 1]?.guidance}
+                {phaseText}
               </p>
             </div>
 

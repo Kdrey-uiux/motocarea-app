@@ -104,8 +104,8 @@ export default function RequestHardcopyModal({
 
       onSuccess(res);
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err?.message || 'Failed to submit request. Please try again.');
+    } catch (err: unknown) {
+      setErrorMsg((err instanceof Error && err.message) || 'Failed to submit request. Please try again.');
     } finally {
       setLoading(false);
     }

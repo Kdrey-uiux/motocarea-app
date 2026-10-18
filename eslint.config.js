@@ -18,5 +18,15 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+    rules: {
+      // A leading underscore marks a parameter/variable that is intentionally unused
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+      ],
+      // "Load data when the screen opens" effects set a loading flag first; that is fine here,
+      // so keep this React Compiler hint visible as a warning instead of a hard error
+      'react-hooks/set-state-in-effect': 'warn',
+    },
   },
 ])

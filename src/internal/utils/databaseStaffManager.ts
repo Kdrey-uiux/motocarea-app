@@ -362,7 +362,13 @@ export async function sendStaffPasswordResetEmail(
   actorName: string = 'Shop Owner'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase()).catch(() => {});
+    const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, '');
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${siteUrl}/reset-password`,
+    });
+    if (error) {
+      return { success: false, error: error.message };
+    }
 
     await recordAuditLog({
       ticketCode: 'PERSONNEL',

@@ -94,6 +94,9 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Unknown links go back to the home page instead of a blank screen */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </div>

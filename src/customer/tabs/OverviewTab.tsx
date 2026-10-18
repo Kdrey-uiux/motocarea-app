@@ -74,16 +74,22 @@ export default function OverviewTab({
   // Interactive Stage Inspection State (Defaults to active stage or Stage 1)
   const [inspectedStageStep, setInspectedStageStep] = useState<number>(currentStage > 0 ? currentStage : 1);
 
-  // Synchronize inspected stage whenever active ticket changes
+  // Synchronize inspected stage when the ticket, its stage, or its status changes
+  // (not on every data refresh, so the rider's selected stage stays put)
+  const activeTicketId = activeTicket?.id;
+  const activeStageForInspect = activeTicket
+    ? activeTicket.status === 'READY_FOR_PICKUP'
+      ? 5
+      : activeTicket.status === 'PENDING_CONFIRMATION' ||
+        Boolean(activeTicket.notes && activeTicket.notes.includes('[BOOKING:PENDING_CONFIRMATION]'))
+      ? 1
+      : activeTicket.stage
+    : 0;
   useEffect(() => {
-    if (activeTicket) {
-      const isTicketPending =
-        activeTicket.status === 'PENDING_CONFIRMATION' ||
-        Boolean(activeTicket.notes && activeTicket.notes.includes('[BOOKING:PENDING_CONFIRMATION]'));
-      const stage = activeTicket.status === 'READY_FOR_PICKUP' ? 5 : isTicketPending ? 1 : activeTicket.stage;
-      setInspectedStageStep(stage > 0 ? stage : 1);
+    if (activeTicketId) {
+      setInspectedStageStep(activeStageForInspect > 0 ? activeStageForInspect : 1);
     }
-  }, [activeTicket?.id, activeTicket?.stage, activeTicket?.status, activeTicket?.notes]);
+  }, [activeTicketId, activeStageForInspect]);
 
   // Detect any missed drop-off bookings to prompt immediate rescheduling
   const missedBookings = useMemo(() => {

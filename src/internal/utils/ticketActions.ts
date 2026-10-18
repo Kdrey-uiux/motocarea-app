@@ -27,6 +27,7 @@ export function isAwaitingArrival(t: {
 }): boolean {
   if (t.is_walk_in) return false;
   if (isPendingOnlineBooking(t)) return true;
+  if (t.notes && (t.notes.includes('[CHECKED_IN') || t.notes.includes('[LATE_CHECKIN_OVERRIDE'))) return false;
   if (t.notes?.includes('[BOOKING:PENDING_DROPOFF]')) return true;
   return Boolean(t.dropoff_date && t.dropoff_date > todayDateString());
 }

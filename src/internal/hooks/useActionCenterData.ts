@@ -5,6 +5,7 @@ import { HardcopyRequest } from '../../lib/hardcopyService';
 import { isPendingOnlineBooking } from '../utils/ticketActions';
 import { fetchAllReviews, getReviewStatus, ModeratedReview } from '../utils/reviewModeration';
 import { InternalTicket } from '../types/internal';
+import { SYSTEM_MESSAGE } from '../../utils/systemMessages';
 
 export interface WaitingConversation {
   userId: string;
@@ -34,7 +35,6 @@ export interface ActionCenterData {
 
 const MAX_DISMISSED_KEYS = 500;
 // Automated notices and hardcopy payloads are stored as "[TAG] ..." messages, not customer chat
-const SYSTEM_MESSAGE = /^\[[A-Z_]+\]/;
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN'];
 
 function countReschedules(notes?: string): number {

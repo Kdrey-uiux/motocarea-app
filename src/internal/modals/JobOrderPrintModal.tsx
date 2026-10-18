@@ -27,7 +27,7 @@ export default function JobOrderPrintModal({
     window.print();
   };
 
-  const formattedDate = new Date(ticket.created_at || Date.now()).toLocaleDateString('en-US', {
+  const formattedDate = (ticket.created_at ? new Date(ticket.created_at) : new Date()).toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',

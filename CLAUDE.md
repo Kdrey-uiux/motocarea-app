@@ -28,7 +28,7 @@ src/
   types/                  Shared TS types (dashboard.ts)
 server/src/
   index.ts, routes/ (tickets, admin, messages, motorcycles, profile), middlewares/ (auth, adminOnly), config/supabase.ts, scripts/ (motorcycle seeders)
-supabase/migrations/      Clean schema, run in order 00 → 06 (00_reset is dev-only). Ito ang iisang basehan ng database.
+supabase/migrations/      Clean schema, run in order 00 → 11 (00_reset is dev-only). Ito ang iisang basehan ng database.
 supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 ```
 

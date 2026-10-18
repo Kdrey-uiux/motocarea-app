@@ -428,7 +428,7 @@ export default function DashboardHeader({
                   type="button"
                   onClick={() => {
                     setIsUserMenuOpen(false);
-                    setActiveTab && setActiveTab('profile');
+                    setActiveTab?.('profile');
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { TabType, Motorcycle, ServiceTicket, UserProfile } from '../types/dashboard';
@@ -59,7 +59,7 @@ export default function CustomerDashboard() {
     setActiveTab('book');
   };
 
-  const loadDashboardData = async (uid: string) => {
+  const loadDashboardData = useCallback(async (uid: string) => {
     try {
       // Non-blocking background health checks
       runMissedBookingScanInBackground();
@@ -89,8 +89,8 @@ export default function CustomerDashboard() {
 
       const loadedBikes = bikesRes.data || [];
       setMotorcycles(loadedBikes);
-      if (loadedBikes.length > 0 && !selectedBikeId) {
-        setSelectedBikeId(loadedBikes[0].id);
+      if (loadedBikes.length > 0) {
+        setSelectedBikeId((current) => current || loadedBikes[0].id);
       }
 
       setActiveTickets(ongoingRes.data || []);
@@ -99,7 +99,7 @@ export default function CustomerDashboard() {
     } catch (err) {
       console.error('Error loading Supabase dashboard data:', err);
     }
-  };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -148,7 +148,7 @@ export default function CustomerDashboard() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, [navigate, loadDashboardData]);
 
   // Realtime subscription for ticket stage/dispatch updates and hardcopy status
   useEffect(() => {
@@ -213,7 +213,7 @@ export default function CustomerDashboard() {
       supabase.removeChannel(dbChangesChannel);
       supabase.removeChannel(hardcopyChannel);
     };
-  }, [userId]);
+  }, [userId, loadDashboardData]);
 
   // Automatically launch streamlined guided walkthrough for NEW USERS upon entering dashboard
   useEffect(() => {
