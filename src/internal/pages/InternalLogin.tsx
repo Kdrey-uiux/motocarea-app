@@ -19,27 +19,21 @@ import {
 export default function InternalLogin() {
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  // Prefill the remembered workstation email
+  const [email, setEmail] = useState(getRememberedEmail);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => Boolean(getRememberedEmail()));
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Prepopulate remembered workstation email and auto-redirect if already logged in
+  // Already logged in on this tab: go straight to the console
   useEffect(() => {
     const active = getInternalSession();
     if (active && active.isActive !== false) {
       navigate('/internal', { replace: true });
-      return;
-    }
-
-    const remembered = getRememberedEmail();
-    if (remembered) {
-      setEmail(remembered);
-      setRememberMe(true);
     }
   }, [navigate]);
 

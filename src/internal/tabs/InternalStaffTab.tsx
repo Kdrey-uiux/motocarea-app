@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { InternalStaffMember, UserRole } from '../types/internal';
 import { canManageStaff } from '../utils/permissions';
 import { 
@@ -62,7 +62,7 @@ export default function InternalStaffTab({
 
 function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
   const [staffList, setStaffList] = useState<InternalStaffMember[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'deactivated'>('all');
 
@@ -87,19 +87,23 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
   const [editPhone, setEditPhone] = useState('');
   const [editPosition, setEditPosition] = useState('');
 
-  const loadStaff = async () => {
+  // The spinner starts on (initial load) or from the Refresh button
+  const loadStaff = useCallback(() => {
+    return fetchDatabaseStaffMembers().then((data) => {
+      setStaffList(data);
+      setLoading(false);
+    });
+  }, []);
+  const refreshStaff = () => {
     setLoading(true);
-    const data = await fetchDatabaseStaffMembers();
-    setStaffList(data);
-    setLoading(false);
+    loadStaff();
   };
 
   useEffect(() => {
     loadStaff();
-    const handleUpdate = () => loadStaff();
-    window.addEventListener('motocare_staff_updated', handleUpdate);
-    return () => window.removeEventListener('motocare_staff_updated', handleUpdate);
-  }, []);
+    window.addEventListener('motocare_staff_updated', loadStaff);
+    return () => window.removeEventListener('motocare_staff_updated', loadStaff);
+  }, [loadStaff]);
 
   const filteredStaff = useMemo(() => {
     return staffList.filter((s) => {
@@ -253,7 +257,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
         <div className="flex items-center gap-2 shrink-0">
           <button
             type="button"
-            onClick={loadStaff}
+            onClick={refreshStaff}
             disabled={loading}
             className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
             title="Refresh staff list"

@@ -132,7 +132,7 @@ export default function BookServiceTab({
   selectedBikeId,
   setSelectedBikeId,
   activeTickets = [],
-  serviceHistory = [],
+  serviceHistory: _serviceHistory,
   onBookingComplete,
   onNavigateTab,
   onOpenChat,
@@ -140,37 +140,18 @@ export default function BookServiceTab({
   rescheduleTicket,
   onCancelReschedule,
 }: BookServiceTabProps) {
-  // Wizard current step: 1 = Service, 2 = Date & Time, 3 = Vehicle, 4 = Review & Confirm
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  // Rescheduling opens straight on Step 3 (Schedule & Time) with the original service kept.
+  // The dashboard remounts this tab (key) whenever a different ticket is rescheduled and
+  // pre-selects that ticket's motorcycle, so everything here comes from the initial state.
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(rescheduleTicket ? 3 : 1);
 
   // Active Reschedule state
   const [activeReschedule, setActiveReschedule] = useState<ServiceTicket | null>(rescheduleTicket || null);
 
-  useEffect(() => {
-    if (rescheduleTicket) {
-      setActiveReschedule(rescheduleTicket);
-    }
-  }, [rescheduleTicket]);
-
-  // Support reading ?reschedule=MC-XXXX from URL
-  useEffect(() => {
-    if (!activeReschedule && typeof window !== 'undefined') {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('reschedule');
-      if (code) {
-        const found =
-          (serviceHistory || []).find((t) => t.ticket_code === code) ||
-          (activeTickets || []).find((t) => t.ticket_code === code);
-        if (found) {
-          setActiveReschedule(found);
-        }
-      }
-    }
-  }, [activeReschedule, serviceHistory, activeTickets]);
 
   // Step 1: Selected service package, category filter & mobile accordion toggle
   const [selectedCategory, setSelectedCategory] = useState<ServiceCategoryKey>('all');
-  const [serviceType, setServiceType] = useState<string>('');
+  const [serviceType, setServiceType] = useState<string>(rescheduleTicket?.service_type || '');
   const [expandedPackageId, setExpandedPackageId] = useState<string | null>(null);
 
   // Dynamic Service Packages reactive sync
@@ -294,40 +275,12 @@ export default function BookServiceTab({
     };
   }, []);
 
-  // Ensure selected bike is valid
-  useEffect(() => {
-    if (motorcycles.length > 0) {
-      if (!selectedBikeId || !motorcycles.some((b) => b.id === selectedBikeId)) {
-        setSelectedBikeId(motorcycles[0].id);
-      }
-    } else {
-      setBikeMode('new');
-    }
-  }, [motorcycles, selectedBikeId, setSelectedBikeId]);
+  // No saved motorcycles yet: the only option is registering a new one
+  if (motorcycles.length === 0 && bikeMode !== 'new') {
+    setBikeMode('new');
+  }
 
   const cleanPlate = (str: string) => str.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-
-  // When activeReschedule is present, pre-fill motorcycle, package, and jump directly to Step 3 (Calendar & Time)
-  useEffect(() => {
-    if (activeReschedule) {
-      if (activeReschedule.service_type) {
-        setServiceType(activeReschedule.service_type);
-      }
-      if (activeReschedule.motorcycle_id) {
-        setSelectedBikeId(activeReschedule.motorcycle_id);
-        setBikeMode('existing');
-      } else if (activeReschedule.motorcycles?.plate_number) {
-        const clean = cleanPlate(activeReschedule.motorcycles.plate_number);
-        const match = motorcycles.find((m) => cleanPlate(m.plate_number) === clean);
-        if (match) {
-          setSelectedBikeId(match.id);
-          setBikeMode('existing');
-        }
-      }
-      // Jump directly to Step 3: Schedule & Time
-      setCurrentStep(3);
-    }
-  }, [activeReschedule, motorcycles, setSelectedBikeId]);
 
   // Helper: Find if a motorcycle (by ID or Plate) already has an active ongoing ticket in the workshop
   const getActiveTicketForBike = useCallback((bikeIdOrPlate?: string) => {

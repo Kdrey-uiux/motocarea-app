@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { UserRole, AuditLogEntry } from '../types/internal';
 import { canViewAuditLogs } from '../utils/permissions';
 import { fetchDatabaseAuditLogs } from '../utils/databaseAuditLogger';
@@ -37,24 +37,28 @@ export default function InternalAuditTab({ currentRole }: InternalAuditTabProps)
 
 function AuditTrail() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<AuditDateFilter>('ALL');
   const [actorFilter, setActorFilter] = useState<string>('ALL');
 
-  const loadLogs = async () => {
+  // The spinner starts on (initial load) or from the Refresh button
+  const loadLogs = useCallback(() => {
+    return fetchDatabaseAuditLogs().then((data) => {
+      setLogs(data);
+      setLoading(false);
+    });
+  }, []);
+  const refreshLogs = () => {
     setLoading(true);
-    const data = await fetchDatabaseAuditLogs();
-    setLogs(data);
-    setLoading(false);
+    loadLogs();
   };
 
   useEffect(() => {
     loadLogs();
-    const handleUpdate = () => loadLogs();
-    window.addEventListener('motocare_audit_updated', handleUpdate);
-    return () => window.removeEventListener('motocare_audit_updated', handleUpdate);
-  }, []);
+    window.addEventListener('motocare_audit_updated', loadLogs);
+    return () => window.removeEventListener('motocare_audit_updated', loadLogs);
+  }, [loadLogs]);
 
   // Distinct Staff Actors
   const uniqueActors = useMemo(() => {
@@ -149,7 +153,7 @@ function AuditTrail() {
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={loadLogs}
+            onClick={refreshLogs}
             disabled={loading}
             className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             title="Refresh database logs"

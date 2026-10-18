@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { InternalTicket } from '../types/internal';
@@ -43,10 +43,12 @@ export default function Stage5BillingModal({
   const [checkKeysReady, setCheckKeysReady] = useState(false);
   const [checkWalkaround, setCheckWalkaround] = useState(false);
 
-  // Fresh form for every ticket opened
-  const ticketId = ticket?.id;
-  useEffect(() => {
-    if (isOpen) {
+  // Fresh form for every ticket opened (reset during render when the modal opens)
+  const openKey = isOpen ? ticket?.id ?? 'open' : '';
+  const [lastOpenKey, setLastOpenKey] = useState(openKey);
+  if (openKey !== lastOpenKey) {
+    setLastOpenKey(openKey);
+    if (openKey) {
       setReleaseSuccess(null);
       setErrorMsg(null);
       setHandoverNotes('');
@@ -54,7 +56,7 @@ export default function Stage5BillingModal({
       setCheckKeysReady(false);
       setCheckWalkaround(false);
     }
-  }, [isOpen, ticketId]);
+  }
 
   if (!isOpen || !ticket) return null;
 

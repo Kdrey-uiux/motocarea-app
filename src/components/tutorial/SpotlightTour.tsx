@@ -162,7 +162,13 @@ export default function SpotlightTour({
   onTabChange,
 }: SpotlightTourProps) {
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [lang, setLang] = useState<'en' | 'tl'>('en');
+  const [lang, setLang] = useState<'en' | 'tl'>(() => {
+    try {
+      return localStorage.getItem('motocare_tour_lang') === 'tl' ? 'tl' : 'en';
+    } catch {
+      return 'en';
+    }
+  });
   const [targetRect, setTargetRect] = useState<TargetRect | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [viewport, setViewport] = useState({
@@ -176,17 +182,6 @@ export default function SpotlightTour({
   const isFirstStep = currentStepIdx === 0;
   const isLastStep = currentStepIdx === TOUR_STEPS.length - 1;
 
-  // Load language preference from localStorage
-  useEffect(() => {
-    try {
-      const savedLang = localStorage.getItem('motocare_tour_lang');
-      if (savedLang === 'tl' || savedLang === 'en') {
-        setLang(savedLang);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
   const handleToggleLang = (newLang: 'en' | 'tl') => {
     setLang(newLang);
@@ -306,14 +301,17 @@ export default function SpotlightTour({
     }
   }, [activeTab, onTabChange, measureTarget]);
 
-  // Initial trigger on open
+  // Initial trigger on open (next frame, once the dashboard is painted and measurable)
   useEffect(() => {
-    if (isOpen) {
-      navigateToStep(0);
-    } else {
-      setTargetRect(null);
-    }
+    const frame = window.requestAnimationFrame(() => {
+      if (isOpen) {
+        navigateToStep(0);
+      } else {
+        setTargetRect(null);
+      }
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       if (mountTimeoutRef.current) {
         window.clearTimeout(mountTimeoutRef.current);
         mountTimeoutRef.current = null;

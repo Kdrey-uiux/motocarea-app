@@ -51,13 +51,43 @@ const PRESET_REPLIES = [
 ];
 
 
+interface ChatData {
+  messages: ChatMessage[];
+  profiles: Map<string, { full_name: string; phone_number: string }>;
+  bikes: Map<string, string>;
+}
+
+/** All chat messages plus the customer names/phones and first bike for each conversation */
+async function queryChatData(): Promise<ChatData> {
+  const { data, error } = await db().from('messages').select('*').order('created_at', { ascending: true });
+  if (error) throw error;
+  const messages: ChatMessage[] = data || [];
+
+  const userIds = Array.from(new Set(messages.map((m) => m.user_id).filter(Boolean)));
+  const profiles = new Map<string, { full_name: string; phone_number: string }>();
+  const bikes = new Map<string, string>();
+  if (userIds.length > 0) {
+    const [{ data: profs }, { data: bikeRows }] = await Promise.all([
+      db().from('profiles').select('id, full_name, phone_number').in('id', userIds),
+      db().from('motorcycles').select('user_id, model').in('user_id', userIds),
+    ]);
+    profs?.forEach((p) =>
+      profiles.set(p.id, { full_name: p.full_name || 'Rider Customer', phone_number: p.phone_number || 'N/A' })
+    );
+    bikeRows?.forEach((b) => {
+      if (b.user_id && !bikes.has(b.user_id)) bikes.set(b.user_id, b.model);
+    });
+  }
+  return { messages, profiles, bikes };
+}
+
 export default function InternalMessagesTab({
   tickets,
   currentStaffName = 'Workshop Reception',
   initialUserId,
 }: InternalMessagesTabProps) {
-  const [conversations, setConversations] = useState<CustomerConversation[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(initialUserId ?? null);
+  const [chatData, setChatData] = useState<ChatData | null>(null);
+  const [pickedUserId, setSelectedUserId] = useState<string | null>(initialUserId ?? null);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -89,101 +119,44 @@ export default function InternalMessagesTab({
     });
   };
 
-  // Fetch messages from Supabase
-  const fetchMessages = useCallback(async () => {
-    try {
-      const { data, error } = await db()
-        .from('messages')
-        .select('*')
-        .order('created_at', { ascending: true });
+  // Fetch messages (+ names and bikes) from Supabase; conversations are built below
+  const fetchMessages = useCallback(() => {
+    return queryChatData()
+      .then(setChatData)
+      .catch((err) => console.error('Failed to load chat:', err))
+      .finally(() => setLoading(false));
+  }, []);
 
-      if (error) {
-        console.error('Error fetching messages:', error);
-        return;
-      }
+  const conversations = useMemo<CustomerConversation[]>(() => {
+    if (!chatData) return [];
+    const userMap = new Map<string, ChatMessage[]>();
+    chatData.messages.forEach((msg) => {
+      const uid = msg.user_id || 'guest-rider';
+      if (!userMap.has(uid)) userMap.set(uid, []);
+      userMap.get(uid)!.push(msg);
+    });
 
-      const allMsgs: ChatMessage[] = data || [];
-      const userMap = new Map<string, ChatMessage[]>();
-
-      allMsgs.forEach((msg) => {
-        const uid = msg.user_id || 'guest-rider';
-        if (!userMap.has(uid)) {
-          userMap.set(uid, []);
-        }
-        userMap.get(uid)!.push(msg);
+    const convList: CustomerConversation[] = [];
+    userMap.forEach((msgs, uid) => {
+      const matchingTicket = tickets.find((t) => t.user_id === uid);
+      const profile = chatData.profiles.get(uid);
+      const last = msgs[msgs.length - 1];
+      convList.push({
+        userId: uid,
+        customerName: matchingTicket?.customer_name || profile?.full_name || 'Rider Customer',
+        customerPhone: matchingTicket?.customer_phone || profile?.phone_number || 'N/A',
+        bikeModel: matchingTicket?.motorcycles?.model || chatData.bikes.get(uid) || 'Motorcycle Unit',
+        latestMessage: last?.message || '',
+        latestTime: last?.created_at || '',
+        isResolved: resolvedIds.includes(uid),
+        messages: msgs,
       });
+    });
+    return convList.sort((x, y) => new Date(y.latestTime).getTime() - new Date(x.latestTime).getTime());
+  }, [chatData, tickets, resolvedIds]);
 
-      // Fetch profiles & bikes for chat users to resolve real identity
-      const uniqueUserIds = Array.from(userMap.keys()).filter((id) => id && !id.startsWith('guest-'));
-      const profileMap = new Map<string, { full_name: string; phone_number: string }>();
-      const bikeMap = new Map<string, string>();
-
-      if (uniqueUserIds.length > 0) {
-        try {
-          const { data: profs } = await db()
-            .from('profiles')
-            .select('id, full_name, phone_number')
-            .in('id', uniqueUserIds);
-
-          profs?.forEach((p) => {
-            if (p.id) {
-              profileMap.set(p.id, {
-                full_name: p.full_name || 'Rider Customer',
-                phone_number: p.phone_number || 'N/A',
-              });
-            }
-          });
-
-          const { data: bikes } = await db()
-            .from('motorcycles')
-            .select('user_id, model')
-            .in('user_id', uniqueUserIds);
-
-          bikes?.forEach((b) => {
-            if (b.user_id && !bikeMap.has(b.user_id)) {
-              bikeMap.set(b.user_id, b.model);
-            }
-          });
-        } catch {
-          // ignore
-        }
-      }
-
-      const convList: CustomerConversation[] = [];
-      userMap.forEach((msgs, uid) => {
-        const matchingTicket = tickets.find((t) => t.user_id === uid);
-        const profile = profileMap.get(uid);
-        const bikeFromDb = bikeMap.get(uid);
-
-        const name = matchingTicket?.customer_name || profile?.full_name || 'Rider Customer';
-        const phone = matchingTicket?.customer_phone || profile?.phone_number || 'N/A';
-        const bike = matchingTicket?.motorcycles?.model || bikeFromDb || 'Motorcycle Unit';
-        const last = msgs[msgs.length - 1];
-
-        convList.push({
-          userId: uid,
-          customerName: name,
-          customerPhone: phone,
-          bikeModel: bike,
-          latestMessage: last?.message || '',
-          latestTime: last?.created_at || new Date().toISOString(),
-          isResolved: resolvedIds.includes(uid),
-          messages: msgs,
-        });
-      });
-
-      convList.sort((a, b) => new Date(b.latestTime).getTime() - new Date(a.latestTime).getTime());
-      setConversations(convList);
-
-      if (!selectedUserId && convList.length > 0) {
-        setSelectedUserId(convList[0].userId);
-      }
-    } catch (err) {
-      console.error('Failed to load chat:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [tickets, selectedUserId, resolvedIds]);
+  // Until staff pick a chat, the newest conversation is open
+  const selectedUserId = pickedUserId ?? conversations[0]?.userId ?? null;
 
   useEffect(() => {
     fetchMessages();

@@ -222,6 +222,15 @@ const STEPS: StepContent[] = [
   },
 ];
 
+function readSavedTourLang(): 'en' | 'tl' {
+  try {
+    const saved = localStorage.getItem('motocare_tour_lang');
+    return saved === 'tl' ? 'tl' : 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 export default function RiderTutorialModal({
   isOpen,
   onClose,
@@ -229,26 +238,15 @@ export default function RiderTutorialModal({
   onStartBooking,
 }: RiderTutorialModalProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [lang, setLang] = useState<'en' | 'tl'>('en');
+  const [lang, setLang] = useState<'en' | 'tl'>(readSavedTourLang);
 
-  // Load language preference from localStorage
-  useEffect(() => {
-    try {
-      const savedLang = localStorage.getItem('motocare_tour_lang');
-      if (savedLang === 'tl' || savedLang === 'en') {
-        setLang(savedLang);
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
 
-  // Reset to first step when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentStepIndex(0);
-    }
-  }, [isOpen]);
+  // Reset to the first step each time the modal opens (adjusted during render, no extra effect pass)
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) setCurrentStepIndex(0);
+  }
 
   const currentStep = STEPS[currentStepIndex];
   const isFirstStep = currentStepIndex === 0;

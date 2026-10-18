@@ -72,15 +72,17 @@ export default function DashboardHeader({
     }
   });
 
-  // Re-sync read state whenever account / userId changes
-  useEffect(() => {
+  // Re-sync read state whenever account / userId changes (adjusted during render)
+  const [loadedStorageKey, setLoadedStorageKey] = useState(storageKey);
+  if (loadedStorageKey !== storageKey) {
+    setLoadedStorageKey(storageKey);
     try {
       const saved = localStorage.getItem(storageKey);
       setReadNotifIds(saved ? JSON.parse(saved) : []);
     } catch {
       setReadNotifIds([]);
     }
-  }, [storageKey]);
+  }
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);

@@ -46,8 +46,6 @@ import { parseTicketNotes, formatPhoneNumber } from '../../utils/ticketNotesPars
 import { InternalStaffMember } from '../types/internal';
 import { toast } from '../utils/toast';
 
-export const SAMPLE_QUEUE_TICKETS: InternalTicket[] = [];
-
 function MotorcycleIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
     <svg

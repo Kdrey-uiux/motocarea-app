@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { parseTicketReview, submitTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
@@ -44,16 +44,7 @@ export default function OverviewTab({
     activeTickets.length > 0 ? activeTickets[0].id : ''
   );
 
-  // Keep selected ticket synchronized when activeTickets changes
-  useEffect(() => {
-    if (activeTickets.length > 0) {
-      if (!activeTickets.some((t) => t.id === selectedTicketId)) {
-        setSelectedTicketId(activeTickets[0].id);
-      }
-    } else {
-      setSelectedTicketId('');
-    }
-  }, [activeTickets, selectedTicketId]);
+  // If the selected ticket is gone (completed/cancelled), the first active ticket is shown instead
 
   const activeTicket =
     activeTickets.find((t) => t.id === selectedTicketId) ||
@@ -85,11 +76,12 @@ export default function OverviewTab({
       ? 1
       : activeTicket.stage
     : 0;
-  useEffect(() => {
-    if (activeTicketId) {
-      setInspectedStageStep(activeStageForInspect > 0 ? activeStageForInspect : 1);
-    }
-  }, [activeTicketId, activeStageForInspect]);
+  const inspectKey = `${activeTicketId ?? ''}:${activeStageForInspect}`;
+  const [lastInspectKey, setLastInspectKey] = useState(inspectKey);
+  if (inspectKey !== lastInspectKey) {
+    setLastInspectKey(inspectKey);
+    if (activeTicketId) setInspectedStageStep(activeStageForInspect > 0 ? activeStageForInspect : 1);
+  }
 
   // Detect any missed drop-off bookings to prompt immediate rescheduling
   const missedBookings = useMemo(() => {

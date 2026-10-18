@@ -45,6 +45,104 @@ import InternalMessagesTab from './tabs/InternalMessagesTab';
 import InternalFleetTab from './tabs/InternalFleetTab';
 import InternalServicesTab from './tabs/InternalServicesTab';
 
+/**
+ * Every ticket with its motorcycle and the customer's name/phone.
+ * Also kicks off the (throttled) missed-booking scan.
+ */
+async function queryWorkshopTickets(): Promise<InternalTicket[]> {
+  runMissedBookingScanInBackground();
+
+  const { data: ticketData, error } = await db()
+    .from('service_tickets')
+    .select(`
+      id,
+      ticket_code,
+      service_type,
+      stage,
+      assigned_bay,
+      assigned_mechanic,
+      estimated_pickup,
+      total_estimate,
+      status,
+      notes,
+      dropoff_date,
+      dropoff_window,
+      created_at,
+      updated_at,
+      user_id,
+      parts_cost,
+      labor_cost,
+      total_amount,
+      billing_breakdown,
+      payment_method,
+      payment_status,
+      paid_at,
+      released_by,
+      cancellation_reason,
+      cancelled_by,
+      cancelled_at,
+      discount_amount,
+      discount_type,
+      is_walk_in,
+      motorcycles (
+        id,
+        model,
+        plate_number,
+        year_model,
+        odometer
+      )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  const rawTickets = ticketData || [];
+
+  // Resolve profile names using staff client if available (to bypass RLS restriction on profiles)
+  const userIds = Array.from(new Set(rawTickets.map((t) => t.user_id).filter(Boolean)));
+  const profileMap = new Map<string, { full_name: string; phone_number: string }>();
+
+  if (userIds.length > 0) {
+    try {
+      const { data: profs } = await db()
+        .from('profiles')
+        .select('id, full_name, phone_number')
+        .in('id', userIds);
+
+      profs?.forEach((p) => {
+        profileMap.set(p.id, {
+          full_name: p.full_name || 'Rider Customer',
+          phone_number: p.phone_number || 'N/A',
+        });
+      });
+    } catch {
+      // ignore
+    }
+  }
+
+  // Supabase returns the joined motorcycle as a single object here (many-to-one)
+  const populated: InternalTicket[] = (rawTickets as unknown as InternalTicket[]).map((t) => {
+    const prof = t.user_id ? profileMap.get(t.user_id) : undefined;
+    const parsed = parseTicketNotes(t.notes);
+
+    const resolvedName = prof?.full_name || parsed.customerName || 'Rider Customer';
+    const resolvedPhone = (prof?.phone_number && prof.phone_number !== 'N/A') ? prof.phone_number : (parsed.phone || 'N/A');
+
+    return {
+      ...t,
+      customer_name: resolvedName,
+      customer_phone: resolvedPhone,
+      dropoff_window: t.dropoff_window || parsed.arrivalWindow || undefined,
+      profiles: {
+        full_name: resolvedName,
+        phone_number: resolvedPhone,
+      },
+    };
+  });
+
+  return populated;
+}
+
 export default function InternalConsole() {
   // Auth Session
   const session = getInternalSession();
@@ -74,7 +172,9 @@ export default function InternalConsole() {
     };
   }, [sessionUserId]);
 
-  const [activeTab, setActiveTab] = useState<InternalTab>('actions');
+  const [requestedTab, setRequestedTab] = useState<InternalTab>('actions');
+  // Tab Guard: staff asking for an admin-only tab see the queue instead
+  const activeTab: InternalTab = canAccessTab(currentRole, requestedTab) ? requestedTab : 'queue';
   // One-shot focus targets used when the Action Center deep-links into another tab
   const [queueFocusView, setQueueFocusView] = useState<OperationalView | undefined>(undefined);
   const [messagesFocusUserId, setMessagesFocusUserId] = useState<string | undefined>(undefined);
@@ -88,8 +188,8 @@ export default function InternalConsole() {
   const navigateToTab = useCallback((tab: InternalTab) => {
     setQueueFocusView(undefined);
     setMessagesFocusUserId(undefined);
-    setActiveTab(tab);
-  }, []);
+    setRequestedTab(tab);
+  }, [setRequestedTab]);
   const [tickets, setTickets] = useState<InternalTicket[]>([]);
   const [staffList, setStaffList] = useState<InternalStaffMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,149 +268,45 @@ export default function InternalConsole() {
     return () => clearInterval(interval);
   }, [sessionUserId]);
 
-  // Tab Guard: If Staff tries to access admin-only tab, redirect to queue
-  useEffect(() => {
-    if (!canAccessTab(currentRole, activeTab)) {
-      setActiveTab('queue');
-    }
-  }, [currentRole, activeTab]);
 
   // Load staff list
-  const loadStaff = useCallback(async () => {
-    const list = await fetchDatabaseStaffMembers();
-    setStaffList(list);
+  const loadStaff = useCallback(() => {
+    return fetchDatabaseStaffMembers().then(setStaffList);
   }, []);
 
-  // Fetch tickets with attached motorcycles and profile data
-  const fetchTickets = useCallback(async (options?: { silent?: boolean }) => {
-    try {
-      if (!options?.silent) {
-        setLoading(true);
-      }
-      setTicketsError(null);
-
-      // Automated missed booking check runs in background (throttled to at most once per 5 mins)
-      runMissedBookingScanInBackground();
-
-      // Query only columns verified to exist in public.service_tickets
-      const { data: ticketData, error } = await db()
-        .from('service_tickets')
-        .select(`
-          id,
-          ticket_code,
-          service_type,
-          stage,
-          assigned_bay,
-          assigned_mechanic,
-          estimated_pickup,
-          total_estimate,
-          status,
-          notes,
-          dropoff_date,
-          dropoff_window,
-          created_at,
-          updated_at,
-          user_id,
-          parts_cost,
-          labor_cost,
-          total_amount,
-          billing_breakdown,
-          payment_method,
-          payment_status,
-          paid_at,
-          released_by,
-          cancellation_reason,
-          cancelled_by,
-          cancelled_at,
-          discount_amount,
-          discount_type,
-          is_walk_in,
-          motorcycles (
-            id,
-            model,
-            plate_number,
-            year_model,
-            odometer
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching tickets:', error);
-        setTicketsError(error.message || 'Failed to load tickets from workshop database.');
-        return;
-      }
-
-      const rawTickets = ticketData || [];
-
-      // Resolve profile names using staff client if available (to bypass RLS restriction on profiles)
-      const userIds = Array.from(new Set(rawTickets.map((t) => t.user_id).filter(Boolean)));
-      const profileMap = new Map<string, { full_name: string; phone_number: string }>();
-
-      if (userIds.length > 0) {
-        try {
-          const { data: profs } = await db()
-            .from('profiles')
-            .select('id, full_name, phone_number')
-            .in('id', userIds);
-
-          profs?.forEach((p) => {
-            profileMap.set(p.id, {
-              full_name: p.full_name || 'Rider Customer',
-              phone_number: p.phone_number || 'N/A',
-            });
-          });
-        } catch {
-          // ignore
-        }
-      }
-
-      // Supabase returns the joined motorcycle as a single object here (many-to-one)
-      const populated: InternalTicket[] = (rawTickets as unknown as InternalTicket[]).map((t) => {
-        const prof = t.user_id ? profileMap.get(t.user_id) : undefined;
-        const parsed = parseTicketNotes(t.notes);
-
-        const resolvedName = prof?.full_name || parsed.customerName || 'Rider Customer';
-        const resolvedPhone = (prof?.phone_number && prof.phone_number !== 'N/A') ? prof.phone_number : (parsed.phone || 'N/A');
-
-        return {
-          ...t,
-          customer_name: resolvedName,
-          customer_phone: resolvedPhone,
-          dropoff_window: t.dropoff_window || parsed.arrivalWindow || undefined,
-          profiles: {
-            full_name: resolvedName,
-            phone_number: resolvedPhone,
-          },
-        };
-      });
-
-      setTickets(populated);
-    } catch (err: unknown) {
-      console.error('Failed to load tickets:', err);
-      setTicketsError(err instanceof Error ? err.message : 'Failed to load tickets from workshop database.');
-    } finally {
-      setLoading(false);
-    }
+  // Load tickets; the header Refresh / Retry buttons also show the spinner
+  const loadTickets = useCallback(() => {
+    return queryWorkshopTickets()
+      .then((list) => {
+        setTickets(list);
+        setTicketsError(null);
+      })
+      .catch((err: unknown) => {
+        console.error('Failed to load tickets:', err);
+        const message = err && typeof err === 'object' && 'message' in err ? String(err.message) : '';
+        setTicketsError(message || 'Failed to load tickets from workshop database.');
+      })
+      .finally(() => setLoading(false));
   }, []);
+  const refreshTickets = useCallback(() => {
+    setLoading(true);
+    return loadTickets();
+  }, [loadTickets]);
 
-  const loadHardcopies = useCallback(async () => {
-    try {
-      const list = await fetchHardcopyRequests();
-      setHardcopyRequests(list);
-    } catch {
-      // ignore
-    }
+  const loadHardcopies = useCallback(() => {
+    return fetchHardcopyRequests()
+      .then(setHardcopyRequests)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    fetchTickets();
+    loadTickets();
     loadStaff();
     loadHardcopies();
 
     // Debounced silent ticket refresher for rapid broadcasts / postgres events
     const debouncedTicketRefresh = debounce(() => {
-      fetchTickets({ silent: true });
+      loadTickets();
     }, 400);
 
     // Realtime channel subscriptions
@@ -392,7 +388,7 @@ export default function InternalConsole() {
 
     // 30s Polling Fallback (silent background check)
     const pollInterval = setInterval(() => {
-      fetchTickets({ silent: true });
+      loadTickets();
       loadHardcopies();
     }, 30000);
 
@@ -404,7 +400,7 @@ export default function InternalConsole() {
       realtimeClient.removeChannel(hardcopyChannel);
       clearInterval(pollInterval);
     };
-  }, [fetchTickets, loadStaff, loadHardcopies]);
+  }, [loadTickets, loadStaff, loadHardcopies]);
 
   // Derived counts for sidebar badges
   const queueCount = useMemo(() => {
@@ -526,7 +522,7 @@ export default function InternalConsole() {
         {/* Floating Capsule Top Navbar */}
         <InternalHeader
           loading={loading}
-          onRefresh={fetchTickets}
+          onRefresh={refreshTickets}
           onLogout={handleLogout}
           onToggleMobileMenu={() => setIsMobileSidebarOpen(true)}
           currentRole={currentRole}
@@ -550,7 +546,7 @@ export default function InternalConsole() {
               </div>
               <button
                 type="button"
-                onClick={() => fetchTickets()}
+                onClick={() => refreshTickets()}
                 className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg cursor-pointer shrink-0 transition"
               >
                 Retry
@@ -563,16 +559,16 @@ export default function InternalConsole() {
               data={actionData}
               tickets={tickets}
               currentStaffName={currentUserName}
-              onRefresh={fetchTickets}
+              onRefresh={refreshTickets}
               onRefreshHardcopies={loadHardcopies}
               onOpenStage5Billing={handleOpenStage5Billing}
               onOpenQueue={(view) => {
                 setQueueFocusView(view);
-                setActiveTab('queue');
+                setRequestedTab('queue');
               }}
               onOpenConversation={(userId) => {
                 setMessagesFocusUserId(userId);
-                setActiveTab('messages');
+                setRequestedTab('messages');
               }}
               onNavigateTab={navigateToTab}
             />
@@ -591,7 +587,7 @@ export default function InternalConsole() {
               tickets={tickets}
               staffList={staffList}
               loading={loading}
-              onRefresh={fetchTickets}
+              onRefresh={refreshTickets}
               onOpenDispatch={handleOpenDispatch}
               onOpenStage5Billing={handleOpenStage5Billing}
               setActiveTab={navigateToTab}
@@ -604,7 +600,7 @@ export default function InternalConsole() {
             <InternalQueueTab
               tickets={tickets}
               loading={loading}
-              onRefresh={fetchTickets}
+              onRefresh={refreshTickets}
               onOpenDispatch={handleOpenDispatch}
               onOpenStage5Billing={handleOpenStage5Billing}
               onOpenReceiptPrint={handleOpenReceiptPrint}
@@ -621,7 +617,7 @@ export default function InternalConsole() {
             <InternalBaysTab
               tickets={tickets}
               onOpenDispatch={handleOpenDispatch}
-              onRefresh={fetchTickets}
+              onRefresh={refreshTickets}
             />
           )}
 
@@ -675,7 +671,7 @@ export default function InternalConsole() {
         ticket={dispatchTicket}
         isOpen={isDispatchOpen}
         onClose={() => setIsDispatchOpen(false)}
-        onSaved={() => { fetchTickets(); }}
+        onSaved={() => { loadTickets(); }}
         allTickets={tickets}
         staffList={staffList}
         onOpenStage5Billing={handleOpenStage5Billing}
@@ -686,7 +682,7 @@ export default function InternalConsole() {
         ticket={billingTicket}
         isOpen={isBillingOpen}
         onClose={() => setIsBillingOpen(false)}
-        onPaymentConfirmed={() => { fetchTickets(); }}
+        onPaymentConfirmed={() => { loadTickets(); }}
         onOpenReceiptPrint={handleOpenReceiptPrint}
         currentStaffName={currentUserName}
       />

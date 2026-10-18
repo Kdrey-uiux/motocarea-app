@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { TabType, Motorcycle, ServiceTicket, UserProfile } from '../types/dashboard';
@@ -37,6 +37,8 @@ export default function CustomerDashboard() {
 
   // Database States
   const [motorcycles, setMotorcycles] = useState<Motorcycle[]>([]);
+  // Latest garage for callbacks that must stay stable (reschedule pre-selection)
+  const motorcyclesRef = useRef<Motorcycle[]>([]);
   const [activeTickets, setActiveTickets] = useState<ServiceTicket[]>([]);
   const [serviceHistory, setServiceHistory] = useState<ServiceTicket[]>([]);
   const [hardcopyRequests, setHardcopyRequests] = useState<HardcopyRequest[]>([]);
@@ -54,10 +56,17 @@ export default function CustomerDashboard() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [rescheduleTicket, setRescheduleTicket] = useState<ServiceTicket | null>(null);
 
-  const handleOpenReschedule = (ticket: ServiceTicket) => {
+  const handleOpenReschedule = useCallback((ticket: ServiceTicket) => {
     setRescheduleTicket(ticket);
+    // Pre-select the rescheduled motorcycle (by id, or by plate for older tickets)
+    const bikes = motorcyclesRef.current;
+    const plate = ticket.motorcycles?.plate_number?.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const match =
+      bikes.find((b) => b.id === ticket.motorcycle_id) ||
+      (plate ? bikes.find((b) => b.plate_number.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === plate) : undefined);
+    if (match) setSelectedBikeId(match.id);
     setActiveTab('book');
-  };
+  }, []);
 
   const loadDashboardData = useCallback(async (uid: string) => {
     try {
@@ -88,16 +97,21 @@ export default function CustomerDashboard() {
       ]);
 
       const loadedBikes = bikesRes.data || [];
+      motorcyclesRef.current = loadedBikes;
       setMotorcycles(loadedBikes);
       if (loadedBikes.length > 0) {
-        setSelectedBikeId((current) => current || loadedBikes[0].id);
+        setSelectedBikeId((current) =>
+          loadedBikes.some((b) => b.id === current) ? current : loadedBikes[0].id
+        );
       }
 
       setActiveTickets(ongoingRes.data || []);
       setServiceHistory(historyRes.data || []);
       setHardcopyRequests(hardcopies || []);
+      return { active: ongoingRes.data || [], history: historyRes.data || [] };
     } catch (err) {
       console.error('Error loading Supabase dashboard data:', err);
+      return null;
     }
   }, []);
 
@@ -115,6 +129,12 @@ export default function CustomerDashboard() {
         const user = session.user;
         if (isMounted) {
           setUserId(user.id);
+          // Brand new account: launch the guided walkthrough once
+          try {
+            if (!localStorage.getItem(`motocare_tour_seen_${user.id}`)) setIsTourOpen(true);
+          } catch {
+            // ignore
+          }
           const { data: profile } = await supabase
             .from('profiles')
             .select('full_name, phone_number')
@@ -127,8 +147,16 @@ export default function CustomerDashboard() {
             phone_number: profile?.phone_number || user.user_metadata?.phone_number || 'N/A',
           });
 
-          await loadDashboardData(user.id);
+          const loaded = await loadDashboardData(user.id);
           setIsCheckingAuth(false);
+
+          // Links like /dashboard?reschedule=MC-1234 (missed-booking notice) open the reschedule form
+          const rescheduleCode = new URLSearchParams(window.location.search).get('reschedule');
+          const toReschedule =
+            rescheduleCode && loaded
+              ? [...loaded.history, ...loaded.active].find((t) => t.ticket_code === rescheduleCode)
+              : undefined;
+          if (toReschedule) handleOpenReschedule(toReschedule);
         }
       } catch (err) {
         console.error('Auth verification error:', err);
@@ -148,7 +176,7 @@ export default function CustomerDashboard() {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [navigate, loadDashboardData]);
+  }, [navigate, loadDashboardData, handleOpenReschedule]);
 
   // Realtime subscription for ticket stage/dispatch updates and hardcopy status
   useEffect(() => {
@@ -214,20 +242,6 @@ export default function CustomerDashboard() {
       supabase.removeChannel(hardcopyChannel);
     };
   }, [userId, loadDashboardData]);
-
-  // Automatically launch streamlined guided walkthrough for NEW USERS upon entering dashboard
-  useEffect(() => {
-    if (!userId) return;
-    try {
-      const hasCompleted = localStorage.getItem(`motocare_tour_seen_${userId}`);
-      if (!hasCompleted) {
-        // Brand new account detected: launch streamlined guided tab walkthrough
-        setIsTourOpen(true);
-      }
-    } catch {
-      // ignore
-    }
-  }, [userId]);
 
   // Lock body scroll when mobile drawer is open
   useEffect(() => {
@@ -391,6 +405,7 @@ export default function CustomerDashboard() {
 
           {activeTab === 'book' && (
             <BookServiceTab
+              key={rescheduleTicket?.id ?? 'new-booking'}
               userId={userId}
               userProfile={userProfile}
               motorcycles={motorcycles}

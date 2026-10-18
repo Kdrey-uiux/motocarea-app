@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { db } from '../../lib/supabase';
 import { InternalTicket } from '../types/internal';
 import { getInternalSession } from '../utils/internalAuth';
@@ -43,6 +43,28 @@ interface InternalFleetTabProps {
   tickets: InternalTicket[];
 }
 
+
+type FleetDbBike = { id: string; user_id: string | null; model: string | null; plate_number: string | null; year_model: string | null; odometer: string | null };
+
+/** Every registered motorcycle plus its owner's name/phone */
+async function queryFleetBikes(): Promise<{
+  bikes: FleetDbBike[];
+  profiles: Map<string, { full_name: string; phone_number: string }>;
+}> {
+  const { data: bikes, error } = await db().from('motorcycles').select('*').order('created_at', { ascending: false });
+  if (error) throw error;
+  const list = (bikes || []) as FleetDbBike[];
+  const profiles = new Map<string, { full_name: string; phone_number: string }>();
+  const uids = Array.from(new Set(list.map((b) => b.user_id).filter((id): id is string => Boolean(id))));
+  if (uids.length > 0) {
+    const { data: profs } = await db().from('profiles').select('id, full_name, phone_number').in('id', uids);
+    profs?.forEach((p) =>
+      profiles.set(p.id, { full_name: p.full_name || 'Rider Customer', phone_number: p.phone_number || 'N/A' })
+    );
+  }
+  return { bikes: list, profiles };
+}
+
 export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
   const session = getInternalSession();
   const isAdmin = session?.role === 'admin';
@@ -52,11 +74,9 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
 
   // Fleet Sub-tab state
   const [searchQuery, setSearchQuery] = useState('');
-  const [dbBikes, setDbBikes] = useState<
-    { id: string; user_id: string | null; model: string | null; plate_number: string | null; year_model: string | null; odometer: string | null }[]
-  >([]);
+  const [dbBikes, setDbBikes] = useState<FleetDbBike[]>([]);
   const [dbProfiles, setDbProfiles] = useState<Map<string, { full_name: string; phone_number: string }>>(new Map());
-  const [loadingBikes, setLoadingBikes] = useState(false);
+  const [loadingBikes, setLoadingBikes] = useState(true);
 
   // History Modal State
   const [selectedVehicle, setSelectedVehicle] = useState<FleetBike | null>(null);
@@ -71,7 +91,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
 
   // Catalog Sub-tab state
   const [catalog, setCatalog] = useState<OfficialBikeModel[]>([]);
-  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('All');
 
@@ -89,63 +109,38 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
   const [regDropdownOpen, setRegDropdownOpen] = useState(false);
   const regDropdownRef = useRef<HTMLDivElement>(null);
 
-  const fetchDatabaseBikes = async () => {
-    setLoadingBikes(true);
-    try {
-      const { data: bikes } = await db()
-        .from('motorcycles')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (bikes && bikes.length > 0) {
+  // The spinners start on (initial load) or from the Refresh buttons
+  const fetchDatabaseBikes = useCallback(() => {
+    return queryFleetBikes()
+      .then(({ bikes, profiles }) => {
         setDbBikes(bikes);
-        const uids = Array.from(new Set(bikes.map((b) => b.user_id).filter(Boolean)));
-        if (uids.length > 0) {
-          const { data: profs } = await db()
-            .from('profiles')
-            .select('id, full_name, phone_number')
-            .in('id', uids);
-          if (profs) {
-            const pMap = new Map<string, { full_name: string; phone_number: string }>();
-            profs.forEach((p) =>
-              pMap.set(p.id, {
-                full_name: p.full_name || 'Rider Customer',
-                phone_number: p.phone_number || 'N/A',
-              })
-            );
-            setDbProfiles(pMap);
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Fleet bikes fetch error:', err);
-    } finally {
-      setLoadingBikes(false);
-    }
+        setDbProfiles(profiles);
+      })
+      .catch((err) => console.error('Fleet bikes fetch error:', err))
+      .finally(() => setLoadingBikes(false));
+  }, []);
+  const refreshBikes = () => {
+    setLoadingBikes(true);
+    fetchDatabaseBikes();
   };
 
-  const loadCatalogModels = async () => {
+  const loadCatalogModels = useCallback(() => {
+    return getCompleteMotorcycleCatalog()
+      .then(setCatalog)
+      .catch((err) => console.error('Catalog load error:', err))
+      .finally(() => setLoadingCatalog(false));
+  }, []);
+  const refreshCatalog = () => {
     setLoadingCatalog(true);
-    try {
-      const list = await getCompleteMotorcycleCatalog();
-      setCatalog(list);
-    } catch (err) {
-      console.error('Catalog load error:', err);
-    } finally {
-      setLoadingCatalog(false);
-    }
+    loadCatalogModels();
   };
 
   useEffect(() => {
     fetchDatabaseBikes();
     loadCatalogModels();
-
-    const handleCatalogUpdate = () => {
-      loadCatalogModels();
-    };
-    window.addEventListener('motocare_catalog_updated', handleCatalogUpdate);
-    return () => window.removeEventListener('motocare_catalog_updated', handleCatalogUpdate);
-  }, []);
+    window.addEventListener('motocare_catalog_updated', loadCatalogModels);
+    return () => window.removeEventListener('motocare_catalog_updated', loadCatalogModels);
+  }, [fetchDatabaseBikes, loadCatalogModels]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -388,7 +383,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={fetchDatabaseBikes}
+                onClick={refreshBikes}
                 className="p-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
                 title="Refresh database records"
               >
@@ -549,7 +544,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={loadCatalogModels}
+                onClick={refreshCatalog}
                 className="p-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
                 title="Reload catalog"
               >

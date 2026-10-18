@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
@@ -61,6 +61,10 @@ async function lookupPublicTicket(code: string): Promise<PublicTicket | null> {
   } as PublicTicket;
 }
 
+function isSearchableCode(code: string): boolean {
+  return Boolean(code) && code !== 'MC-' && code !== 'MC-W-';
+}
+
 function normalizeTicketCode(input: string): string {
   let cleaned = input.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
   if (!cleaned) return '';
@@ -85,39 +89,38 @@ export default function TrackStatus() {
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fetchTicket = async (codeToSearch: string) => {
-    const cleanCode = normalizeTicketCode(codeToSearch);
-    if (!cleanCode || cleanCode === 'MC-' || cleanCode === 'MC-W-') return;
-
-    setLoading(true);
-    setErrorMsg(null);
-
-    try {
-      const data = await lookupPublicTicket(cleanCode);
-
-      if (!data) {
-        setTicket(null);
-        setErrorMsg(`No service record found for ticket code "${cleanCode}". Please verify your ticket reference.`);
-      } else {
+  // Looks up a (normalized) code; the spinner is switched on by whoever starts the search
+  const fetchTicket = useCallback((cleanCode: string) => {
+    return lookupPublicTicket(cleanCode)
+      .then((data) => {
         setTicket(data);
-      }
-    } catch (err: unknown) {
-      console.error('Track lookup error:', err);
-      setErrorMsg(err instanceof Error ? err.message : 'Unable to fetch ticket details.');
-      setTicket(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+        setErrorMsg(
+          data ? null : `No service record found for ticket code "${cleanCode}". Please verify your ticket reference.`
+        );
+      })
+      .catch((err: unknown) => {
+        console.error('Track lookup error:', err);
+        setErrorMsg(err instanceof Error ? err.message : 'Unable to fetch ticket details.');
+        setTicket(null);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
-  useEffect(() => {
-    if (ticketCode) {
-      const normalizedCode = normalizeTicketCode(ticketCode);
-      const displayPart = normalizedCode.startsWith('MC-') ? normalizedCode.slice(3) : normalizedCode;
-      setTicketInput(displayPart);
-      fetchTicket(normalizedCode);
+  // The code in the URL (/track/MC-1234) fills the search box and starts the lookup
+  const urlCode = ticketCode ? normalizeTicketCode(ticketCode) : '';
+  const urlCodeIsValid = isSearchableCode(urlCode);
+  const [shownUrlCode, setShownUrlCode] = useState('');
+  if (urlCode !== shownUrlCode) {
+    setShownUrlCode(urlCode);
+    if (urlCodeIsValid) {
+      setTicketInput(urlCode.startsWith('MC-') ? urlCode.slice(3) : urlCode);
+      setLoading(true);
+      setErrorMsg(null);
     }
-  }, [ticketCode]);
+  }
+  useEffect(() => {
+    if (urlCodeIsValid) fetchTicket(urlCode);
+  }, [urlCode, urlCodeIsValid, fetchTicket]);
 
   // Live real-time updates for customers tracking their active service
   useEffect(() => {
@@ -161,14 +164,20 @@ export default function TrackStatus() {
       clearInterval(pollInterval);
       supabase.removeChannel(channel);
     };
-  }, [ticket?.id, ticket?.ticket_code]);
+  }, [ticket?.id, ticket?.ticket_code, fetchTicket]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const normalized = normalizeTicketCode(ticketInput);
-    if (!normalized || normalized === 'MC-' || normalized === 'MC-W-') return;
-    navigate(`/track/${normalized}`, { replace: true });
-    fetchTicket(normalized);
+    if (!isSearchableCode(normalized)) return;
+    if (normalized === urlCode) {
+      // Same code as the URL: search again
+      setLoading(true);
+      setErrorMsg(null);
+      fetchTicket(normalized);
+    } else {
+      navigate(`/track/${normalized}`, { replace: true });
+    }
   };
 
   const stages = [
