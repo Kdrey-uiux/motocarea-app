@@ -172,7 +172,9 @@ export default function InternalConsole() {
     };
   }, [sessionUserId]);
 
-  const [requestedTab, setRequestedTab] = useState<InternalTab>('actions');
+  // Home tab: the owner lands on the Dashboard, staff on the Action Center
+  const homeTab: InternalTab = currentRole === 'admin' ? 'dashboard' : 'actions';
+  const [requestedTab, setRequestedTab] = useState<InternalTab>(homeTab);
   // Tab Guard: staff asking for an admin-only tab see the queue instead
   const activeTab: InternalTab = canAccessTab(currentRole, requestedTab) ? requestedTab : 'queue';
   // One-shot focus targets used when the Action Center deep-links into another tab

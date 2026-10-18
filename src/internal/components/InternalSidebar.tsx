@@ -106,6 +106,8 @@ export default function InternalSidebar({
     {
       title: 'Daily Work',
       items: [
+        // Owner's home tab sits on top (hidden for staff by canAccessTab)
+        { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
         {
           id: 'actions',
           label: 'Action Center',
@@ -160,7 +162,6 @@ export default function InternalSidebar({
     {
       title: 'Owner',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
         { id: 'staff', label: 'Team', icon: Users },
         { id: 'audit', label: 'Activity Logs', icon: ShieldCheck },
       ],
@@ -173,6 +174,7 @@ export default function InternalSidebar({
   const userInitial =
     currentUserName ? currentUserName.trim().charAt(0).toUpperCase() : currentRole === 'admin' ? 'A' : 'S';
   const roleLabel = currentRole === 'admin' ? 'Workshop Owner' : 'Staff Member';
+  const homeTab: InternalTab = currentRole === 'admin' ? 'dashboard' : 'actions';
 
   const renderNav = (onSelect: (tab: InternalTab) => void) => (
     <nav className="flex flex-col gap-4 w-full">
@@ -232,7 +234,7 @@ export default function InternalSidebar({
       {/* 1. DESKTOP SIDEBAR (labeled, grouped) */}
       <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-60 p-4 bg-white border border-slate-200/80 rounded-[1.75rem] shadow-xs flex-col justify-between z-40">
         <div className="flex flex-col gap-4 w-full min-h-0">
-          <div className="px-1 pt-1">{brand(() => setActiveTab('actions'))}</div>
+          <div className="px-1 pt-1">{brand(() => setActiveTab(homeTab))}</div>
           <div className="overflow-y-auto no-scrollbar min-h-0">{renderNav(setActiveTab)}</div>
         </div>
         {userCard}
@@ -249,7 +251,7 @@ export default function InternalSidebar({
             <div className="flex flex-col gap-5 w-full overflow-y-auto no-scrollbar">
               <div className="flex items-center justify-between w-full shrink-0 pb-3 border-b border-slate-100">
                 {brand(() => {
-                  setActiveTab('actions');
+                  setActiveTab(homeTab);
                   onCloseMobile();
                 })}
                 <button
