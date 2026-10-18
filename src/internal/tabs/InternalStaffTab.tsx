@@ -13,8 +13,6 @@ import {
   UserPlus, 
   Search, 
   ShieldAlert, 
-  Mail, 
-  Phone, 
   RefreshCw,
   UserCheck,
   UserX,
@@ -106,7 +104,12 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
   }, [loadStaff]);
 
   const filteredStaff = useMemo(() => {
-    return staffList.filter((s) => {
+    // Owner first, then staff by name
+    const ordered = [...staffList].sort(
+      (a, b) =>
+        Number(b.role === 'admin') - Number(a.role === 'admin') || a.fullName.localeCompare(b.fullName)
+    );
+    return ordered.filter((s) => {
       if (statusFilter === 'active' && !s.isActive) return false;
       if (statusFilter === 'deactivated' && s.isActive) return false;
       if (searchQuery.trim()) {
@@ -240,41 +243,6 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
       {/* Shop mechanics (names only, no accounts) */}
       <MechanicsManager currentStaffName={currentStaffName} />
 
-      {/* Header and Controls */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="w-5 h-5 text-orange-600" />
-            <h2 className="text-base sm:text-lg font-bold text-slate-900">
-              Staff accounts
-            </h2>
-          </div>
-          <p className="text-xs text-slate-500">
-            People who can log in to this console.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={refreshStaff}
-            disabled={loading}
-            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
-            title="Refresh staff list"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-500' : ''}`} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>+ Add Staff Member</span>
-          </button>
-        </div>
-      </div>
-
       {feedback && (
         <div
           className={`p-4 rounded-2xl border text-xs flex items-center justify-between animate-in fade-in ${
@@ -294,164 +262,193 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
         </div>
       )}
 
-      {/* Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
-          <span className="text-xs text-slate-500 font-semibold block mb-1">Total Staff</span>
-          <span className="text-2xl font-black text-slate-900">{staffList.length}</span>
-        </div>
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
-          <span className="text-xs text-emerald-700 font-semibold block mb-1">Active Staff</span>
-          <span className="text-2xl font-black text-emerald-700">{activeCount}</span>
-        </div>
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs">
-          <span className="text-xs text-rose-700 font-semibold block mb-1">Inactive</span>
-          <span className="text-2xl font-black text-rose-700">{deactivatedCount}</span>
-        </div>
-      </div>
+      {/* Staff accounts: one table for the owner and all staff */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden">
+        <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Users className="w-5 h-5 text-orange-600" />
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">Staff accounts</h2>
+            </div>
+            <p className="text-xs text-slate-500">People who can log in to this console.</p>
+          </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="relative flex-1 w-full sm:max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search by name, position, email, phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition font-medium"
-          />
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={refreshStaff}
+              disabled={loading}
+              className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5"
+              title="Refresh staff list"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-orange-500' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs active:scale-95"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Add Staff Member</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5 self-start sm:self-auto text-xs">
-          <button
-            type="button"
-            onClick={() => setStatusFilter('all')}
-            className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
-              statusFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            All ({staffList.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('active')}
-            className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
-              statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            Active ({activeCount})
-          </button>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('deactivated')}
-            className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
-              statusFilter === 'deactivated' ? 'bg-rose-600 text-white' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            Deactivated ({deactivatedCount})
-          </button>
-        </div>
-      </div>
+        {/* Search and Filters */}
+        <div className="px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/60">
+          <div className="relative flex-1 w-full sm:max-w-md">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by name, position, email, phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-orange-500 transition font-medium"
+            />
+          </div>
 
-      {/* Staff Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {filteredStaff.map((staff) => (
-          <div
-            key={staff.id}
-            className={`bg-white border rounded-2xl p-5 shadow-xs space-y-3 transition ${
-              staff.isActive ? 'border-slate-200/90' : 'border-rose-200 bg-rose-50/15 opacity-80'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm ${
-                    staff.isActive
-                      ? 'bg-orange-50 text-orange-700 border border-orange-200/80'
-                      : 'bg-rose-50 text-rose-700 border border-rose-200'
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setStatusFilter('all')}
+              className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
+                statusFilter === 'all' ? 'bg-orange-500 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              All ({staffList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('active')}
+              className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
+                statusFilter === 'active' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              Active ({activeCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter('deactivated')}
+              className={`px-3 py-1.5 rounded-full font-bold transition cursor-pointer ${
+                statusFilter === 'deactivated' ? 'bg-rose-600 text-white' : 'bg-white border border-slate-200 text-slate-600'
+              }`}
+            >
+              Deactivated ({deactivatedCount})
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] text-left text-xs">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <th className="px-5 py-3 font-bold">Name</th>
+                <th className="px-3 py-3 font-bold">Access</th>
+                <th className="px-3 py-3 font-bold">Email</th>
+                <th className="px-3 py-3 font-bold">Phone</th>
+                <th className="px-3 py-3 font-bold">Status</th>
+                <th className="px-5 py-3 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStaff.map((staff) => (
+                <tr
+                  key={staff.id}
+                  className={`border-b border-slate-100 last:border-0 transition hover:bg-slate-50/70 ${
+                    staff.isActive ? '' : 'bg-rose-50/30'
                   }`}
                 >
-                  {staff.fullName.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="font-bold text-sm text-slate-900">{staff.fullName}</h4>
-                  <p className="text-xs text-slate-500">{staff.position}</p>
-                </div>
-              </div>
-
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                  staff.isActive
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
-                }`}
-              >
-                {staff.isActive ? 'Active' : 'Deactivated'}
-              </span>
-            </div>
-
-            <div className="space-y-1 text-xs text-slate-600 pt-1 border-t border-slate-100">
-              <div className="flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5 text-slate-400" />
-                <span>{staff.email}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                <span>{staff.phone}</span>
-              </div>
-            </div>
-
-            {/* Actions: Edit, Reset Password, Deactivate */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(staff)}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                  title="Edit staff details"
-                >
-                  <Edit3 className="w-3 h-3" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleResetPassword(staff)}
-                  className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer flex items-center gap-1"
-                  title="Send password reset link"
-                >
-                  <KeyRound className="w-3 h-3" />
-                  <span className="hidden sm:inline">Reset Pass</span>
-                </button>
-              </div>
-
-              {/* The shop owner (admin) account can't be deactivated */}
-              {staff.role !== 'admin' && (
-              <button
-                type="button"
-                onClick={() => setStatusTarget(staff)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
-                  staff.isActive
-                    ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
-                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
-                }`}
-              >
-                {staff.isActive ? (
-                  <>
-                    <UserX className="w-3.5 h-3.5" />
-                    <span>Deactivate</span>
-                  </>
-                ) : (
-                  <>
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>Reactivate</span>
-                  </>
-                )}
-              </button>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                          staff.isActive
+                            ? 'bg-orange-50 text-orange-700 border border-orange-200/80'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200'
+                        }`}
+                      >
+                        {staff.fullName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 truncate">{staff.fullName}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{staff.position}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3">
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                        staff.role === 'admin'
+                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                          : 'bg-slate-100 text-slate-600 border border-slate-200'
+                      }`}
+                    >
+                      {staff.role === 'admin' ? 'Owner' : 'Staff'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-3 text-slate-600">{staff.email}</td>
+                  <td className="px-3 py-3 text-slate-600 tabular-nums whitespace-nowrap">{staff.phone || '—'}</td>
+                  <td className="px-3 py-3">
+                    <span
+                      className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${
+                        staff.isActive ? 'text-emerald-700' : 'text-rose-700'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${staff.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      {staff.isActive ? 'Active' : 'Deactivated'}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(staff)}
+                        className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                        title="Edit details"
+                        aria-label={`Edit ${staff.fullName}`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleResetPassword(staff)}
+                        className="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition cursor-pointer"
+                        title="Send password reset link"
+                        aria-label={`Send password reset link to ${staff.fullName}`}
+                      >
+                        <KeyRound className="w-3.5 h-3.5" />
+                      </button>
+                      {/* The shop owner (admin) account can't be deactivated */}
+                      {staff.role !== 'admin' ? (
+                        <button
+                          type="button"
+                          onClick={() => setStatusTarget(staff)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center justify-center gap-1 w-[98px] ${
+                            staff.isActive
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                              : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200'
+                          }`}
+                        >
+                          {staff.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                          <span>{staff.isActive ? 'Deactivate' : 'Reactivate'}</span>
+                        </button>
+                      ) : (
+                        <span className="w-[98px]" aria-hidden="true" />
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredStaff.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-10 text-center text-slate-400 italic">
+                    {loading ? 'Loading accounts...' : 'No accounts match your search.'}
+                  </td>
+                </tr>
               )}
-            </div>
-          </div>
-        ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Provision Staff Modal */}
