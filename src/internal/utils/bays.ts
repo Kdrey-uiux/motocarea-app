@@ -1,3 +1,6 @@
+/** Number of physical service bays (lifts) on the workshop floor */
+export const WORKSHOP_BAY_COUNT = 6;
+
 /**
  * Turns any stored bay label ("Bay 01", "bay-3", "Lift #7") into its bay number,
  * so occupancy checks agree across the Bays page, Dashboard, and Update Job.

@@ -2,14 +2,19 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { db } from '../../lib/supabase';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { InternalTicket } from '../types/internal';
-import { 
-  MessageSquare, 
-  Send, 
-  Loader2, 
-  RefreshCw, 
-  CheckCheck, 
-  Archive, 
-  Inbox 
+import {
+  MessageSquare,
+  Send,
+  Loader2,
+  RefreshCw,
+  CheckCheck,
+  Archive,
+  Inbox,
+  Search,
+  ArrowLeft,
+  Bell,
+  Zap,
+  Phone,
 } from 'lucide-react';
 import { toast } from '../utils/toast';
 import { isSystemMessage, summarizeMessage } from '../../utils/systemMessages';
@@ -81,6 +86,26 @@ async function queryChatData(): Promise<ChatData> {
   return { messages, profiles, bikes };
 }
 
+/** "10:01 PM" for today, "Oct 18" for older messages */
+function shortTime(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/** Divider label between days in a chat: Today, Yesterday, or the date */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 export default function InternalMessagesTab({
   tickets,
   currentStaffName = 'Workshop Reception',
@@ -92,6 +117,7 @@ export default function InternalMessagesTab({
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE');
+  const [listSearch, setListSearch] = useState('');
   // Resolved chats are shared across all staff devices via Supabase app_settings
   const [resolvedIds, setResolvedIds] = useState<string[]>(() =>
     readSharedSetting<string[]>(SHARED_SETTINGS.resolvedConversations, [])
@@ -236,229 +262,309 @@ export default function InternalMessagesTab({
     }
   };
 
+  const listedConversations = (activeSubTab === 'ACTIVE' ? activeConversations : archivedConversations).filter((c) => {
+    const q = listSearch.trim().toLowerCase();
+    if (!q) return true;
+    return [c.customerName, c.bikeModel, c.customerPhone].some((f) => (f || '').toLowerCase().includes(q));
+  });
+
+  // Messages grouped by calendar day, for the date dividers in the chat
+  const messageGroups = useMemo(() => {
+    if (!currentConvo) return [];
+    const groups: { day: string; messages: ChatMessage[] }[] = [];
+    currentConvo.messages.forEach((msg) => {
+      const day = new Date(msg.created_at).toDateString();
+      const last = groups[groups.length - 1];
+      if (last && last.day === day) last.messages.push(msg);
+      else groups.push({ day, messages: [msg] });
+    });
+    return groups;
+  }, [currentConvo]);
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-end gap-2 px-1">
-
-        <button
-          type="button"
-          onClick={fetchMessages}
-          className="p-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer self-start sm:self-auto"
-        >
-          <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
-          <span>Sync Chat</span>
-        </button>
-      </div>
-
-      {/* Main Split Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[650px]">
-        {/* Left: Conversations List */}
-        <div className="md:col-span-5 bg-white border border-slate-200/90 rounded-2xl shadow-xs flex flex-col overflow-hidden">
-          {/* Sub-tabs: Active vs Archived */}
-          <div className="p-3 border-b border-slate-100 flex items-center gap-1 bg-slate-50/50">
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100dvh-9rem)] min-h-[32rem]">
+      {/* Left: conversations (hidden on phones while a chat is open) */}
+      <div
+        className={`md:col-span-5 lg:col-span-4 bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated flex-col overflow-hidden min-h-0 ${
+          pickedUserId ? 'hidden md:flex' : 'flex'
+        }`}
+      >
+        <div className="px-4 pt-4 pb-3 space-y-3 border-b border-slate-100">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">Conversations</h2>
             <button
               type="button"
-              onClick={() => setActiveSubTab('ACTIVE')}
-              className={`flex-1 py-1.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                activeSubTab === 'ACTIVE'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
+              onClick={fetchMessages}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+              title="Refresh"
+              aria-label="Refresh conversations"
             >
-              <Inbox className="w-3.5 h-3.5" />
-              <span>Active Inquiries ({activeConversations.length})</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSubTab('ARCHIVED')}
-              className={`flex-1 py-1.5 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                activeSubTab === 'ARCHIVED'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Archive className="w-3.5 h-3.5" />
-              <span>Resolved ({archivedConversations.length})</span>
+              <RefreshCw className="w-4 h-4" />
             </button>
           </div>
-
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-            {loading ? (
-              <div className="p-8 text-center text-slate-400 text-xs">
-                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-orange-500" />
-                <span>Loading messages...</span>
-              </div>
-            ) : (activeSubTab === 'ACTIVE' ? activeConversations : archivedConversations).length === 0 ? (
-              <div className="p-8 text-center text-slate-400 text-xs italic">
-                {activeSubTab === 'ACTIVE'
-                  ? 'No active customer inquiries at the moment.'
-                  : 'No archived conversations yet.'}
-              </div>
-            ) : (
-              (activeSubTab === 'ACTIVE' ? activeConversations : archivedConversations).map((c) => {
-                const isSelected = selectedUserId === c.userId;
-
-                return (
-                  <div
-                    key={c.userId}
-                    onClick={() => setSelectedUserId(c.userId)}
-                    className={`p-3.5 cursor-pointer transition flex items-start gap-3 ${
-                      isSelected
-                        ? 'bg-orange-50/60 border-l-4 border-l-orange-500'
-                        : 'hover:bg-slate-50'
-                    }`}
-                  >
-                    <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
-                      {c.customerName.charAt(0)}
-                    </div>
-
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-bold text-xs text-slate-900 truncate">
-                          {c.customerName}
-                        </h4>
-                        <span className="text-[10px] text-slate-400 shrink-0">
-                          {new Date(c.latestTime).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {c.bikeModel} • {c.customerPhone}
-                      </p>
-                      <p className="text-xs text-slate-600 truncate font-medium pt-0.5">
-                        {summarizeMessage(c.latestMessage) || 'No message content'}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          <div className="flex items-center p-1 bg-slate-100 rounded-full">
+            {(
+              [
+                { id: 'ACTIVE', label: 'Active', icon: Inbox, count: activeConversations.length },
+                { id: 'ARCHIVED', label: 'Resolved', icon: Archive, count: archivedConversations.length },
+              ] as const
+            ).map((tab) => {
+              const Icon = tab.icon;
+              const selected = activeSubTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveSubTab(tab.id)}
+                  aria-pressed={selected}
+                  className={`flex-1 py-1.5 rounded-full text-sm flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                    selected ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-900 font-medium'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${selected ? 'text-orange-500' : 'text-slate-400'}`} />
+                  {tab.label}
+                  <span className="text-xs text-slate-400 tabular-nums">{tab.count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+              placeholder="Search name, motorcycle, phone"
+              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+            />
           </div>
         </div>
 
-        {/* Right: Active Chat Window */}
-        <div className="md:col-span-7 bg-white border border-slate-200/90 rounded-2xl shadow-xs flex flex-col overflow-hidden">
-          {currentConvo ? (
-            <>
-              {/* Chat Header */}
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-sm">
-                    {currentConvo.customerName.charAt(0)}
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-sm text-slate-900">
-                      {currentConvo.customerName}
-                    </h3>
-                    <p className="text-[11px] text-slate-500">
-                      {currentConvo.bikeModel} • Phone: {currentConvo.customerPhone}
-                    </p>
-                  </div>
-                </div>
-
+        <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+          {loading ? (
+            <div className="p-8 text-center text-slate-400 text-sm">
+              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-orange-500" />
+              Loading conversations…
+            </div>
+          ) : listedConversations.length === 0 ? (
+            <div className="p-8 text-center">
+              <MessageSquare className="w-6 h-6 text-slate-300 mx-auto" />
+              <p className="mt-2 text-sm text-slate-500">
+                {listSearch.trim()
+                  ? 'No conversation matches your search.'
+                  : activeSubTab === 'ACTIVE'
+                  ? 'No open conversations.'
+                  : 'No resolved conversations yet.'}
+              </p>
+            </div>
+          ) : (
+            listedConversations.map((c) => {
+              const isSelected = selectedUserId === c.userId;
+              const lastIsSystem = isSystemMessage(c.latestMessage);
+              const lastFromCustomer = c.messages[c.messages.length - 1]?.sender_role === 'customer';
+              return (
                 <button
+                  key={c.userId}
                   type="button"
-                  onClick={() => toggleResolved(currentConvo.userId)}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs transition cursor-pointer flex items-center gap-1.5 ${
-                    resolvedIds.includes(currentConvo.userId)
-                      ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      : 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
+                  onClick={() => setSelectedUserId(c.userId)}
+                  className={`w-full text-left px-3 py-3 rounded-2xl flex items-start gap-3 transition cursor-pointer ${
+                    isSelected ? 'bg-orange-50' : 'hover:bg-slate-50'
                   }`}
                 >
-                  <CheckCheck className="w-3.5 h-3.5" />
-                  <span>
-                    {resolvedIds.includes(currentConvo.userId) ? 'Move to Active' : 'Mark as Resolved'}
+                  <span
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+                      isSelected ? 'bg-gradient-to-tr from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {c.customerName.charAt(0).toUpperCase()}
                   </span>
-                </button>
-              </div>
-
-              {/* Messages Body */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/30">
-                {currentConvo.messages.map((msg) => {
-                  const isStaff = msg.sender_role === 'staff' || msg.sender_role === 'admin';
-
-                  return (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${isStaff ? 'items-end' : 'items-start'}`}
-                    >
-                      <div
-                        className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
-                          isStaff
-                            ? 'bg-orange-500 text-white rounded-br-xs shadow-xs'
-                            : 'bg-white text-slate-900 border border-slate-200 rounded-bl-xs shadow-2xs'
+                  <span className="flex-1 min-w-0">
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm text-slate-900 truncate">{c.customerName}</span>
+                      <span className="text-[11px] text-slate-400 shrink-0">{shortTime(c.latestTime)}</span>
+                    </span>
+                    <span className="block text-xs text-slate-400 truncate">{c.bikeModel}</span>
+                    <span className="mt-0.5 flex items-center gap-1.5 min-w-0">
+                      {lastFromCustomer && !c.isResolved && (
+                        <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Waiting for your reply" />
+                      )}
+                      {lastIsSystem && <Bell className="w-3 h-3 text-slate-400 shrink-0" />}
+                      <span
+                        className={`text-sm truncate ${
+                          lastFromCustomer && !c.isResolved ? 'text-slate-900 font-medium' : 'text-slate-500'
                         }`}
                       >
-                        <p className={isSystemMessage(msg.message) ? 'italic opacity-90' : undefined}>
-                          {summarizeMessage(msg.message)}
-                        </p>
-                      </div>
-                      <span className="text-[10px] text-slate-400 mt-1 px-1">
-                        {isStaff ? msg.sender_name || 'Workshop Staff' : currentConvo.customerName} •{' '}
-                        {new Date(msg.created_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {summarizeMessage(c.latestMessage) || 'No message yet'}
                       </span>
-                    </div>
-                  );
-                })}
-                <div ref={chatEndRef} />
-              </div>
+                    </span>
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
 
-              {/* Quick Preset Replies */}
-              <div className="p-2.5 bg-slate-50 border-t border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5 px-1">
-                  Canned Quick Replies
+      {/* Right: the open conversation (on phones only when one is picked) */}
+      <div
+        className={`md:col-span-7 lg:col-span-8 bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated flex-col overflow-hidden min-h-0 ${
+          pickedUserId ? 'flex' : 'hidden md:flex'
+        }`}
+      >
+        {currentConvo ? (
+          <>
+            {/* Chat header */}
+            <div className="px-4 sm:px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setSelectedUserId(null)}
+                  className="md:hidden w-9 h-9 -ml-1 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-100 cursor-pointer shrink-0"
+                  aria-label="Back to conversations"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <span className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center font-bold shrink-0">
+                  {currentConvo.customerName.charAt(0).toUpperCase()}
                 </span>
-                <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-                  {PRESET_REPLIES.map((preset, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleSendMessage(preset)}
-                      className="px-3 py-1 bg-white hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300 border border-slate-200 rounded-lg text-[11px] font-medium whitespace-nowrap transition cursor-pointer shrink-0 shadow-2xs"
-                    >
-                      {preset}
-                    </button>
-                  ))}
+                <div className="min-w-0">
+                  <h3 className="font-display text-base font-bold tracking-tight text-slate-900 truncate">
+                    {currentConvo.customerName}
+                  </h3>
+                  <p className="text-xs text-slate-500 truncate flex items-center gap-1.5">
+                    <span className="truncate">{currentConvo.bikeModel}</span>
+                    {currentConvo.customerPhone && currentConvo.customerPhone !== 'N/A' && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <a
+                          href={`tel:${currentConvo.customerPhone}`}
+                          className="inline-flex items-center gap-1 hover:text-orange-600 shrink-0"
+                          title="Call the customer"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {currentConvo.customerPhone}
+                        </a>
+                      </>
+                    )}
+                  </p>
                 </div>
               </div>
 
-              {/* Chat Input */}
-              <div className="p-3 bg-white border-t border-slate-200 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => toggleResolved(currentConvo.userId)}
+                className={`shrink-0 px-3.5 py-2 rounded-full text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 ${
+                  resolvedIds.includes(currentConvo.userId)
+                    ? 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    : 'border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                }`}
+              >
+                <CheckCheck className="w-4 h-4" />
+                <span className="hidden sm:inline">{resolvedIds.includes(currentConvo.userId) ? 'Reopen' : 'Mark resolved'}</span>
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 space-y-4 bg-slate-50/50">
+              {messageGroups.map((group) => (
+                <div key={group.day} className="space-y-3">
+                  <div className="flex items-center gap-3 py-1">
+                    <span className="h-px flex-1 bg-slate-200/80" />
+                    <span className="text-[11px] font-medium text-slate-400">{dayLabel(group.messages[0].created_at)}</span>
+                    <span className="h-px flex-1 bg-slate-200/80" />
+                  </div>
+
+                  {group.messages.map((msg) => {
+                    const time = new Date(msg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+                    // Automatic notices (reminders, hardcopy updates, reschedules): a quiet line, not a chat bubble
+                    if (isSystemMessage(msg.message)) {
+                      return (
+                        <div key={msg.id} className="flex justify-center">
+                          <span className="inline-flex items-start gap-2 max-w-[90%] px-3.5 py-2 rounded-2xl bg-white border border-slate-200/80 text-xs text-slate-500">
+                            <Bell className="w-3.5 h-3.5 text-orange-400 shrink-0 mt-px" />
+                            <span>
+                              {summarizeMessage(msg.message)}
+                              <span className="text-slate-300"> · {time}</span>
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    }
+
+                    const isStaff = msg.sender_role === 'staff' || msg.sender_role === 'admin';
+                    return (
+                      <div key={msg.id} className={`flex flex-col ${isStaff ? 'items-end' : 'items-start'}`}>
+                        <div
+                          className={`max-w-[80%] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words ${
+                            isStaff
+                              ? 'bg-orange-500 text-white rounded-2xl rounded-br-md shadow-sm shadow-orange-500/20'
+                              : 'bg-white text-slate-900 border border-slate-200/80 rounded-2xl rounded-bl-md'
+                          }`}
+                        >
+                          {msg.message}
+                        </div>
+                        <span className="text-[11px] text-slate-400 mt-1 px-1">
+                          {isStaff ? msg.sender_name || 'Workshop staff' : currentConvo.customerName} · {time}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Quick replies + composer */}
+            <div className="border-t border-slate-100 bg-white px-3 sm:px-4 pt-3 pb-3 space-y-2.5">
+              <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <span className="flex items-center gap-1 text-xs text-slate-400 shrink-0 pr-1">
+                  <Zap className="w-3.5 h-3.5 text-orange-400" />
+                  Quick replies
+                </span>
+                {PRESET_REPLIES.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    disabled={sending}
+                    onClick={() => setInputText(preset)}
+                    className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-xs text-slate-600 whitespace-nowrap transition cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Put this in the message box"
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Type message to rider customer..."
+                  placeholder={`Message ${currentConvo.customerName.split(' ')[0]}…`}
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition font-medium"
+                  className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-full px-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
                 />
                 <button
                   type="button"
                   disabled={sending || !inputText.trim()}
                   onClick={() => handleSendMessage()}
-                  className="p-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white rounded-xl transition cursor-pointer shadow-xs active:scale-95"
+                  className="w-11 h-11 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white flex items-center justify-center transition cursor-pointer shadow-md shadow-orange-500/25 active:scale-95 shrink-0"
+                  aria-label="Send message"
                 >
-                  {sending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
               </div>
-            </>
-          ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-2">
-              <MessageSquare className="w-8 h-8 text-slate-300" />
-              <p className="text-xs">Select a customer conversation from the list to begin chatting.</p>
             </div>
-          )}
-        </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+            <span className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
+              <MessageSquare className="w-6 h-6" />
+            </span>
+            <p className="mt-3 font-display font-bold text-slate-900">No conversation open</p>
+            <p className="text-sm text-slate-500">Pick a customer on the left to read and reply.</p>
+          </div>
+        )}
       </div>
     </div>
   );

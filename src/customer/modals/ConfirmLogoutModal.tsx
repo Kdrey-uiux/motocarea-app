@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { X, Loader2 } from 'lucide-react';
 
 interface ConfirmLogoutModalProps {
@@ -15,7 +16,8 @@ export default function ConfirmLogoutModal({
 }: ConfirmLogoutModalProps) {
   if (!isOpen) return null;
 
-  return (
+  // Rendered at the end of <body> so the dark overlay always covers the whole screen
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="bg-white border border-slate-200/90 rounded-[2rem] max-w-sm w-full max-h-[90dvh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
         
@@ -71,5 +73,7 @@ export default function ConfirmLogoutModal({
         </div>
       </div>
     </div>
+    ,
+    document.body
   );
 }

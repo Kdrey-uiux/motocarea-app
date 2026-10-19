@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState } from 'react';
 import { 
   X, 
@@ -111,7 +112,8 @@ export default function RequestHardcopyModal({
     }
   };
 
-  return (
+  // Rendered at the end of <body> so the dark overlay always covers the whole screen
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <div className="my-auto bg-white border border-slate-200/90 rounded-2xl sm:rounded-[2rem] max-w-lg w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
@@ -308,5 +310,7 @@ export default function RequestHardcopyModal({
 
       </div>
     </div>
+    ,
+    document.body
   );
 }

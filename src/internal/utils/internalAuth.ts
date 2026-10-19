@@ -141,6 +141,14 @@ export async function authenticateInternal(
         password,
       });
 
+    // Created but not confirmed yet (usually a staff account made before migration 13)
+    if (authError && authError.message.toLowerCase().includes('email not confirmed')) {
+      return {
+        success: false,
+        error: 'This account is not confirmed yet. Ask the Shop Owner to recreate it, or confirm it in Supabase.',
+      };
+    }
+
     if (!authError && authData.user) {
       // The role comes only from the profiles table (signup metadata is user-editable)
       const { data: profile } = await internalTabAuthClient
@@ -180,7 +188,7 @@ export async function authenticateInternal(
         role: finalRole,
         position:
           profile?.position ||
-          (finalRole === 'admin' ? 'Shop Owner & General Manager' : 'Service Advisor'),
+          (finalRole === 'admin' ? 'Shop Owner & General Manager' : 'Staff'),
         isActive: true,
         loggedAt: new Date().toISOString(),
       };

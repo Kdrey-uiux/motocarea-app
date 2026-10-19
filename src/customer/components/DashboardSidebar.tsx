@@ -129,7 +129,8 @@ export default function DashboardSidebar({
                 {userProfile?.full_name || 'Rider Member'}
               </div>
               <div className="text-[11px] text-slate-400 truncate">
-                {userProfile?.phone_number || userProfile?.email || 'View Profile'}
+                {/* Google sign-ups have no phone yet ('N/A') */}
+                {(userProfile?.phone_number !== 'N/A' && userProfile?.phone_number) || userProfile?.email || 'View Profile'}
               </div>
             </div>
           </div>

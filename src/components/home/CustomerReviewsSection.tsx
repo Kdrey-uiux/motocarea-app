@@ -174,22 +174,22 @@ export default function CustomerReviewsSection() {
   return (
     <section
       id="reviews"
-      className="scroll-mt-16 sm:scroll-mt-20 py-12 sm:py-20 px-3.5 sm:px-6 lg:px-8 bg-slate-100/50 border-b border-slate-200/80"
+      className="scroll-mt-16 sm:scroll-mt-20 py-16 sm:py-24 px-4 sm:px-6 lg:px-8 bg-white"
     >
-      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <span className="text-orange-600 text-xs font-bold tracking-wider uppercase bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full">
+      <div className="max-w-7xl mx-auto space-y-10 sm:space-y-14">
+        <div className="text-center max-w-3xl mx-auto">
+          <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-orange-100/70 text-orange-700">
             Rider Feedback
           </span>
-          <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight pt-1">
-            What Our Customers Say
+          <h2 className="text-balance mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.035em] text-slate-900 leading-[1.04]">
+            What riders <span className="text-orange-500">say</span>
           </h2>
-          <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto">
-            Real ratings and feedback from riders after their motorcycle was serviced at MotoCare.
+          <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl mx-auto">
+            Real ratings from riders after their motorcycle was serviced at MotoCare.
           </p>
 
           {hasReviews && stats && (
-            <div className="inline-flex items-center gap-3 mt-3 px-4 py-2 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
+            <div className="inline-flex items-center gap-3 mt-5 px-4 py-2 rounded-2xl bg-slate-50 border border-slate-200/80">
               <span className="text-2xl font-bold text-slate-900">{ratingLabel}</span>
               <div className="flex flex-col items-start gap-0.5">
                 <StarRow rating={stats.average_rating} />
@@ -217,14 +217,14 @@ export default function CustomerReviewsSection() {
             {reviews.map((r) => (
               <figure
                 key={r.id}
-                className="bg-white border border-slate-200/80 rounded-2xl p-5 sm:p-6 shadow-2xs hover:shadow-md hover:border-orange-300 transition duration-150 flex flex-col justify-between gap-4"
+                className="bg-slate-50 border border-slate-200/70 rounded-2xl sm:rounded-3xl p-5 sm:p-7 hover:border-orange-300 hover:-translate-y-1 transition duration-300 flex flex-col justify-between gap-4"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <StarRow rating={r.rating} />
                     <Quote className="w-5 h-5 text-orange-200" />
                   </div>
-                  <blockquote className="text-slate-700 text-xs sm:text-sm leading-relaxed">
+                  <blockquote className="text-slate-800 text-sm sm:text-base leading-relaxed">
                     “{r.comment}”
                   </blockquote>
                   {r.shop_reply && (

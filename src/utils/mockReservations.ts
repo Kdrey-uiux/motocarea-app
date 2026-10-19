@@ -82,7 +82,7 @@ export function getMockReservationsSchedule(daysAhead = 14): Record<string, DayC
 }
 
 /**
- * Get fixed capacity status for a specific date (10 slots on Mon-Sat, Closed on Sunday)
+ * Get fixed capacity status for a specific date (6 slots on Mon-Sat, Closed on Sunday)
  */
 export function getBayCapacity(dateString: string): DayCapacity {
   const isSunday = isSundayDate(dateString);

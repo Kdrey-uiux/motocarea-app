@@ -75,8 +75,8 @@ export default function SettingsTab({
             </span>
             <span className="text-[11px] sm:text-xs text-slate-400">• Updated for 2026</span>
           </div>
-          <h2 className="text-xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-            Settings, Policies & Standards
+          <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-[-0.03em] leading-tight">
+            Settings & <span className="text-orange-500">policies</span>
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
             Review your MotoCare customer rights, 7-day labor warranty, bay etiquette, and account security controls.

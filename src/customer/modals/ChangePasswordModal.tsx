@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import {
@@ -93,7 +94,8 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
     onClose();
   };
 
-  return (
+  // Rendered at the end of <body> so the dark overlay always covers the whole screen
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white border border-slate-200/90 rounded-2xl sm:rounded-[2rem] max-w-md w-full p-4 sm:p-5 space-y-3 sm:space-y-3.5 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 my-auto max-h-[92vh] overflow-y-auto">
         
@@ -310,5 +312,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
         </form>
       </div>
     </div>
+    ,
+    document.body
   );
 }

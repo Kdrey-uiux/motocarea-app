@@ -12,7 +12,7 @@
 -- Extra safety (triggers):
 --   - Customers can't give themselves a staff/admin role or reactivate themselves
 --   - Customers can't move their own ticket forward (stage, bay, mechanic, release, ...)
---   - Online bookings respect the 10-per-day limit and Sunday closing on the server too
+--   - Online bookings respect the 6-per-day limit and Sunday closing on the server too
 --   - Customers can't publish their own hidden review
 --
 -- Requires the app version that uses db() (staff console signs in with its own client).
@@ -210,7 +210,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- Booking rules on the server: no past dates, closed on Sundays, 10 bookings per day
+  -- Booking rules on the server: no past dates, closed on Sundays, 6 bookings per day
   IF NEW.dropoff_date IS NOT NULL
      AND (TG_OP = 'INSERT' OR NEW.dropoff_date IS DISTINCT FROM OLD.dropoff_date) THEN
     IF NEW.dropoff_date < (now() AT TIME ZONE 'Asia/Manila')::date THEN
@@ -227,8 +227,8 @@ BEGIN
     WHERE dropoff_date = NEW.dropoff_date
       AND status NOT IN ('CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW')
       AND id IS DISTINCT FROM NEW.id;
-    IF booked_count >= 10 THEN
-      RAISE EXCEPTION 'This date is fully booked (10 of 10). Please pick another date.';
+    IF booked_count >= 6 THEN
+      RAISE EXCEPTION 'This date is fully booked (6 of 6). Please pick another date.';
     END IF;
   END IF;
 

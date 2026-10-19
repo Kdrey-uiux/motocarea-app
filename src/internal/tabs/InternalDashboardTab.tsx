@@ -6,15 +6,14 @@ import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { isAwaitingArrival } from '../utils/ticketActions';
 import { toast } from '../utils/toast';
 import { useNow } from '../hooks/useNow';
-import { InternalTicket, InternalStaffMember, UserRole, InternalTab } from '../types/internal';
+import { InternalTicket, UserRole, InternalTab } from '../types/internal';
+import type { OperationalView } from './InternalQueueTab';
 import { 
   Plus, 
   ArrowUpRight, 
-  Wrench, 
-  Calendar, 
-  CheckCircle2, 
-  Activity, 
-  Bike, 
+  Wrench,
+  CheckCircle2,
+  Bike,
   Clock, 
   KeyRound,
   Users,
@@ -43,16 +42,12 @@ export interface DashboardKPIs {
 const BAY_MAINTENANCE_KEY = 'motocare_bay_maintenance_flags';
 
 const OFFICIAL_BAYS = [
-  { id: 'bay-1', searchKey: 'bay 01', bayNumber: 1, name: 'Bay 01', title: 'Quick Service & Oil Express' },
-  { id: 'bay-2', searchKey: 'bay 02', bayNumber: 2, name: 'Bay 02', title: 'CVT Cleaning & Tuning' },
-  { id: 'bay-3', searchKey: 'bay 03', bayNumber: 3, name: 'Bay 03', title: 'Engine Overhaul & Heavy Repair' },
-  { id: 'bay-4', searchKey: 'bay 04', bayNumber: 4, name: 'Bay 04', title: 'Electrical & Wiring Lab' },
-  { id: 'bay-5', searchKey: 'bay 05', bayNumber: 5, name: 'Bay 05', title: 'Brakes & Suspension' },
-  { id: 'bay-6', searchKey: 'bay 06', bayNumber: 6, name: 'Bay 06', title: 'FI Cleaning & Calibration' },
-  { id: 'bay-7', searchKey: 'bay 07', bayNumber: 7, name: 'Bay 07', title: 'Tires & Wheel Alignment' },
-  { id: 'bay-8', searchKey: 'bay 08', bayNumber: 8, name: 'Bay 08', title: 'General Mechanical' },
-  { id: 'bay-9', searchKey: 'bay 09', bayNumber: 9, name: 'Bay 09', title: 'Major Body & Chassis' },
-  { id: 'bay-10', searchKey: 'bay 10', bayNumber: 10, name: 'Bay 10', title: 'Final Testing & Quality Check' },
+  { id: 'bay-1', searchKey: 'bay 01', bayNumber: 1, name: 'Bay 01' },
+  { id: 'bay-2', searchKey: 'bay 02', bayNumber: 2, name: 'Bay 02' },
+  { id: 'bay-3', searchKey: 'bay 03', bayNumber: 3, name: 'Bay 03' },
+  { id: 'bay-4', searchKey: 'bay 04', bayNumber: 4, name: 'Bay 04' },
+  { id: 'bay-5', searchKey: 'bay 05', bayNumber: 5, name: 'Bay 05' },
+  { id: 'bay-6', searchKey: 'bay 06', bayNumber: 6, name: 'Bay 06' },
 ];
 
 export interface ActiveFloorTicket {
@@ -68,12 +63,9 @@ export interface ActiveFloorTicket {
   isOverdue?: boolean;
 }
 
-export interface TechnicianStatus {
-  id: string;
+export interface MechanicOnFloor {
   name: string;
-  position: string;
-  isAvailable: boolean;
-  assignedBay?: string;
+  bays: string[]; // bays of the motorcycles they are working on now
   completedJobsToday: number;
 }
 
@@ -92,12 +84,13 @@ export type DatePeriod = 'TODAY' | 'YESTERDAY' | 'THIS_WEEK';
 
 export interface WorkshopDashboardProps {
   tickets?: InternalTicket[];
-  staffList?: InternalStaffMember[];
   loading?: boolean;
   onRefresh?: () => void;
   onOpenDispatch?: (ticket: InternalTicket) => void;
   onOpenStage5Billing?: (ticket: InternalTicket) => void;
   setActiveTab?: (tab: InternalTab) => void;
+  /** Opens the Queue on a specific view (e.g. pending online bookings) */
+  onOpenQueueView?: (view: OperationalView) => void;
   currentRole?: UserRole;
   currentUserName?: string;
 }
@@ -128,23 +121,25 @@ function matchesPeriod(dateStr: string | null | undefined, period: DatePeriod): 
 
 export function WorkshopDashboard({
   tickets = [],
-  staffList = [],
   loading: _loading,
   onRefresh,
   onOpenDispatch,
   onOpenStage5Billing,
   setActiveTab,
-  currentRole: _currentRole,
+  onOpenQueueView,
+  currentRole,
   currentUserName = 'Admin',
 }: WorkshopDashboardProps) {
   const navigate = useNavigate();
   const now = useNow();
+  // Team management links are for the shop owner only
+  const isOwner = currentRole === 'admin';
   const [selectedPeriod, setSelectedPeriod] = useState<DatePeriod>('TODAY');
   const [volumeView, setVolumeView] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
 
-  // Dynamic Workshop Scheduling Capacity sync (Base 6 to Max 10)
+  // Daily booking capacity (6 slots, closed Sundays)
   const todayDateStr = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -196,7 +191,7 @@ export function WorkshopDashboard({
 
   // Safe navigation helper (supports internal tab switching or router navigation)
   const handleNavigate = (pathOrTab: InternalTab | string) => {
-    if (setActiveTab && ['dashboard', 'queue', 'bays', 'billing', 'staff', 'services', 'messages', 'fleet'].includes(pathOrTab)) {
+    if (setActiveTab && ['dashboard', 'queue', 'bays', 'staff', 'services', 'messages', 'fleet'].includes(pathOrTab)) {
       setActiveTab(pathOrTab as InternalTab);
     } else {
       navigate(pathOrTab.startsWith('/') ? pathOrTab : `/${pathOrTab}`);
@@ -314,17 +309,17 @@ export function WorkshopDashboard({
 
     const periodLabel =
       selectedPeriod === 'TODAY'
-        ? 'Completed Today'
+        ? 'Completed today'
         : selectedPeriod === 'YESTERDAY'
-        ? 'Completed Yesterday'
-        : 'Completed This Week';
+        ? 'Completed yesterday'
+        : 'Completed this week';
 
     const periodSubtext =
       selectedPeriod === 'TODAY'
-        ? 'Finished & released units today'
+        ? 'Released to the owner today'
         : selectedPeriod === 'YESTERDAY'
-        ? 'Units released yesterday'
-        : 'Total released units this week';
+        ? 'Released to the owner yesterday'
+        : 'Released to the owner this week';
 
     const bayUtilizationText = maintenanceBaysCount > 0
       ? `${occupiedBaysCount}/${activeLiftsCount} Active (${maintenanceBaysCount} Maint)`
@@ -410,10 +405,10 @@ export function WorkshopDashboard({
 
       return {
         view: 'MONTHLY' as const,
-        title: `Monthly Service Volume (${monthLabel} ${currentYear})`,
-        subtitle: `Completed motorcycle repairs by week in ${monthLabel}`,
-        totalSummary: `Total completed this month: ${totalMonthly} units`,
-        peakLabel: peakIdx !== -1 ? `${weeks[peakIdx].label} Peak (${maxVal} units)` : null,
+        title: 'Completed repairs',
+        subtitle: `Per week, ${monthLabel} ${currentYear}`,
+        totalSummary: `${totalMonthly} completed this month`,
+        peakLabel: peakIdx !== -1 ? `${weeks[peakIdx].label} (${maxVal})` : null,
         emptyBadge: '0 This Month',
         bars: weeks.map((w, idx) => ({
           label: w.label,
@@ -456,10 +451,10 @@ export function WorkshopDashboard({
 
     return {
       view: 'WEEKLY' as const,
-      title: 'Weekly Service Volume',
-      subtitle: 'Completed motorcycle repairs by work day',
-      totalSummary: `Total completed this week: ${totalThisWeek} units`,
-      peakLabel: peakIdx !== -1 ? `${days[peakIdx]} Peak (${maxVal} units)` : null,
+      title: 'Completed repairs',
+      subtitle: 'Per day, this week',
+      totalSummary: `${totalThisWeek} completed this week`,
+      peakLabel: peakIdx !== -1 ? `${days[peakIdx]} (${maxVal})` : null,
       emptyBadge: '0 This Week',
       bars: days.map((dayName, idx) => ({
         label: dayName,
@@ -470,32 +465,33 @@ export function WorkshopDashboard({
     };
   }, [tickets, volumeView]);
 
-  // 8. Technicians on Floor (Real Database Staff with Live Status)
-  const techniciansOnFloor: TechnicianStatus[] = useMemo(() => {
-    const floorStaff = staffList.filter((s) => s.role === 'staff' || !s.role);
+  // 8. Mechanics on the floor: the names typed on tickets (mechanics don't need an account)
+  const mechanicsOnFloor: MechanicOnFloor[] = useMemo(() => {
+    const byName = new Map<string, MechanicOnFloor>();
+    const entryFor = (rawName: string | null | undefined) => {
+      const name = rawName?.trim();
+      if (!name || name === 'Queued for Assignment') return null;
+      const key = name.toLowerCase();
+      if (!byName.has(key)) byName.set(key, { name, bays: [], completedJobsToday: 0 });
+      return byName.get(key)!;
+    };
 
-    return floorStaff.map((staff) => {
-      const activeTicket = activeFloorTickets.find(
-        (t) => t.assigned_mechanic?.trim().toLowerCase() === staff.fullName?.trim().toLowerCase()
-      );
-
-      const completedToday = tickets.filter(
-        (t) =>
-          t.assigned_mechanic?.trim().toLowerCase() === staff.fullName?.trim().toLowerCase() &&
-          t.status === 'COMPLETED' &&
-          isToday(t.paid_at || t.updated_at || t.created_at)
-      ).length;
-
-      return {
-        id: staff.id,
-        name: staff.fullName || 'Staff Member',
-        position: staff.position || 'Technician',
-        isAvailable: !activeTicket,
-        assignedBay: activeTicket ? (activeTicket.assigned_bay || 'Bay Lift') : undefined,
-        completedJobsToday: completedToday,
-      };
+    activeFloorTickets.forEach((t) => {
+      const entry = entryFor(t.assigned_mechanic);
+      if (entry) entry.bays.push(t.assigned_bay || 'No bay yet');
     });
-  }, [staffList, activeFloorTickets, tickets]);
+    tickets
+      .filter((t) => t.status === 'COMPLETED' && isToday(t.paid_at || t.updated_at || t.created_at))
+      .forEach((t) => {
+        const entry = entryFor(t.assigned_mechanic);
+        if (entry) entry.completedJobsToday += 1;
+      });
+
+    // Busy mechanics first, then by name
+    return [...byName.values()].sort(
+      (a, b) => b.bays.length - a.bays.length || a.name.localeCompare(b.name)
+    );
+  }, [activeFloorTickets, tickets]);
 
   // Quick Advance Action
   // Stage 1 → pick a bay first; 2-3 → next stage; 4 → ready for pickup; 5 → release at the counter
@@ -504,7 +500,7 @@ export function WorkshopDashboard({
       if (onOpenStage5Billing) {
         onOpenStage5Billing(ticket);
       } else {
-        handleNavigate('billing');
+        handleNavigate('queue');
       }
       return;
     }
@@ -550,306 +546,262 @@ export function WorkshopDashboard({
     }
   };
 
-  const currentDateFormatted = new Date().toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const hour = new Date(now).getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const firstName = currentUserName.trim().split(/\s+/)[0] || 'there';
+
+  // Shared look (same as the customer dashboard): white cards with large rounded corners
+  const card = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
+  const orangeButtonShadow = 'shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30';
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* ==================================================================== */}
-      {/* 1. HEADER & CONTROLS */}
-      {/* ==================================================================== */}
-      <div className="space-y-4 px-1">
-        {/* Filter Controls & Live Status Badges Row */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5">
-          {/* Period Selector */}
-          <div className="flex items-center gap-1 p-1 bg-white border border-slate-200/80 rounded-full shadow-2xs text-xs overflow-x-auto max-w-full">
-            <span className="pl-2.5 pr-1 text-slate-400 flex items-center gap-1 text-[11px] font-semibold shrink-0">
-              <Calendar className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Period:</span>
-            </span>
-            {(['TODAY', 'YESTERDAY', 'THIS_WEEK'] as DatePeriod[]).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setSelectedPeriod(p)}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer shrink-0 ${
-                  selectedPeriod === p
-                    ? 'bg-orange-500 text-white shadow-xs shadow-orange-500/20'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                }`}
-              >
-                {p === 'TODAY' ? `Today (${currentDateFormatted})` : p === 'YESTERDAY' ? 'Yesterday' : 'This Week'}
-              </button>
-            ))}
-          </div>
-
-          {/* Quick Counter Pills */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Quick Counter: In Queue */}
-            <div 
-              onClick={() => handleNavigate('queue')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50/90 hover:bg-amber-100/80 border border-amber-200/80 text-amber-900 text-xs font-bold transition cursor-pointer shadow-2xs"
-              title="Motorcycles waiting in intake queue"
-            >
-              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-[11px] font-semibold text-amber-700">In Queue:</span>
-              <span>{inQueueCount} Waiting</span>
-            </div>
-
-            {/* Quick Counter: Scheduled Today */}
-            <div 
-              onClick={() => handleNavigate('queue')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50/90 hover:bg-blue-100/80 border border-blue-200/80 text-blue-900 text-xs font-bold transition cursor-pointer shadow-2xs"
-              title="Online scheduled customer bookings for today"
-            >
-              <Calendar className="w-3.5 h-3.5 text-blue-600" />
-              <span className="text-[11px] font-semibold text-blue-700">Scheduled:</span>
-              <span>{todayCapacityLimit === 0 ? 'Closed today' : `${scheduledTodayCount} / ${todayCapacityLimit} Slots`}</span>
-            </div>
-
+    <div className="space-y-5 pb-12">
+      {/* 1. Greeting + quick status (same layout as the rider "Welcome back" header) */}
+      {/* Compact: the header bar above already names the page */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1.5 sm:px-1">
+        <div className="min-w-0">
+          <h2 className="font-display text-2xl sm:text-[1.75rem] font-extrabold text-slate-900 tracking-[-0.03em] leading-tight truncate">
+            {greeting}, <span className="text-orange-500">{firstName}</span>
+          </h2>
+          <p className="mt-1 text-sm text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>{new Date(now).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
+            <span className="text-slate-300">·</span>
             <button
               type="button"
-              onClick={() => setIsWalkInModalOpen(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-4 py-1.5 text-xs font-bold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition active:scale-95 cursor-pointer shrink-0"
+              onClick={() => handleNavigate('queue')}
+              className="hover:text-slate-900 transition cursor-pointer"
+              title="Motorcycles waiting at intake"
             >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>New Walk-in</span>
+              <strong className="font-semibold text-slate-800">{inQueueCount}</strong> waiting at intake
             </button>
-          </div>
+            <span className="text-slate-300">·</span>
+            <button
+              type="button"
+              onClick={() => handleNavigate('queue')}
+              className="hover:text-slate-900 transition cursor-pointer"
+              title="Online bookings for today"
+            >
+              {todayCapacityLimit === 0 ? (
+                'Closed today'
+              ) : (
+                <>
+                  <strong className="font-semibold text-slate-800">
+                    {scheduledTodayCount} of {todayCapacityLimit}
+                  </strong>{' '}
+                  booking slots taken today
+                </>
+              )}
+            </button>
+          </p>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setIsWalkInModalOpen(true)}
+          className={`self-start sm:self-auto bg-orange-500 hover:bg-orange-600 text-white rounded-full px-4 py-2 text-sm font-semibold ${orangeButtonShadow} flex items-center gap-1.5 transition duration-150 hover:scale-105 active:scale-95 cursor-pointer shrink-0`}
+        >
+          <Plus className="w-4 h-4" />
+          <span>New walk-in</span>
+        </button>
       </div>
 
-      {/* Pending Online Requests Alert Banner */}
+      {/* Pending online bookings */}
       {pendingRequestsCount > 0 && (
-        <div className="bg-amber-50/90 border border-amber-200 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold shrink-0">
-              <Clock className="w-5 h-5 animate-pulse" />
+        <div className="bg-gradient-to-r from-amber-50 via-orange-50/40 to-white border border-amber-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-[0_12px_32px_-14px_rgba(245,158,11,0.45)] flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-white border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm sm:text-base text-amber-950">
-                  {pendingRequestsCount} Pending Online Booking Request{pendingRequestsCount > 1 ? 's' : ''}
-                </h3>
-                <span className="px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-900 text-[10px] font-black uppercase">
-                  Action Required
-                </span>
-              </div>
-              <p className="text-xs text-amber-800/80 mt-0.5">
-                New online appointment requests waiting for workshop review and confirmation.
+            <div className="min-w-0">
+              <h3 className="font-display font-bold text-base text-slate-900">
+                {pendingRequestsCount} new booking request{pendingRequestsCount > 1 ? 's' : ''}
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500">
+                A rider is waiting for you to accept or decline their online booking.
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => setActiveTab?.('actions')}
-            className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition cursor-pointer self-start sm:self-auto shadow-xs active:scale-95 shrink-0"
+            onClick={() => (onOpenQueueView ? onOpenQueueView('PENDING') : setActiveTab?.('queue'))}
+            className={`px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full text-sm transition cursor-pointer self-start sm:self-auto ${orangeButtonShadow} active:scale-95 shrink-0 flex items-center gap-1.5`}
           >
-            Review in Action Center ➔
+            Review requests
+            <ArrowUpRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* ==================================================================== */}
-      {/* 2. TOP KPI METRICS (4-COLUMN RESPONSIVE BALANCED GRID) */}
-      {/* ==================================================================== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 lg:gap-5">
-        
-        {/* KPI 1: Active Bikes on Floor */}
-        <div className="bg-white rounded-2xl p-4.5 sm:p-5 shadow-xs border border-slate-100/90 hover:border-orange-200/80 transition flex items-center justify-between">
-          <div className="space-y-1 min-w-0">
-            <span className="text-xs font-bold text-slate-500 block truncate">Active Bikes on Floor</span>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {kpis.activeBikesOnFloor}
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium block truncate">
-              Currently in service bays
-            </span>
-          </div>
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-orange-50 border border-orange-200/70 flex items-center justify-center text-orange-600 shadow-2xs shrink-0 ml-2">
-            <Bike className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2]" />
-          </div>
-        </div>
-
-        {/* KPI 2: Completed in Selected Period */}
-        <div className="bg-white rounded-2xl p-4.5 sm:p-5 shadow-xs border border-slate-100/90 hover:border-emerald-200/80 transition flex items-center justify-between">
-          <div className="space-y-1 min-w-0">
-            <span className="text-xs font-bold text-slate-500 block truncate">
-              {kpis.periodLabel || 'Completed Today'}
-            </span>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-600 tracking-tight">
-              {kpis.completedToday}
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium block truncate">
-              {kpis.periodSubtext || 'Completed & released today'}
-            </span>
-          </div>
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-50 border border-emerald-200/70 flex items-center justify-center text-emerald-600 shadow-2xs shrink-0 ml-2">
-            <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2]" />
+      {/* 2. Key numbers, with the period that "Completed" counts */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">At a glance</h3>
+          <div className="flex items-center p-1 bg-white border border-slate-200/80 rounded-full shadow-2xs">
+            {(['TODAY', 'YESTERDAY', 'THIS_WEEK'] as DatePeriod[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setSelectedPeriod(p)}
+                aria-pressed={selectedPeriod === p}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer ${
+                  selectedPeriod === p ? 'bg-orange-50 text-orange-700' : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                {p === 'TODAY' ? 'Today' : p === 'YESTERDAY' ? 'Yesterday' : 'This week'}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* KPI 3: Ready for Release (Operational Metric) */}
-        <div 
-          onClick={() => handleNavigate('billing')}
-          className="bg-white rounded-2xl p-4.5 sm:p-5 shadow-xs border border-slate-100/90 hover:border-blue-200/80 transition flex items-center justify-between cursor-pointer group"
-          title="Click to view Counter Release queue"
-        >
-          <div className="space-y-1 min-w-0">
-            <span className="text-xs font-bold text-slate-500 block truncate">Ready for Release</span>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              {kpis.readyForRelease}
-            </div>
-            <span className="text-[11px] text-slate-400 font-medium block truncate">
-              Waiting for pickup
-            </span>
-          </div>
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-blue-50 border border-blue-200/70 flex items-center justify-center text-blue-600 shadow-2xs shrink-0 group-hover:scale-105 transition-transform ml-2">
-            <KeyRound className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2]" />
-          </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            {
+              label: 'In the bays',
+              value: kpis.activeBikesOnFloor,
+              hint: 'Being inspected, repaired, or tested',
+              icon: Bike,
+              onClick: () => handleNavigate('bays'),
+            },
+            {
+              label: kpis.periodLabel || 'Completed today',
+              value: kpis.completedToday,
+              hint: kpis.periodSubtext || 'Released to the owner',
+              icon: CheckCircle2,
+            },
+            {
+              label: 'Ready for pickup',
+              value: kpis.readyForRelease,
+              hint: 'Waiting for the owner',
+              icon: KeyRound,
+              onClick: () => (onOpenQueueView ? onOpenQueueView('READY_RELEASE') : handleNavigate('queue')),
+            },
+            {
+              label: 'Customer rating',
+              value: (
+                <>
+                  {reviewStats.avg}
+                  <span className="text-base font-semibold text-slate-400"> / 5</span>
+                </>
+              ),
+              hint: reviewStats.count > 0 ? `${reviewStats.count} public review${reviewStats.count === 1 ? '' : 's'}` : 'No reviews yet',
+              icon: Star,
+              onClick: () => setActiveTab?.('reviews'),
+            },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            const body = (
+              <>
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-xs sm:text-sm font-medium text-slate-500">{stat.label}</span>
+                  <span className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
+                    <Icon className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mt-1">
+                  {stat.value}
+                </div>
+                <p className="text-[11px] sm:text-xs text-slate-400 mt-1 truncate">{stat.hint}</p>
+              </>
+            );
+            return stat.onClick ? (
+              <button
+                key={stat.label}
+                type="button"
+                onClick={stat.onClick}
+                className={`${card} card-lift p-4 sm:p-5 text-left hover:border-orange-200 cursor-pointer`}
+              >
+                {body}
+              </button>
+            ) : (
+              <div key={stat.label} className={`${card} p-4 sm:p-5`}>
+                {body}
+              </div>
+            );
+          })}
         </div>
-
-        {/* KPI 4: Customer Satisfaction & Rating */}
-        <div
-          onClick={() => setActiveTab?.('reviews')}
-          className="bg-white rounded-2xl p-4.5 sm:p-5 shadow-xs border border-slate-100/90 hover:border-amber-300 transition flex items-center justify-between cursor-pointer group"
-          title="Click to view all verified customer reviews & feedback"
-        >
-          <div className="space-y-1 min-w-0">
-            <span className="text-xs font-bold text-slate-500 block truncate group-hover:text-amber-700 transition">Customer Satisfaction</span>
-            <div className="text-2xl sm:text-3xl font-black text-amber-600 tracking-tight flex items-center gap-1.5">
-              <span>{reviewStats.avg}</span>
-              <span className="text-sm font-bold text-slate-400">/ 5.0</span>
-            </div>
-            <span className="text-[11px] text-amber-700 font-semibold block truncate">
-              {reviewStats.count > 0 ? `${reviewStats.count} public reviews (Manage →)` : 'No reviews yet'}
-            </span>
-          </div>
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-amber-50 border border-amber-200/70 flex items-center justify-center text-amber-500 shadow-2xs shrink-0 group-hover:scale-105 transition-transform ml-2">
-            <Star className="w-5 h-5 sm:w-6 sm:h-6 fill-amber-400 stroke-[1.5]" />
-          </div>
-        </div>
-
-      </div>
+      </section>
 
       {/* ==================================================================== */}
       {/* 3. MIDDLE SECTION: WEEKLY VOLUME & 2x2 STREAMLINED BAY CAPACITY */}
       {/* ==================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* 📊 SERVICE VOLUME (Weekly & Monthly Reactive View) */}
-        <div className="lg:col-span-7 bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-100 flex flex-col justify-between space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        {/* Completed repairs per day (week) or per week (month) */}
+        <div className={`lg:col-span-7 ${card} p-5 sm:p-6 flex flex-col gap-4`}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                {volumeData.title}
-              </h2>
-              <p className="text-xs text-slate-400">{volumeData.subtitle}</p>
+              <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">{volumeData.title}</h3>
+              <p className="text-xs sm:text-sm text-slate-500">{volumeData.subtitle}</p>
             </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
-              {volumeData.peakLabel ? (
-                <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[10px] font-bold">
-                  {volumeData.peakLabel}
-                </span>
-              ) : (
-                <span className="px-2.5 py-1 rounded-full bg-slate-50 text-slate-500 border border-slate-200/80 text-[10px] font-semibold">
-                  {volumeData.emptyBadge}
-                </span>
-              )}
-
-              <div className="flex items-center p-0.5 bg-slate-100 rounded-full text-[10px] font-semibold">
+            <div className="flex items-center p-1 bg-slate-100 rounded-full">
+              {(['WEEKLY', 'MONTHLY'] as const).map((view) => (
                 <button
+                  key={view}
                   type="button"
-                  onClick={() => setVolumeView('WEEKLY')}
-                  className={`px-2.5 py-0.5 rounded-full transition cursor-pointer ${
-                    volumeView === 'WEEKLY' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
+                  onClick={() => setVolumeView(view)}
+                  aria-pressed={volumeView === view}
+                  className={`px-3 py-1 rounded-full text-xs font-semibold transition cursor-pointer ${
+                    volumeView === view ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  Weekly
+                  {view === 'WEEKLY' ? 'Week' : 'Month'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setVolumeView('MONTHLY')}
-                  className={`px-2.5 py-0.5 rounded-full transition cursor-pointer ${
-                    volumeView === 'MONTHLY' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500'
-                  }`}
-                >
-                  Monthly
-                </button>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Bar Chart Visualizer */}
-          <div className="pt-2">
-            <div className="flex items-end justify-between gap-1.5 sm:gap-2 h-36 px-1 sm:px-2 pb-1">
+          <div className="relative">
+            <div className="flex items-end justify-between gap-2 sm:gap-3 h-40 px-1">
               {volumeData.bars.map((d) => (
-                <div key={d.label} className="flex-1 flex flex-col items-center justify-end h-full group cursor-default">
-                  {/* Tooltip on Hover */}
-                  <span className="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity mb-1">
-                    {d.count}
-                  </span>
-
-                  {/* Rounded Bar Pill */}
+                <div key={d.label} className="flex-1 flex flex-col items-center justify-end h-full">
+                  {d.count > 0 && <span className="text-xs font-semibold text-slate-700 mb-1 tabular-nums">{d.count}</span>}
                   <div
-                    style={{ height: d.count > 0 ? `${Math.max(d.heightPct, 18)}%` : '6px' }}
-                    className={`w-full max-w-[28px] rounded-xl transition-all duration-300 relative ${
-                      d.count > 0
-                        ? d.isPeak
-                          ? 'bg-gradient-to-t from-orange-500 to-amber-500 shadow-md shadow-orange-500/25 ring-2 ring-orange-500/30'
-                          : 'bg-emerald-500 hover:bg-emerald-600 text-white'
-                        : 'bg-slate-100 hover:bg-slate-200'
+                    style={{ height: d.count > 0 ? `${Math.max(d.heightPct, 12)}%` : '4px' }}
+                    className={`w-full max-w-[36px] rounded-lg transition-all duration-300 ${
+                      d.count > 0 ? (d.isPeak ? 'bg-orange-500' : 'bg-orange-300') : 'bg-slate-100'
+                    }`}
+                  />
+                  <span
+                    className={`text-[10px] sm:text-xs mt-2 text-center truncate max-w-full ${
+                      d.isPeak ? 'text-slate-900 font-semibold' : 'text-slate-400'
                     }`}
                   >
-                    {d.isPeak && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-white mx-auto mt-1" />
-                    )}
-                  </div>
-
-                  {/* Day / Week Label */}
-                  <span className={`text-[9px] sm:text-[10px] font-bold mt-2 uppercase text-center truncate max-w-full ${
-                    d.isPeak ? 'text-orange-600 font-extrabold' : 'text-slate-400'
-                  }`}>
                     {d.label}
                   </span>
                 </div>
               ))}
             </div>
+            {volumeData.bars.every((d) => d.count === 0) && (
+              <div className="absolute inset-x-0 top-10 text-center text-sm text-slate-400">
+                No completed repairs yet {volumeView === 'WEEKLY' ? 'this week' : 'this month'}
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500 font-medium">
-            <span>
-              <strong className="text-slate-900">{volumeData.totalSummary}</strong>
-            </span>
-            <span className="text-slate-400 text-[11px] hidden sm:inline">
-              Live database records
-            </span>
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-100 text-xs sm:text-sm text-slate-500">
+            <span className="font-medium text-slate-700">{volumeData.totalSummary}</span>
+            {volumeData.peakLabel && <span className="text-slate-400 truncate">Busiest: {volumeData.peakLabel}</span>}
           </div>
         </div>
 
-        {/* 🛠️ STREAMLINED BAY CAPACITY WIDGET (2x2 COMPACT GRID) (5 cols) */}
-        <div className="lg:col-span-5 bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-100 flex flex-col justify-between space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Bays at a glance */}
+        <div className={`lg:col-span-5 ${card} p-5 sm:p-6 flex flex-col gap-4`}>
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-bold text-slate-900">
-                Bay Status
-              </h2>
-              <p className="text-xs text-slate-400">
-                {occupiedBaysCount} of {activeLiftsCount} bays currently occupied {maintenanceBaysCount > 0 ? `(${maintenanceBaysCount} Maint)` : ''}
+              <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">Bays</h3>
+              <p className="text-xs sm:text-sm text-slate-500">
+                {occupiedBaysCount} of {activeLiftsCount} in use
+                {maintenanceBaysCount > 0 ? ` · ${maintenanceBaysCount} under maintenance` : ''}
               </p>
             </div>
-
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-200/80 text-orange-700 text-xs font-bold">
-              <span>{bayUtilizationPct}% Capacity</span>
-            </div>
+            <span className="font-display text-2xl font-bold text-slate-900 tabular-nums">{bayUtilizationPct}%</span>
           </div>
 
-          {/* Compact 10-bay grid: green = free, orange = in use, grey = maintenance */}
-          <div className="grid grid-cols-5 gap-2">
+          <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+            <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${bayUtilizationPct}%` }} />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
             {bayStatusList.map((bay) => {
               const isOccupied = bay.status === 'OCCUPIED';
               const isMaintenance = bay.status === 'MAINTENANCE';
@@ -865,36 +817,39 @@ export function WorkshopDashboard({
                       ? `${bay.name}: ${bay.bikeModel || 'In use'}${bay.plateNumber ? ` (${bay.plateNumber})` : ''}`
                       : `${bay.name}: available`
                   }
-                  className={`rounded-xl border py-2.5 px-1 text-center transition cursor-pointer hover:shadow-2xs ${
-                    isMaintenance
-                      ? 'bg-slate-100 border-slate-200 text-slate-400'
-                      : isOccupied
-                      ? 'bg-orange-50 border-orange-200 text-orange-700'
-                      : 'bg-emerald-50/60 border-emerald-200/80 text-emerald-700'
+                  className={`card-lift rounded-2xl border p-3 text-left cursor-pointer hover:border-orange-200 ${
+                    isOccupied
+                      ? 'bg-orange-50/70 border-orange-200/80 shadow-[0_6px_16px_-8px_rgba(249,115,22,0.35)]'
+                      : 'bg-white border-slate-200/80'
                   }`}
                 >
-                  <span className="block text-sm font-black leading-none">{bay.name.replace(/\D/g, '').padStart(2, '0')}</span>
-                  <span className="block text-[9px] font-semibold mt-1 truncate">
-                    {isMaintenance ? 'Maint.' : isOccupied ? (bay.stage ? `Stage ${bay.stage}` : 'In use') : 'Free'}
+                  <span className="flex items-center justify-between">
+                    <span className="font-display text-base font-bold text-slate-900">
+                      {bay.name.replace(/\D/g, '').padStart(2, '0')}
+                    </span>
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isMaintenance ? 'bg-slate-300' : isOccupied ? 'bg-orange-500' : 'bg-emerald-500'
+                      }`}
+                    />
+                  </span>
+                  <span
+                    className={`block text-[11px] mt-0.5 truncate ${isOccupied ? 'text-orange-700 font-medium' : 'text-slate-400'}`}
+                  >
+                    {isMaintenance ? 'Maintenance' : isOccupied ? (bay.stage ? `Stage ${bay.stage}` : 'In use') : 'Free'}
                   </span>
                 </button>
               );
             })}
           </div>
-          <div className="flex items-center gap-3 text-[10px] text-slate-500">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500" /> Free</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500" /> In use</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-400" /> Maintenance</span>
-          </div>
 
-          {/* Clean Manage Bay Lifts Button */}
           <button
             type="button"
             onClick={() => handleNavigate('bays')}
-            className="w-full py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold transition cursor-pointer flex items-center justify-center gap-1.5 border border-slate-200/80 hover:border-slate-300 active:scale-95"
+            className="mt-auto w-full py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer flex items-center justify-center gap-1.5"
           >
-            <Wrench className="w-3.5 h-3.5 text-orange-600" />
-            <span>View Workshop Bays →</span>
+            <Wrench className="w-4 h-4 text-orange-500" />
+            Open Bays
           </button>
         </div>
 
@@ -905,140 +860,98 @@ export function WorkshopDashboard({
       {/* ==================================================================== */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* 🏍️ ACTIVE FLOOR ACTIVITY (8 cols) */}
-        <div className="lg:col-span-8 bg-white rounded-3xl p-6 shadow-xs border border-slate-100 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-                <Activity className="w-4 h-4" />
-              </div>
-              <div>
-                <h2 className="text-sm font-bold text-slate-900 leading-tight">
-                  Active Floor Activity
-                </h2>
-                <p className="text-xs text-slate-400">Ongoing motorcycle repairs currently in bays</p>
-              </div>
+        {/* 🏍️ ACTIVE FLOOR ACTIVITY (8 cols; full width for staff, who don't see the staff roster) */}
+        <div className={`${isOwner ? 'lg:col-span-8' : 'lg:col-span-12'} ${card} p-5 sm:p-6 space-y-4`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">On the floor now</h3>
+              <p className="text-xs sm:text-sm text-slate-500">
+                {activeFloorTickets.length === 0
+                  ? 'No motorcycles in the shop'
+                  : `${activeFloorTickets.length} motorcycle${activeFloorTickets.length === 1 ? '' : 's'} in the shop${
+                      activeFloorTickets.length > 4 ? ' · showing the first 4' : ''
+                    }`}
+              </p>
             </div>
-
             <button
               type="button"
               onClick={() => handleNavigate('queue')}
-              className="text-xs font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer transition active:scale-95"
+              className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer transition shrink-0"
             >
-              <span>View Full Queue</span>
+              Open Queue
               <ArrowUpRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Table / Card List of Top 4 Active Ongoing Tickets */}
           {activeFloorTickets.length === 0 ? (
-            <div className="py-10 px-4 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 flex flex-col items-center justify-center space-y-2">
-              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+            <div className="py-10 px-4 text-center rounded-2xl border border-dashed border-slate-200 flex flex-col items-center gap-2">
+              <span className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center">
                 <Bike className="w-5 h-5" />
-              </div>
-              <p className="text-xs font-bold text-slate-700">No active repairs on floor</p>
-              <p className="text-[11px] text-slate-400 max-w-sm">
-                All workshop bays are clear and ready for walk-in or scheduled motorcycle intake.
-              </p>
+              </span>
+              <p className="font-semibold text-slate-800">All bays are clear</p>
+              <p className="text-sm text-slate-500 max-w-sm">Start a walk-in, or check in a rider who booked online from the Queue.</p>
               <button
                 type="button"
                 onClick={() => setIsWalkInModalOpen(true)}
-                className="mt-2 px-4 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold shadow-xs transition cursor-pointer"
+                className={`mt-2 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 ${orangeButtonShadow}`}
               >
-                + Create Walk-in Ticket
+                <Plus className="w-4 h-4" />
+                New walk-in
               </button>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <div className="divide-y divide-slate-100 -mx-1">
               {activeFloorTickets.slice(0, 4).map((t) => {
-                const elapsedStr = getElapsedTimeBadge(t.created_at);
-                
-                // Status pill label and styling
-                let statusBadgeText = 'In Progress';
-                let statusBadgeClass = 'bg-orange-50 text-orange-700 border-orange-200/80';
-
-                if (t.stage === 1) {
-                  statusBadgeText = 'In Intake';
-                  statusBadgeClass = 'bg-slate-100 text-slate-700 border-slate-200';
-                } else if (t.stage === 2) {
-                  statusBadgeText = 'Inspection';
-                  statusBadgeClass = 'bg-blue-50 text-blue-700 border-blue-200';
-                } else if (t.stage === 3) {
-                  statusBadgeText = 'In Progress';
-                  statusBadgeClass = 'bg-orange-50 text-orange-700 border-orange-200/80';
-                } else if (t.stage === 4) {
-                  statusBadgeText = 'Testing';
-                  statusBadgeClass = 'bg-purple-50 text-purple-700 border-purple-200';
-                } else if (t.stage === 5) {
-                  statusBadgeText = 'Ready for Release';
-                  statusBadgeClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
-                }
+                const elapsedStr = getElapsedTimeBadge(t.created_at).replace(' elapsed', '');
+                const stageName = ['Intake', 'Inspection', 'Repair', 'Testing', 'Ready'][Math.min(Math.max(t.stage, 1), 5) - 1];
+                const actionLabel =
+                  t.stage >= 5
+                    ? 'Release'
+                    : t.stage === 1 || !t.assigned_bay
+                    ? 'Assign bay'
+                    : t.stage === 4
+                    ? 'Mark ready'
+                    : 'Next stage';
 
                 return (
-                  <div
-                    key={t.id}
-                    className="p-3.5 sm:p-4 rounded-2xl bg-slate-50/70 hover:bg-slate-50 border border-slate-200/60 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    {/* Ticket #, Model & Plate */}
-                    <div className="flex items-start sm:items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-200/80 flex items-center justify-center font-bold text-xs text-slate-700 shrink-0 font-mono shadow-2xs">
-                        #{t.ticket_code ? t.ticket_code.slice(-4) : 'MC'}
-                      </div>
-                      <div className="min-w-0 flex-1">
+                  <div key={t.id} className="px-1 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <span className="w-11 h-11 rounded-2xl bg-slate-100 text-slate-700 flex flex-col items-center justify-center shrink-0 leading-none">
+                        <span className="text-[9px] text-slate-400">Stage</span>
+                        <span className="font-display text-base font-bold">{t.stage}</span>
+                      </span>
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-xs text-slate-900 truncate">
-                            {t.motorcycles?.model || 'Motorcycle Unit'}
+                          <span className="font-semibold text-slate-900 truncate">
+                            {t.motorcycles?.model || 'Motorcycle'}
                           </span>
-                          <span className="font-mono text-[10px] font-bold px-1.5 py-0.2 rounded bg-white border border-slate-200 text-slate-700">
-                            {t.motorcycles?.plate_number || 'NO PLATE'}
-                          </span>
-                          {/* Status Pill on mobile */}
-                          <span className={`sm:hidden px-2 py-0.5 rounded-full text-[9px] font-bold border uppercase tracking-wider ${statusBadgeClass}`}>
-                            {statusBadgeText}
+                          <span className="font-mono text-[11px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                            {t.motorcycles?.plate_number || 'No plate'}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5 flex-wrap">
-                          <span className="truncate">{t.service_type}</span>
-                          <span>•</span>
-                          <span className="font-bold text-slate-700">{t.assigned_bay || 'Bay Lift'}</span>
-                          <span className="sm:hidden text-[10px] text-slate-400">• {elapsedStr}</span>
-                        </div>
+                        <p className="text-xs sm:text-sm text-slate-500 truncate">
+                          {stageName} · {t.service_type}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Mechanic, Elapsed Time, Status pill & Quick Advance */}
-                    <div className="flex items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/60 shrink-0">
-                      <div className="text-left sm:text-right">
-                        <span className="text-[11px] font-semibold text-slate-800 block truncate max-w-[140px]">
-                          {t.assigned_mechanic || 'Unassigned'}
+                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pl-14 sm:pl-0">
+                      <div className="text-xs sm:text-right leading-tight">
+                        <span className="block font-medium text-slate-700 truncate max-w-[150px]">
+                          {t.assigned_bay || 'No bay yet'} · {t.assigned_mechanic || 'No mechanic'}
                         </span>
-                        <span className="text-[10px] text-slate-400 hidden sm:flex items-center gap-1 justify-end">
-                          <Clock className="w-3 h-3 text-slate-400" />
-                          <span>{elapsedStr}</span>
+                        <span className="text-slate-400 flex items-center gap-1 sm:justify-end">
+                          <Clock className="w-3 h-3" />
+                          {elapsedStr} in the shop
                         </span>
                       </div>
-
-                      {/* Status Pill on desktop/tablet */}
-                      <span className={`hidden sm:inline-block px-2.5 py-1 rounded-full text-[10px] font-bold border uppercase tracking-wider ${statusBadgeClass}`}>
-                        {statusBadgeText}
-                      </span>
-
-                      {/* Action Button */}
                       <button
                         type="button"
                         disabled={updatingTicketId === t.id}
                         onClick={() => handleQuickAdvance(t)}
-                        className="px-3.5 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50 shrink-0"
+                        className="px-3.5 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs sm:text-sm transition cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 shadow-sm shadow-orange-500/25"
                       >
-                        <span>
-                          {t.stage >= 5
-                            ? 'Release ➔'
-                            : t.stage === 1 || !t.assigned_bay
-                            ? 'Assign Bay ➔'
-                            : t.stage === 4
-                            ? 'Mark Ready ➔'
-                            : 'Advance ➔'}
-                        </span>
+                        {actionLabel}
                       </button>
                     </div>
                   </div>
@@ -1048,72 +961,60 @@ export function WorkshopDashboard({
           )}
         </div>
 
-        {/* 👥 WORKSHOP STAFF (4 cols) */}
-        <div className="lg:col-span-4 bg-white rounded-3xl p-5 sm:p-6 shadow-xs border border-slate-100 space-y-4 flex flex-col justify-between">
+        {/* 👥 MECHANICS ON THE FLOOR (4 cols) — shop owner only */}
+        {isOwner && (
+        <div className={`lg:col-span-4 ${card} p-5 sm:p-6 space-y-4 flex flex-col justify-between`}>
           <div>
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
               <div>
-                <h2 className="text-sm font-bold text-slate-900">
-                  Workshop Staff
-                </h2>
-                <p className="text-xs text-slate-400">Active staff members on duty</p>
+                <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">Mechanics</h3>
+                <p className="text-xs sm:text-sm text-slate-500">Names set on today&apos;s tickets</p>
               </div>
-
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200/80">
-                {techniciansOnFloor.length} Staff
-              </span>
+              <span className="font-display text-2xl font-bold text-slate-900 tabular-nums">{mechanicsOnFloor.length}</span>
             </div>
 
-            {/* Staff Roster */}
-            {techniciansOnFloor.length === 0 ? (
+            {mechanicsOnFloor.length === 0 ? (
               <div className="py-8 px-3 text-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 space-y-2 mt-3">
                 <Users className="w-6 h-6 text-slate-400 mx-auto" />
-                <p className="text-xs font-bold text-slate-700">No staff members on duty</p>
+                <p className="text-xs font-bold text-slate-700">No mechanic assigned yet</p>
                 <p className="text-[11px] text-slate-400 max-w-xs mx-auto">
-                  Add staff members in Staff Management to track floor assignments and job completions.
+                  Mechanics show up here once their name is set on a ticket in the Queue.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => handleNavigate('staff')}
-                  className="mt-1 px-3 py-1 rounded-full bg-white border border-slate-200 text-orange-600 font-bold hover:bg-orange-50 text-xs transition cursor-pointer"
-                >
-                  + Add Staff
-                </button>
               </div>
             ) : (
               <div className="space-y-3 pt-3">
-                {techniciansOnFloor.map((tech) => (
-                  <div key={tech.id} className="flex items-center justify-between gap-3 text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                        {tech.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div className="truncate">
-                        <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-900 truncate">{tech.name}</span>
-                          {/* Live badge: Available vs Assigned to Bay X */}
-                          <span
-                            className={`w-2 h-2 rounded-full shrink-0 ${
-                              tech.isAvailable ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'
-                            }`}
-                            title={tech.isAvailable ? 'Available' : 'Assigned to Bay'}
-                          />
+                {mechanicsOnFloor.map((mech) => {
+                  const isBusy = mech.bays.length > 0;
+                  return (
+                    <div key={mech.name.toLowerCase()} className="flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          {mech.name.charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-[11px] text-slate-500 truncate block">
-                          {tech.isAvailable ? (
-                            <span className="text-emerald-600 font-semibold">Available</span>
-                          ) : (
-                            <span className="text-orange-600 font-semibold">Assigned to {tech.assignedBay || 'Bay'}</span>
-                          )}
-                        </span>
+                        <div className="truncate">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-slate-900 truncate">{mech.name}</span>
+                            <span
+                              className={`w-2 h-2 rounded-full shrink-0 ${isBusy ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`}
+                              title={isBusy ? 'Working on a motorcycle' : 'Done for now'}
+                            />
+                          </div>
+                          <span className="text-[11px] text-slate-500 truncate block">
+                            {isBusy ? (
+                              <span className="text-orange-600 font-semibold">Working on {mech.bays.join(', ')}</span>
+                            ) : (
+                              <span className="text-emerald-600 font-semibold">No active job</span>
+                            )}
+                          </span>
+                        </div>
                       </div>
-                    </div>
 
-                    <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full shrink-0">
-                      {tech.completedJobsToday} completed today
-                    </span>
-                  </div>
-                ))}
+                      <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full shrink-0">
+                        {mech.completedJobsToday} done today
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1121,17 +1022,18 @@ export function WorkshopDashboard({
           <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-              <span>Workshop Staff Team</span>
+              <span>Staff accounts are in Team</span>
             </span>
             <button
               type="button"
               onClick={() => handleNavigate('staff')}
               className="font-bold text-orange-600 hover:underline cursor-pointer"
             >
-              Manage Roster →
+              Open Team →
             </button>
           </div>
         </div>
+        )}
 
       </div>
 

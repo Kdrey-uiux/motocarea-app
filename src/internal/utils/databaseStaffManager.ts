@@ -88,13 +88,13 @@ export async function fetchDatabaseStaffMembers(): Promise<InternalStaffMember[]
         fullName: p.full_name || 'Personnel Member',
         email: p.email || 'N/A',
         phone: p.phone_number || 'N/A',
-        // New profiles start with position "Customer"; never show that for a staff/admin account
+        // One staff level only: every non-owner account shows as "Staff"
         position:
-          p.position && p.position !== 'Customer'
-            ? p.position
-            : p.role === 'admin'
-            ? 'Shop Owner'
-            : 'Service Advisor',
+          p.role === 'admin'
+            ? p.position && p.position !== 'Customer'
+              ? p.position
+              : 'Shop Owner'
+            : 'Staff',
         role: p.role === 'admin' ? 'admin' : 'staff',
         isActive: p.is_active !== false,
         createdAt: p.created_at || new Date().toISOString(),
@@ -128,7 +128,7 @@ export async function createDatabaseStaffMember({
   position: string;
   password?: string;
   creatorName?: string;
-}): Promise<{ success: boolean; staff?: InternalStaffMember; error?: string }> {
+}): Promise<{ success: boolean; staff?: InternalStaffMember; error?: string; warning?: string }> {
   const cleanEmail = email.trim().toLowerCase();
   const cleanName = fullName.trim();
   const cleanPhone = phone.trim();
@@ -184,12 +184,23 @@ export async function createDatabaseStaffMember({
       email: cleanEmail,
       phone_number: cleanPhone || 'N/A',
       role: 'staff',
-      position: cleanPosition || 'Service Advisor',
+      position: cleanPosition || 'Staff',
       is_active: true,
       updated_at: new Date().toISOString(),
     });
     if (profileError) {
       return { success: false, error: `Account created, but the staff profile could not be saved: ${profileError.message}` };
+    }
+
+    // 4. Mark the staff email as confirmed so they can log in right away (migration 13).
+    //    Rider accounts are not touched and still verify their email.
+    let warning: string | undefined;
+    const { error: confirmError } = await client.rpc('confirm_staff_email', { p_user_id: createdAuthId });
+    if (confirmError) {
+      warning =
+        confirmError.code === 'PGRST202'
+          ? 'Run migration 13_confirm_staff_email.sql in Supabase so new staff can log in without email confirmation.'
+          : `The account was created, but it could not be confirmed: ${confirmError.message}`;
     }
 
     const newStaff: InternalStaffMember = {
@@ -226,7 +237,7 @@ export async function createDatabaseStaffMember({
       }).catch(() => {});
     }
 
-    return { success: true, staff: newStaff };
+    return { success: true, staff: newStaff, warning };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Failed to register staff account.';
     return { success: false, error: msg };

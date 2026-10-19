@@ -7,6 +7,7 @@ import { X, User, Phone, Gauge, Wrench, Loader2, CheckCircle2, Search, AlertTria
 import { getSharedServiceCatalog } from '../../utils/serviceCatalog';
 import { FIXED_WORKSHOP_CAPACITY, isSundayDate } from '../../utils/workshopCapacity';
 import { toast } from '../utils/toast';
+import WalkInClaimSlipModal, { WalkInSlipInfo } from './WalkInClaimSlipModal';
 
 interface NewWalkInTicketModalProps {
   isOpen: boolean;
@@ -27,10 +28,10 @@ function newWalkInCode(): string {
   return `MC-W-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
-const sectionLabel = 'text-[11px] font-bold uppercase tracking-wider text-slate-400';
-const fieldLabel = 'text-xs font-semibold text-slate-700 block mb-1';
+const sectionLabel = 'font-display text-sm font-bold tracking-tight text-slate-900';
+const fieldLabel = 'text-xs font-medium text-slate-600 block mb-1.5';
 const inputClass =
-  'w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition';
+  'w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
 export default function NewWalkInTicketModal({
   isOpen,
@@ -55,6 +56,8 @@ export default function NewWalkInTicketModal({
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Claim slip shown right after the ticket is created, so the customer leaves with their ticket number
+  const [createdSlip, setCreatedSlip] = useState<WalkInSlipInfo | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -87,6 +90,19 @@ export default function NewWalkInTicketModal({
   }, [catalog, motorcycleModel]);
 
   if (!isOpen) return null;
+
+  if (createdSlip) {
+    return (
+      <WalkInClaimSlipModal
+        slip={createdSlip}
+        onClose={() => {
+          setCreatedSlip(null);
+          onTicketCreated();
+          onClose();
+        }}
+      />
+    );
+  }
 
   const resetForm = () => {
     setCustomerName('');
@@ -188,9 +204,10 @@ export default function NewWalkInTicketModal({
 
       // 3. Create the ticket, retrying with a new code if one is already taken
       let ticketCode = '';
+      let createdAt = new Date().toISOString();
       for (let attempt = 1; attempt <= MAX_CODE_ATTEMPTS; attempt++) {
         ticketCode = newWalkInCode();
-        const { error: ticketError } = await db().from('service_tickets').insert({
+        const { data: createdRow, error: ticketError } = await db().from('service_tickets').insert({
           ticket_code: ticketCode,
           motorcycle_id: motorcycleId,
           service_type: selectedService,
@@ -199,8 +216,11 @@ export default function NewWalkInTicketModal({
           dropoff_date: todayStr,
           notes: notesPayload,
           is_walk_in: true,
-        });
-        if (!ticketError) break;
+        }).select('created_at').single();
+        if (!ticketError) {
+          if (createdRow?.created_at) createdAt = createdRow.created_at;
+          break;
+        }
         if (ticketError.code !== UNIQUE_VIOLATION || attempt === MAX_CODE_ATTEMPTS) throw ticketError;
       }
 
@@ -213,10 +233,16 @@ export default function NewWalkInTicketModal({
       });
       broadcastTicketSync({ ticket_code: ticketCode, action: 'walk_in_created' });
 
-      toast.success(`Walk-in #${ticketCode} created for ${cleanName}. Assign a bay to start the job.`);
+      toast.success(`Walk-in #${ticketCode} created for ${cleanName}. Give the customer their ticket slip.`);
       resetForm();
-      onTicketCreated();
-      onClose();
+      setCreatedSlip({
+        ticketCode,
+        customerName: cleanName,
+        bikeModel: cleanModel,
+        plateNumber: cleanPlate,
+        serviceType: selectedService,
+        createdAt,
+      });
     } catch (err: unknown) {
       console.error('Failed to create walk-in ticket:', err);
       setErrorMessage(err instanceof Error ? err.message : 'Failed to create the walk-in ticket.');
@@ -229,23 +255,25 @@ export default function NewWalkInTicketModal({
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <form
         onSubmit={handleSubmit}
-        className="bg-white border border-slate-200 text-slate-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
+        className="bg-white text-slate-900 w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-xs">
+        <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200/80 flex items-start justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
               <Bike className="w-5 h-5" />
             </div>
-            <div>
-              <h2 className="font-bold text-base text-slate-900">New Walk-in</h2>
-              <p className="text-xs text-slate-500">Customer is at the shop now — the job starts at check-in.</p>
+            <div className="min-w-0">
+              <h2 className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900 leading-tight">
+                New walk-in
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500">The customer is here now. The job starts at Stage 1.</p>
             </div>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer"
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
             aria-label="Close"
           >
             <X className="w-4 h-4" />
@@ -253,7 +281,7 @@ export default function NewWalkInTicketModal({
         </div>
 
         {/* Body (scrolls) */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-xs">
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-sm bg-slate-50/40">
           {errorMessage && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
@@ -338,7 +366,7 @@ export default function NewWalkInTicketModal({
                           setMotorcycleModel(bike.name);
                           setIsDropdownOpen(false);
                         }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-orange-50 flex items-center justify-between gap-2 cursor-pointer"
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center justify-between gap-2 cursor-pointer"
                       >
                         <span className="font-semibold text-slate-800 truncate">{bike.name}</span>
                         <span className="text-[10px] text-slate-400 shrink-0">{bike.brand}</span>
@@ -426,19 +454,19 @@ export default function NewWalkInTicketModal({
         </div>
 
         {/* Footer (always visible) */}
-        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-end gap-2 shrink-0">
+        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 flex items-center justify-end gap-2 shrink-0">
           <button
             type="button"
             onClick={handleClose}
             disabled={loading}
-            className="px-4 py-2.5 text-slate-600 hover:text-slate-900 font-bold rounded-xl transition cursor-pointer text-xs"
+            className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition cursor-pointer text-sm"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-2 transition cursor-pointer shadow-xs text-xs"
+            className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer text-sm active:scale-95"
           >
             {loading ? (
               <>
@@ -446,7 +474,7 @@ export default function NewWalkInTicketModal({
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-4 h-4" /> Create Walk-in
+                <CheckCircle2 className="w-4 h-4" /> Create walk-in
               </>
             )}
           </button>

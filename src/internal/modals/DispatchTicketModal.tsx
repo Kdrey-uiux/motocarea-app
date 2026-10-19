@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '../../lib/supabase';
+import { SERVICE_STAGES } from '../../utils/serviceStages';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, InternalStaffMember } from '../types/internal';
@@ -33,25 +34,21 @@ interface DispatchTicketModalProps {
 }
 
 const BAYS = [
-  { id: 'Bay 01', num: 1, type: 'Quick Service' },
-  { id: 'Bay 02', num: 2, type: 'CVT' },
-  { id: 'Bay 03', num: 3, type: 'Engine' },
-  { id: 'Bay 04', num: 4, type: 'Electrical' },
-  { id: 'Bay 05', num: 5, type: 'Brakes' },
-  { id: 'Bay 06', num: 6, type: 'FI Cleaning' },
-  { id: 'Bay 07', num: 7, type: 'Tires' },
-  { id: 'Bay 08', num: 8, type: 'General' },
-  { id: 'Bay 09', num: 9, type: 'Body' },
-  { id: 'Bay 10', num: 10, type: 'Final Testing' },
+  { id: 'Bay 01', num: 1 },
+  { id: 'Bay 02', num: 2 },
+  { id: 'Bay 03', num: 3 },
+  { id: 'Bay 04', num: 4 },
+  { id: 'Bay 05', num: 5 },
+  { id: 'Bay 06', num: 6 },
 ];
 
-// Stage 1 (intake) is set by check-in; dispatch moves the unit through 2-5
-const STAGES = [
-  { stage: 2, label: 'Inspection', desc: 'Diagnosing on the lift' },
-  { stage: 3, label: 'Repair', desc: 'Parts & mechanical work' },
-  { stage: 4, label: 'Testing', desc: 'Road test & safety check' },
-  { stage: 5, label: 'Ready', desc: 'Waiting for customer pickup' },
-];
+// Stage 1 (intake) is set by check-in; dispatch moves the unit through 2-5.
+// Labels match what the customer sees (Inspect, Service, Test, Ready).
+const STAGES = SERVICE_STAGES.filter((s) => s.step >= 2).map((s) => ({
+  stage: s.step,
+  label: s.name,
+  desc: s.staffHint,
+}));
 
 const ETA_PRESETS = ['Today, 12:00 PM', 'Today, 4:00 PM', 'Tomorrow, 12:00 PM'];
 
@@ -166,7 +163,7 @@ export default function DispatchTicketModal({
     e.preventDefault();
 
     // Stage 5 only marks the unit READY_FOR_PICKUP; the actual handover/release happens
-    // when the customer arrives (Action Center / Counter Release).
+    // when the customer arrives (Queue → In the Shop → 5 · Ready → Process Release).
     setSaving(true);
     setErrorMsg(null);
 
@@ -360,7 +357,7 @@ export default function DispatchTicketModal({
                 Selected: <strong className="text-orange-600">{assignedBay}</strong>
               </span>
             </div>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
               {BAYS.map((b) => {
                 const occupant = bayOccupancyMap.get(b.num);
                 const inMaintenance = isUnderMaintenance(b.num);
@@ -376,7 +373,7 @@ export default function DispatchTicketModal({
                         ? `In use by #${occupant.ticketCode} (${occupant.bikeModel})`
                         : inMaintenance
                         ? `${b.id} is under maintenance`
-                        : `${b.id} — ${b.type}`
+                        : `${b.id}: available`
                     }
                     className={`py-2 px-1 rounded-xl border text-center transition ${
                       isSelected
@@ -392,7 +389,7 @@ export default function DispatchTicketModal({
                         isSelected ? 'text-orange-100' : occupant ? 'text-slate-400' : 'text-slate-500'
                       }`}
                     >
-                      {occupant ? `#${occupant.ticketCode}` : inMaintenance ? 'Maintenance' : b.type}
+                      {occupant ? `#${occupant.ticketCode}` : inMaintenance ? 'Maintenance' : 'Available'}
                     </span>
                   </button>
                 );

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState, useMemo } from 'react';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { parseTicketReview, submitTicketReview, TicketReview } from '../../utils/ticketReviews';
@@ -23,6 +24,9 @@ import {
   Loader2
 } from 'lucide-react';
 import { getTicketDisplayDate } from '../../utils/ticketDates';
+import { printDocument } from '../../utils/printDocument';
+import { PrintPortal } from '../../components/print/PrintTemplate';
+import { ServiceHistoryDocument, ServiceRecordDocument } from '../../components/print/MotoCareDocuments';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
@@ -145,9 +149,8 @@ export default function ServiceHistoryTab({
     });
   }, [serviceHistory, selectedBikePlate, searchQuery]);
 
-  const handlePrint = () => {
-    window.print();
-  };
+  // Prints the document in the PrintPortal below (service history list, or the open slip)
+  const handlePrint = printDocument;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -156,18 +159,21 @@ export default function ServiceHistoryTab({
          ========================================================================= */}
       <div className="print:hidden space-y-3.5 sm:space-y-5 pb-24 sm:pb-8">
         {/* 1. Header Hero Card */}
-        <div id="tour-records-header" className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div>
-            <h2 className="text-base sm:text-2xl font-bold text-slate-900 tracking-tight">
-              Service History & Records
+        <div id="tour-records-header" className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 sm:gap-4 px-1.5 sm:px-1">
+          <div className="min-w-0">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-orange-100/70 text-orange-700">
+              Service History
+            </span>
+            <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-[-0.035em] leading-[1.05]">
+              Service <span className="text-orange-500">records</span>
             </h2>
-            <p className="text-[11px] sm:text-xs text-slate-500 font-medium mt-0.5">
-              Official completed maintenance logs verified by MotoCare workshop technicians.
+            <p className="mt-2 text-sm text-slate-500">
+              Every visit the workshop has completed for your motorcycles, ready to view or print.
             </p>
           </div>
 
           {serviceHistory.length > 0 && (
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setIsRequestModalOpen(true)}
@@ -301,11 +307,11 @@ export default function ServiceHistoryTab({
         {/* 2. Quick Summary Stats Bar (Compact 3-column row on mobile!) */}
         {serviceHistory.length > 0 && (
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex flex-col justify-between">
-              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs flex flex-col justify-between">
+              <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">
                 Completed
               </span>
-              <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
+              <div className="font-display text-lg sm:text-3xl font-extrabold tracking-[-0.03em] text-slate-900 truncate my-0.5 sm:my-1">
                 {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
               </div>
               <span className="text-[10px] sm:text-[11px] text-emerald-600 font-semibold flex items-center gap-1 truncate">
@@ -318,11 +324,11 @@ export default function ServiceHistoryTab({
               </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex flex-col justify-between">
-              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs flex flex-col justify-between">
+              <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">
                 Garage Fleet
               </span>
-              <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
+              <div className="font-display text-lg sm:text-3xl font-extrabold tracking-[-0.03em] text-slate-900 truncate my-0.5 sm:my-1">
                 {selectedBikePlate === 'all'
                   ? `${uniqueBikes.length} ${uniqueBikes.length === 1 ? 'Bike' : 'Bikes'}`
                   : activeSelectedBike?.model?.split(' ')[0] || 'Unit'}
@@ -334,11 +340,11 @@ export default function ServiceHistoryTab({
               </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-2xs flex flex-col justify-between">
-              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 uppercase tracking-wider block truncate">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs flex flex-col justify-between">
+              <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">
                 Latest Done
               </span>
-              <div className="text-sm sm:text-2xl font-bold text-slate-900 truncate my-0.5 sm:my-1">
+              <div className="font-display text-lg sm:text-3xl font-extrabold tracking-[-0.03em] text-slate-900 truncate my-0.5 sm:my-1">
                 {filteredHistory[0]
                   ? getTicketDisplayDate(filteredHistory[0]).toLocaleDateString('en-US', {
                       month: 'short',
@@ -355,7 +361,7 @@ export default function ServiceHistoryTab({
 
         {/* 3. Vehicle Filter Selector (Allows filtering & printing a specific bike like Yamaha Mio i 125!) */}
         {uniqueBikes.length > 1 && (
-          <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 shadow-2xs space-y-2">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Bike className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
@@ -435,7 +441,7 @@ export default function ServiceHistoryTab({
                 <Inbox className="w-6 h-6 sm:w-7 sm:h-7" />
               </div>
               <div className="space-y-1">
-                <div className="text-sm sm:text-base font-bold text-slate-900">No Past Service Records Yet</div>
+                <div className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900">No service records yet</div>
                 <p className="text-[11px] sm:text-xs text-slate-500 max-w-sm sm:max-w-md mx-auto leading-relaxed">
                   Once your ongoing service ticket is marked as completed by the mechanic, official logs and downloadable receipts will appear here automatically.
                 </p>
@@ -761,193 +767,35 @@ export default function ServiceHistoryTab({
         )}
       </div>
 
-      {/* =========================================================================
-          DEDICATED PRINT-ONLY OFFICIAL SERVICE HISTORY DOCUMENT
-          (Anchored at bottom, unified clean typography, no double-hash, no font glitches)
-         ========================================================================= */}
-      {!selectedTicket && (
-        <div className="hidden print:block print-document text-slate-900 bg-white p-0">
-          {/* Top Section: Letterhead, Customer Box, and Maintenance Table */}
-          <div className="print-body space-y-3.5">
-            {/* Official Letterhead Header */}
-            <div className="border-b-2 border-slate-900 pb-2.5 flex items-start justify-between">
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded bg-orange-500 text-white flex items-center justify-center font-black text-xs shrink-0">
-                    MC
-                  </div>
-                  <h1 className="text-[12pt] font-extrabold uppercase tracking-wide text-slate-900">
-                    MotoCare Workshop & Service Hub
-                  </h1>
-                </div>
-                <p className="text-[8.5pt] text-slate-600">
-                  Santa Maria Service Branch • Bulacan, Philippines • Contact: (044) 791-MOTO
-                </p>
-                <p className="text-[7.5pt] text-slate-500 font-mono">
-                  Official Vehicle Preventive Maintenance Registry
-                </p>
-              </div>
-
-              <div className="text-right space-y-0.5">
-                <span className="text-[7.5pt] font-bold uppercase tracking-wider text-slate-500 block">
-                  Official Document
-                </span>
-                <div className="text-[9.5pt] font-bold text-slate-900 uppercase">
-                  {activeSelectedBike
-                    ? `Service Record: ${activeSelectedBike.model}`
-                    : 'Fleet Service History Ledger'}
-                </div>
-                <div className="text-[8pt] text-slate-600">
-                  Date Printed: {new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-                </div>
-              </div>
-            </div>
-
-            {/* Customer & Target Vehicle Information Box */}
-            <div className="border border-slate-300 rounded p-2.5 bg-slate-50/70 grid grid-cols-2 gap-4 text-[8.5pt]">
-              <div>
-                <span className="text-[7pt] font-bold text-slate-500 uppercase tracking-wider block">
-                  Customer Name / Account
-                </span>
-                <span className="font-bold text-slate-900 text-[9.5pt] block capitalize">
-                  {userProfile?.full_name || 'Rider Customer'}
-                </span>
-                <span className="text-slate-600 text-[8pt] block mt-0.5">
-                  Contact: {userProfile?.phone_number || 'N/A'} • {userProfile?.email || ''}
-                </span>
-              </div>
-
-              <div className="text-right">
-                <span className="text-[7pt] font-bold text-slate-500 uppercase tracking-wider block">
-                  Vehicle Coverage
-                </span>
-                <span className="font-bold text-slate-900 text-[9.5pt] block">
-                  {activeSelectedBike
-                    ? `${activeSelectedBike.model} (${activeSelectedBike.plate_number})`
-                    : `All Registered Fleet Units (${uniqueBikes.length} Motorcycles)`}
-                </span>
-                <span className="text-slate-600 text-[8pt] block mt-0.5">
-                  Total Logs Printed: {filteredHistory.length} completed {filteredHistory.length === 1 ? 'service' : 'services'}
-                </span>
-              </div>
-            </div>
-
-            {/* Official Maintenance Table (Tight, Proportional, No Wrapping Bugs) */}
-            <div className="border border-slate-300 rounded overflow-hidden">
-              <table className="w-full text-left border-collapse" style={{ fontSize: '8.5pt' }}>
-                <thead>
-                  <tr className="bg-slate-100 border-b border-slate-300 text-slate-700 font-bold uppercase text-[7.5pt]">
-                    <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '15%' }}>
-                      Ticket Ref
-                    </th>
-                    <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '14%' }}>
-                      Date Done
-                    </th>
-                    <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '26%' }}>
-                      Motorcycle Unit
-                    </th>
-                    <th className="py-2 px-2.5 border-r border-slate-300" style={{ width: '24%' }}>
-                      Work Rendered
-                    </th>
-                    <th className="py-2 px-2.5 border-r border-slate-300 whitespace-nowrap" style={{ width: '11%' }}>
-                      Lead Mechanic
-                    </th>
-                    <th className="py-2 px-2.5 text-right whitespace-nowrap" style={{ width: '10%' }}>
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 text-slate-800">
-                  {filteredHistory.map((item) => {
-                    const cleanRef = item.ticket_code.replace(/^#+/, '');
-                    const mechanicName =
-                      item.assigned_mechanic && item.assigned_mechanic !== 'Queued for Assignment'
-                        ? item.assigned_mechanic
-                        : 'Workshop Tech';
-
-                    return (
-                      <tr key={item.id}>
-                        <td className="py-1.5 px-2.5 border-r border-slate-300 font-mono font-bold whitespace-nowrap">
-                          #{cleanRef}
-                        </td>
-                        <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
-                          {getTicketDisplayDate(item).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        </td>
-                        <td className="py-1.5 px-2.5 border-r border-slate-300">
-                          <div className="font-bold leading-tight text-slate-900">
-                            {item.motorcycles?.model || 'Motorcycle Unit'}
-                          </div>
-                          <div className="text-[7.5pt] text-slate-600 font-mono mt-0.5">
-                            {item.motorcycles?.plate_number || 'N/A'}
-                          </div>
-                        </td>
-                        <td className="py-1.5 px-2.5 border-r border-slate-300 leading-tight">
-                          {item.service_type}
-                        </td>
-                        <td className="py-1.5 px-2.5 border-r border-slate-300 whitespace-nowrap">
-                          {mechanicName}
-                        </td>
-                        <td className="py-1.5 px-2.5 text-right font-bold whitespace-nowrap">
-                          {item.total_estimate}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr className="bg-slate-50 border-t border-slate-300 font-bold text-[8.5pt]">
-                    <td colSpan={5} className="py-2 px-2.5 text-right uppercase text-slate-600 border-r border-slate-300">
-                      Total Records Logged:
-                    </td>
-                    <td className="py-2 px-2.5 text-right text-slate-900 font-bold whitespace-nowrap">
-                      {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
-
-          {/* Bottom Section: Verification & Sign-off Footer */}
-          <div className="print-footer pt-3 border-t border-slate-300 grid grid-cols-12 gap-6 text-[8pt] items-end mt-6">
-            <div className="col-span-7">
-              <p className="text-slate-500 leading-relaxed text-[7.5pt]">
-                This document is an authentic certified record of preventive maintenance, mechanical service, and certified fluids replacement conducted at MotoCare Workshop & Service Hub. Valid for warranty documentation and motorcycle resale valuation.
-              </p>
-            </div>
-
-            <div className="col-span-5 flex justify-end gap-6 text-center">
-              <div className="space-y-1">
-                <div className="w-28 sm:w-32 border-b border-slate-400 pb-1 font-bold text-slate-900 text-[8.5pt]">
-                  Service Desk
-                </div>
-                <span className="text-[7pt] text-slate-500 block uppercase font-medium">
-                  Prepared & Certified By
-                </span>
-              </div>
-              <div className="space-y-1">
-                <div className="w-28 sm:w-32 border-b border-slate-400 pb-1 font-bold text-slate-900 text-[8.5pt]">
-                  Lead Technician
-                </div>
-                <span className="text-[7pt] text-slate-500 block uppercase font-medium">
-                  Verified Technical Staff
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* What goes on paper (shared print template): the open service slip, or else the
+          service history list for the selected motorcycle / all motorcycles */}
+      <PrintPortal>
+        {selectedTicket ? (
+          <ServiceRecordDocument
+            ticket={selectedTicket}
+            customer={{ name: userProfile?.full_name, phone: userProfile?.phone_number, email: userProfile?.email }}
+          />
+        ) : (
+          <ServiceHistoryDocument
+            rows={filteredHistory}
+            customer={{ name: userProfile?.full_name, phone: userProfile?.phone_number, email: userProfile?.email }}
+            coverage={
+              activeSelectedBike
+                ? `${activeSelectedBike.model} (${activeSelectedBike.plate_number})`
+                : `All motorcycles (${uniqueBikes.length})`
+            }
+            referenceNo={`SH-${new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }).replace(/-/g, '')}`}
+          />
+        )}
+      </PrintPortal>
 
       {/* =========================================================================
           SLIP MODAL (Prints cleanly as a receipt if opened)
          ========================================================================= */}
       {selectedTicket && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 print:p-0 print:bg-white print:static print:inset-auto">
-          <div className="print-slip-modal bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] max-w-lg w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
+        createPortal(
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] max-w-lg w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:border-b-2 print:border-slate-900">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
@@ -963,7 +811,7 @@ export default function ServiceHistoryTab({
               <button
                 type="button"
                 onClick={() => setSelectedTicket(null)}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 print-hide cursor-pointer"
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
                 title="Close Slip"
               >
                 <X className="w-4 h-4" />
@@ -1020,13 +868,10 @@ export default function ServiceHistoryTab({
                 </div>
               </div>
 
-              {/* Payment happens at the counter, outside the system: show the estimate only */}
-              <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-xs">
-                <div>
-                  <span className="font-bold text-slate-700 block">ESTIMATED COST:</span>
-                  <span className="text-[10px] text-slate-400 font-medium">Final amount is settled at the MotoCare counter</span>
-                </div>
-                <span className="text-base font-extrabold text-slate-900">{selectedTicket.total_estimate}</span>
+              {/* Payment happens at the counter, outside the system */}
+              <div className="pt-2 border-t border-slate-200 text-xs">
+                <span className="font-bold text-slate-700 block">PAYMENT</span>
+                <span className="text-[10px] text-slate-400 font-medium">Settled in cash at the MotoCare counter</span>
               </div>
 
               {/* Customer Rating & Feedback in Slip */}
@@ -1062,7 +907,7 @@ export default function ServiceHistoryTab({
 
               {/* If unreviewed, offer rating directly inside slip */}
               {!parseTicketReview(selectedTicket.notes) && selectedTicket.status === 'COMPLETED' && (
-                <div className="pt-2 border-t border-dashed border-slate-200 space-y-2 print-hide">
+                <div className="pt-2 border-t border-dashed border-slate-200 space-y-2">
                   <div className="text-[10px] text-slate-400 font-semibold uppercase">Rate Your Workshop Service</div>
                   <div className="bg-white p-3 rounded-xl border border-amber-200/90 space-y-2">
                     <div className="flex items-center gap-2">
@@ -1113,7 +958,7 @@ export default function ServiceHistoryTab({
               )}
             </div>
 
-            <div className="flex gap-2.5 pt-2 print-hide">
+            <div className="flex gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setSelectedTicket(null)}
@@ -1131,7 +976,9 @@ export default function ServiceHistoryTab({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+          document.body
+        )
       )}
 
       {/* Request Certified Hardcopy Modal */}
@@ -1149,6 +996,7 @@ export default function ServiceHistoryTab({
 
       {/* Standalone Rating Modal when clicking [Rate Service] */}
       {ratingTargetTicket && (
+        createPortal(
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -1235,7 +1083,9 @@ export default function ServiceHistoryTab({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+          document.body
+        )
       )}
     </div>
   );

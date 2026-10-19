@@ -7,8 +7,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        // Headings (h1/h2 automatically, or the font-display class)
+        display: ['"Bricolage Grotesque"', '"Rethink Sans"', 'system-ui', 'sans-serif'],
         sans: [
-          'Inter',
+          '"Rethink Sans"',
           '-apple-system',
           'BlinkMacSystemFont',
           '"Segoe UI"',

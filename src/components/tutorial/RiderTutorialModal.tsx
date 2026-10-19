@@ -522,13 +522,13 @@ export default function RiderTutorialModal({
                     {lang === 'tl' ? 'Pang-araw-araw na Kapasidad' : 'Daily Workshop Capacity'}
                   </span>
                   <span className="font-bold text-orange-600 text-[11px]">
-                    7 / 10 slots booked
+                    4 / 6 slots booked
                   </span>
                 </div>
 
                 {/* Capacity Progress Bar */}
                 <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                  <div className="bg-orange-500 h-full rounded-full w-[70%]" />
+                  <div className="bg-orange-500 h-full rounded-full w-[67%]" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 pt-1 text-[11px]">
@@ -540,9 +540,11 @@ export default function RiderTutorialModal({
                   </div>
                   <div className="bg-white p-2 rounded-xl border border-slate-200/80">
                     <span className="text-[10px] font-bold text-slate-400 block">
-                      {lang === 'tl' ? 'Presyo ng Serbisyo' : 'Package Estimate'}
+                      {lang === 'tl' ? 'Presyo' : 'Price'}
                     </span>
-                    <span className="font-semibold text-slate-800">₱1,250 (CVT + Oil)</span>
+                    <span className="font-semibold text-slate-800">
+                      {lang === 'tl' ? 'Sasabihin pagkatapos ng inspection' : 'Quoted after inspection'}
+                    </span>
                   </div>
                 </div>
               </div>

@@ -4,7 +4,8 @@ import { InternalTab, UserRole } from '../types/internal';
  * MotoCare Strict Role Model (3 Roles):
  *  - customer : Rider app only (/login, /dashboard) - 403 on /internal
  *  - staff    : Workshop Floor (Queue, Bays, Stage 1-5, Billing input, Print, Chat)
- *               STRICTLY NO access to Ticket Voiding, Owner Dashboard, Activity Logs, or Staff Management.
+ *               Has their own Dashboard (same workshop overview, no team management).
+ *               STRICTLY NO access to Ticket Voiding, Activity Logs, or Staff Management.
  *  - admin    : Shop Owner (Full control: Staff roster, Soft-void, System audit, Settings)
  *  Payments are handled outside the system, so there are no revenue/financial views.
  */
@@ -14,7 +15,7 @@ export function canAccessTab(role: UserRole, tab: InternalTab): boolean {
     return false;
   }
   // Strictly Admin-Only Tabs
-  if (tab === 'dashboard' || tab === 'staff' || tab === 'audit') {
+  if (tab === 'staff' || tab === 'audit') {
     return role === 'admin';
   }
   // Tabs accessible by both Staff and Admin

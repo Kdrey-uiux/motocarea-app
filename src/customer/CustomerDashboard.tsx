@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { motion } from 'motion/react';
+import DecorShapes from '../components/DecorShapes';
 import { supabase } from '../lib/supabase';
-import { TabType, Motorcycle, ServiceTicket, UserProfile } from '../types/dashboard';
+import { TabType, Motorcycle, ServiceTicket, UserProfile, customerTabFromSlug, customerTabPath } from '../types/dashboard';
 
 // Modular Components
 import DashboardSidebar from './components/DashboardSidebar';
@@ -26,7 +28,16 @@ import { TICKET_SYNC_CHANNEL, TICKET_SYNC_EVENT, broadcastTicketSync, debounce }
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<TabType>('overview');
+  // The page comes from the URL (/dashboard, /dashboard/book, ...) so refresh and Back work
+  const location = useLocation();
+  const urlTab = customerTabFromSlug(location.pathname.replace(/^\/dashboard\/?/, '').split('/')[0]);
+  const activeTab: TabType = urlTab ?? 'overview';
+  const setActiveTab = useCallback((tab: TabType) => navigate(customerTabPath(tab)), [navigate]);
+
+  // Unknown pages (e.g. /dashboard/xyz) go back to the overview
+  useEffect(() => {
+    if (!urlTab) navigate('/dashboard', { replace: true });
+  }, [urlTab, navigate]);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -66,7 +77,7 @@ export default function CustomerDashboard() {
       (plate ? bikes.find((b) => b.plate_number.replace(/[^A-Za-z0-9]/g, '').toUpperCase() === plate) : undefined);
     if (match) setSelectedBikeId(match.id);
     setActiveTab('book');
-  }, []);
+  }, [setActiveTab]);
 
   const loadDashboardData = useCallback(async (uid: string) => {
     try {
@@ -150,7 +161,7 @@ export default function CustomerDashboard() {
           const loaded = await loadDashboardData(user.id);
           setIsCheckingAuth(false);
 
-          // Links like /dashboard?reschedule=MC-1234 (missed-booking notice) open the reschedule form
+          // Links like /dashboard/book?reschedule=MC-1234 (missed-booking notice) open the reschedule form
           const rescheduleCode = new URLSearchParams(window.location.search).get('reschedule');
           const toReschedule =
             rescheduleCode && loaded
@@ -349,7 +360,9 @@ export default function CustomerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f2f4f7] text-slate-800 flex font-sans antialiased selection:bg-orange-500 selection:text-white relative">
+    <div className="rider-ui isolate min-h-screen bg-[#f2f4f7] print:bg-white text-slate-800 flex font-sans antialiased selection:bg-orange-500 selection:text-white relative">
+      {/* Landing page shapes in the background, behind the cards (isolate keeps them above the page color) */}
+      <DecorShapes />
       <DashboardSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -361,7 +374,7 @@ export default function CustomerDashboard() {
       />
 
       <div
-        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 print:!pl-0 ${
           isSidebarCollapsed ? 'md:pl-0' : 'md:pl-24'
         }`}
       >
@@ -382,7 +395,16 @@ export default function CustomerDashboard() {
           onOpenTutorial={() => setIsTourOpen(true)}
         />
 
-        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-36 sm:pb-32 md:pt-32 lg:pt-36">
+        <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-36 sm:pb-32 md:pt-32 lg:pt-36 print:!p-0 print:max-w-none">
+          {/* Each page fades in when you switch tabs. Opacity only: a transform or filter here
+              would trap the pages' full-screen modals inside this box. */}
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+            className="space-y-6"
+          >
           {activeTab === 'overview' && (
             <OverviewTab
               userProfile={userProfile}
@@ -458,6 +480,7 @@ export default function CustomerDashboard() {
               onNavigateTab={(tab) => setActiveTab(tab)}
             />
           )}
+          </motion.div>
         </main>
       </div>
 

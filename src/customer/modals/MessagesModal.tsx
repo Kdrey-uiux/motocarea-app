@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { ChatMessage, UserProfile } from '../../types/dashboard';
@@ -318,7 +319,8 @@ export default function MessagesModal({
 
   if (!isOpen) return null;
 
-  return (
+  // Rendered at the end of <body> so the dark overlay always covers the whole screen
+  return createPortal(
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-end sm:items-center justify-end sm:justify-end sm:p-6 transition-all duration-200">
       <div className="bg-white w-full sm:w-[420px] h-[580px] max-h-[90vh] rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl border border-slate-200/90 flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-200">
         
@@ -447,5 +449,7 @@ export default function MessagesModal({
         </form>
       </div>
     </div>
+    ,
+    document.body
   );
 }

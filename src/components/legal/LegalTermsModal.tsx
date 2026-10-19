@@ -150,10 +150,10 @@ export default function LegalTermsModal({
               <section className="space-y-2">
                 <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <span className="w-5 h-5 rounded-md bg-slate-100 text-slate-800 text-[11px] flex items-center justify-center font-mono">2</span>
-                  Workshop Capacity & Daily 10-Unit Service Cap
+                  Workshop Capacity & Daily 6-Unit Service Cap
                 </h3>
                 <p>
-                  To guarantee uncompromised mechanical workmanship, prevent floor congestion, and ensure dedicated technician focus, MotoCare enforces a strict maximum cap of <strong>ten (10) service units per operating day</strong>.
+                  To guarantee uncompromised mechanical workmanship, prevent floor congestion, and ensure dedicated technician focus, MotoCare enforces a strict maximum cap of <strong>six (6) service units per operating day</strong>.
                 </p>
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 space-y-1">
                   <p className="font-semibold text-slate-800 text-xs">Arrival Windows & Grace Period:</p>
@@ -310,6 +310,7 @@ export default function LegalTermsModal({
                   <li>To broadcast live 5-stage repair progression updates to your dashboard in real time.</li>
                   <li>To generate official, certified service records with our workshop dry seal for warranty claims and resale value appraisal.</li>
                   <li>To transmit critical safety notifications, booking confirmations, or urgent technical recalls.</li>
+                  <li>To email you when a booking is confirmed, the day before your drop-off, and when your motorcycle is ready for pickup. Emails go through our email provider (Resend) and contain only your name, ticket number, motorcycle, and schedule.</li>
                   <li>To maintain workshop capacity integrity and prevent duplicate booking reservations.</li>
                 </ul>
               </section>

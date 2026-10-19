@@ -2,26 +2,25 @@ import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import InternalProtectedRoute from './internal/components/InternalProtectedRoute';
+import AppErrorBoundary from './components/AppErrorBoundary';
+import OfflineBanner from './components/OfflineBanner';
 import { startSharedSettingsSync } from './lib/sharedSettings';
 
 // Code-split route components for fast initial page load & low bundle size
 const Home = lazy(() => import('./pages/Home'));
 const TrackStatus = lazy(() => import('./pages/TrackStatus'));
+const WalkIn = lazy(() => import('./pages/WalkIn'));
 const Login = lazy(() => import('./pages/Login'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const CustomerDashboard = lazy(() => import('./customer/CustomerDashboard'));
 const InternalConsole = lazy(() => import('./internal/InternalConsole'));
 const InternalLogin = lazy(() => import('./internal/pages/InternalLogin'));
+const NotFound = lazy(() => import('./pages/NotFound'));
 
+// Shown for a moment while a page's code downloads: a plain white screen, so it
+// blends into the (white) page instead of flashing a dark loading screen
 function PageFallback() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-medium tracking-wider uppercase text-slate-400">Loading MotoCare...</p>
-      </div>
-    </div>
-  );
+  return <div className="min-h-screen bg-white" aria-busy="true" />;
 }
 
 function AuthHashRedirectHandler() {
@@ -55,11 +54,14 @@ export default function App() {
     <BrowserRouter>
       <AuthHashRedirectHandler />
       <div className="min-h-screen bg-slate-100/60 text-slate-900 font-sans">
+        <OfflineBanner />
+        <AppErrorBoundary>
         <Suspense fallback={<PageFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/track" element={<TrackStatus />} />
             <Route path="/track/:ticketCode" element={<TrackStatus />} />
+            <Route path="/walk-in" element={<WalkIn />} />
             <Route path="/login" element={<Login />} />
             
             {/* Internal Enterprise Console (Shop Owner & Floor Staff) */}
@@ -87,7 +89,7 @@ export default function App() {
 
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route
-              path="/dashboard"
+              path="/dashboard/*"
               element={
                 <ProtectedRoute>
                   <CustomerDashboard />
@@ -95,10 +97,11 @@ export default function App() {
               }
             />
 
-            {/* Unknown links go back to the home page instead of a blank screen */}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* Unknown links: a 404 page with ways back, instead of a blank screen */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
+        </AppErrorBoundary>
       </div>
     </BrowserRouter>
   );

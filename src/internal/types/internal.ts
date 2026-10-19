@@ -1,11 +1,9 @@
 export type UserRole = 'admin' | 'staff' | 'customer';
 
 export type InternalTab =
-  | 'actions'
   | 'dashboard'
   | 'queue'
   | 'bays'
-  | 'billing'
   | 'staff'
   | 'reviews'
   | 'audit'

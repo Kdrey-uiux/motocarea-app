@@ -1,68 +1,126 @@
-import { Wrench, Phone, Mail, MapPin } from 'lucide-react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Wrench, Phone, Mail, MapPin, Navigation } from 'lucide-react';
+import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL } from '../../utils/shopInfo';
+import LegalTermsModal from '../legal/LegalTermsModal';
+
+const LINKS = [
+  { href: '#services', label: 'Services' },
+  { href: '#how-it-works', label: 'How It Works' },
+  { href: '#why-us', label: 'Why Us' },
+  { href: '#reviews', label: 'Reviews' },
+  { href: '#team', label: 'Team' },
+];
 
 export default function Footer() {
+  const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
+
   return (
-    <footer className="bg-slate-900 text-slate-400 py-12 px-4 sm:px-6 lg:px-8 text-xs border-t border-slate-800">
-      <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
-        
+    <footer className="bg-slate-950 text-slate-400 px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 overflow-hidden">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-10 text-sm">
         {/* Brand */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-sm shadow-orange-500/20">
+            <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center text-white">
               <Wrench className="w-4 h-4" />
             </div>
-            <span className="text-lg font-bold text-white tracking-tight">
+            <span className="font-display text-xl font-extrabold tracking-tight text-white">
               Moto<span className="text-orange-500">Care</span>
             </span>
           </div>
-          <p className="text-slate-400 leading-relaxed text-xs">
-            Professional motorcycle workshop service, certified preventive maintenance, and real-time live telemetry tracking.
+          <p className="leading-relaxed">
+            Motorcycle workshop service, preventive maintenance, and live repair tracking.
           </p>
         </div>
 
-        {/* Quick Links */}
-        <div className="space-y-2.5">
-          <h4 className="text-white font-bold text-xs uppercase tracking-wider">Navigation</h4>
-          <ul className="space-y-1.5 text-xs">
-            <li><a href="#services" className="hover:text-orange-400 transition">Services</a></li>
-            <li><a href="#how-it-works" className="hover:text-orange-400 transition">How It Works</a></li>
-            <li><a href="#why-us" className="hover:text-orange-400 transition">Why Choose Us</a></li>
-            <li><a href="#team" className="hover:text-orange-400 transition">Development Team</a></li>
+        {/* Navigation */}
+        <div className="space-y-4">
+          <h4 className="text-white font-semibold">Explore</h4>
+          <ul className="space-y-2.5">
+            {LINKS.map((link) => (
+              <li key={link.href}>
+                <a href={link.href} className="hover:text-orange-400 transition">
+                  {link.label}
+                </a>
+              </li>
+            ))}
           </ul>
         </div>
 
-        {/* Contact Information */}
-        <div className="space-y-2.5">
-          <h4 className="text-white font-bold text-xs uppercase tracking-wider">Workshop</h4>
-          <div className="space-y-2 text-xs">
-            <div className="flex items-start gap-2">
+        {/* Contact */}
+        <div className="space-y-4">
+          <h4 className="text-white font-semibold">Workshop</h4>
+          <div className="space-y-3">
+            {/* Opens the shop in Google Maps */}
+            <a
+              href={SHOP_MAPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-start gap-2.5 hover:text-orange-400 transition"
+              title="Open in Google Maps"
+            >
               <MapPin className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-              <span>Santa Maria, Bulacan, Philippines</span>
-            </div>
-            <div className="flex items-center gap-2">
+              <span className="underline decoration-white/20 underline-offset-4">{SHOP_INFO.address}</span>
+            </a>
+            <div className="flex items-center gap-2.5">
               <Phone className="w-4 h-4 text-orange-400 shrink-0" />
               <span>+63 985 245 5897</span>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
               <Mail className="w-4 h-4 text-orange-400 shrink-0" />
-              <span>support@motocare.ph</span>
+              <span className="break-all">support@motocare.ph</span>
             </div>
           </div>
+          <a
+            href={SHOP_DIRECTIONS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition active:scale-95"
+          >
+            <Navigation className="w-4 h-4" />
+            Get directions
+          </a>
         </div>
 
         {/* Hours */}
-        <div className="space-y-2.5">
-          <h4 className="text-white font-bold text-xs uppercase tracking-wider">Business Hours</h4>
-          <p className="leading-relaxed text-xs">
-            Monday – Saturday: <strong className="text-white">8:00 AM – 6:00 PM</strong><br />
+        <div className="space-y-4">
+          <h4 className="text-white font-semibold">Business Hours</h4>
+          <p className="leading-relaxed">
+            Monday – Saturday
+            <br />
+            <strong className="text-white font-semibold">8:00 AM – 6:00 PM</strong>
+            <br />
             Sunday: Closed
           </p>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto pt-8 mt-8 border-t border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-slate-500 text-[11px]">
+      <div className="max-w-7xl mx-auto mt-14 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
         <div>© 2026 MotoCare System. All rights reserved.</div>
+        <div className="flex items-center gap-4">
+          <button type="button" onClick={() => setLegalTab('terms')} className="hover:text-orange-400 transition cursor-pointer">
+            Terms
+          </button>
+          <button type="button" onClick={() => setLegalTab('privacy')} className="hover:text-orange-400 transition cursor-pointer">
+            Privacy Policy
+          </button>
+        </div>
         <div>Engineered by Kurt Andrei Alerta & Team</div>
+      </div>
+
+      {/* Portal: the landing page's scroll effects would otherwise trap the fixed overlay */}
+      {legalTab &&
+        createPortal(
+          <LegalTermsModal key={legalTab} isOpen initialTab={legalTab} onClose={() => setLegalTab(null)} />,
+          document.body
+        )}
+
+      {/* Big wordmark */}
+      <div
+        aria-hidden="true"
+        className="font-display font-extrabold tracking-[-0.05em] leading-[0.8] text-center text-[15.5vw] lg:text-[15rem] text-white/[0.06] select-none mt-6 -mb-[0.12em]"
+      >
+        MOTOCARE
       </div>
     </footer>
   );

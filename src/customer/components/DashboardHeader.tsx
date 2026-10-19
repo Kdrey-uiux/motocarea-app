@@ -245,7 +245,7 @@ export default function DashboardHeader({
         </div>
 
         {/* Center: Clean 3-Tab Pill Navigation (Exactly Centered in Desktop Header) */}
-        <nav id="tour-nav-tabs" className="hidden md:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60 absolute left-1/2 -translate-x-1/2">
+        <nav id="tour-nav-tabs" className="hidden xl:flex items-center p-1 bg-slate-100/80 rounded-full border border-slate-200/60 absolute left-1/2 -translate-x-1/2">
           {navTabs.map((tab) => {
             const isActive = activeTab === tab.id;
             return (

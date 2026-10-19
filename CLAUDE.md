@@ -18,7 +18,7 @@ Tatlong role lang ang meron: `customer`, `staff`, `admin` (wala nang superadmin)
 
 ```
 src/
-  App.tsx                 Routes: / , /track, /login, /reset-password, /dashboard (customer), /internal (staff/admin)
+  App.tsx                 Routes: / , /track/:code, /walk-in, /login, /reset-password, /dashboard/:page (customer), /internal/:page (staff/admin)
   pages/                  Public pages (Home, Login, TrackStatus, ResetPassword)
   components/             Shared UI (Navbar, home sections, auth/ProtectedRoute, tutorial, legal)
   customer/               Customer dashboard: tabs/ (Overview, BookService, ServiceHistory, Profile, Settings), modals/, components/
@@ -28,7 +28,8 @@ src/
   types/                  Shared TS types (dashboard.ts)
 server/src/
   index.ts, routes/ (tickets, admin, messages, motorcycles, profile), middlewares/ (auth, adminOnly), config/supabase.ts, scripts/ (motorcycle seeders)
-supabase/migrations/      Clean schema, run in order 00 → 11 (00_reset is dev-only). Ito ang iisang basehan ng database.
+supabase/functions/       Edge Functions (notify-customer: email notifications)
+supabase/migrations/      Clean schema, run in order 00 → 14 (00_reset is dev-only). Ito ang iisang basehan ng database.
 supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 ```
 
@@ -38,7 +39,7 @@ supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 - **`service_tickets.status`** ay may CHECK constraint (tingnan `supabase/migrations/03_service_tickets.sql`). Allowed: `PENDING_CONFIRMATION`, `PENDING_DROPOFF`, `CONFIRMED_APPOINTMENT`, `IN_PROGRESS`, `READY_FOR_PICKUP`, `COMPLETED`, `CANCELLED`, `MISSED`, `NO_SHOW`, `CANCELLED_BY_ADMIN`. Huwag gumamit ng ibang value.
 - **Stages 1–5:** 1 Intake, 2 Bay Inspection, 3 Repair, 4 Quality Testing, 5 Ready for Release.
 - Ang booking state ay bahagyang naka-encode sa `notes` bilang tags: `[BOOKING:PENDING_CONFIRMATION]`, `[BOOKING:PENDING_DROPOFF]`, `[MISSED_EXPIRATION...]`, `[LATE_CHECKIN_OVERRIDE...]`, at `Arrival Window: ...`. Gamitin ang `src/utils/ticketNotesParser.ts` sa pag-parse.
-- Workshop capacity: 10 bookings/araw, sarado tuwing Linggo (`src/utils/workshopCapacity.ts`).
+- Workshop capacity: 6 bays at 6 bookings/araw, sarado tuwing Linggo (`src/utils/workshopCapacity.ts`).
 - **Walang bayad na pumapasok sa system.** Sa labas (cash sa counter) ang lahat ng bayaran. Estimate lang ang mga presyo (services, parts approval); walang revenue tracking o sales analytics.
 - Realtime updates: `broadcastTicketSync` sa `src/lib/realtimeSync.ts` + Supabase `postgres_changes`.
 

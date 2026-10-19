@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { motion } from 'motion/react';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { parseTicketReview, submitTicketReview, TicketReview } from '../../utils/ticketReviews';
 import { ServiceTicket, Motorcycle, UserProfile } from '../../types/dashboard';
@@ -13,9 +14,21 @@ import {
   AlertTriangle,
   CalendarSync,
   Star,
-  Loader2
+  Loader2,
+  MapPin,
+  Navigation,
+  Phone,
 } from 'lucide-react';
+import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL, SHOP_MAP_EMBED_URL } from '../../utils/shopInfo';
 import { getTicketDisplayDate } from '../../utils/ticketDates';
+import {
+  getNextService,
+  formatServiceDate,
+  describeDaysLeft,
+  nextServiceShort,
+  NEXT_SERVICE_BADGE,
+  PMS_INTERVAL_MONTHS,
+} from '../../utils/serviceSchedule';
 
 interface OverviewTabProps {
   userProfile?: UserProfile | null;
@@ -54,8 +67,14 @@ export default function OverviewTab({
   const primaryBike = motorcycles.length > 0 ? motorcycles[0] : null;
 
   // Exact booked motorcycle details
-  const activeBikeModel = activeTicket?.motorcycles?.model || primaryBike?.model || 'Motorcycle Unit';
-  const activeBikePlate = activeTicket?.motorcycles?.plate_number || primaryBike?.plate_number || 'N/A';
+  const activeBikeModel = activeTicket?.motorcycles?.model || primaryBike?.model || 'No motorcycle yet';
+  const activeBikePlate = activeTicket?.motorcycles?.plate_number || primaryBike?.plate_number || '—';
+
+  // Automatic PMS schedule for the motorcycle in focus (in the shop, else the first in the garage)
+  const scheduleBike =
+    (activeTicket?.motorcycle_id && motorcycles.find((b) => b.id === activeTicket.motorcycle_id)) || primaryBike;
+  const nextService = scheduleBike ? getNextService(scheduleBike, serviceHistory) : null;
+  const primaryNextService = primaryBike ? getNextService(primaryBike, serviceHistory) : null;
 
   const isReady = activeTicket?.status === 'READY_FOR_PICKUP';
   const isPending =
@@ -184,13 +203,19 @@ export default function OverviewTab({
   return (
     <div className="space-y-6 pb-8">
       {/* 1. Header Greeting & Action Row */}
-      <div className="flex flex-row items-center justify-between gap-3 px-1.5 sm:px-1">
+      <div className="flex flex-row items-end justify-between gap-3 px-1.5 sm:px-1">
         <div className="min-w-0">
-          <h2 className="text-lg sm:text-2xl lg:text-3xl font-light text-slate-700 tracking-tight truncate">
-            Welcome Back,{' '}
-            <span className="font-semibold text-slate-900">
-              {userProfile?.full_name?.split(' ')[0] || 'Rider'}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-orange-100/70 text-orange-700">
+              Rider Portal
             </span>
+            <span className="text-[11px] sm:text-xs text-slate-400">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </span>
+          </div>
+          <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-[-0.035em] leading-[1.05] truncate">
+            Welcome back,{' '}
+            <span className="text-orange-500">{userProfile?.full_name?.split(' ')[0] || 'Rider'}</span>
           </h2>
         </div>
 
@@ -378,8 +403,8 @@ export default function OverviewTab({
                 <Star className="w-5 h-5 fill-current" />
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Rate Your Workshop Experience
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  How was your service?
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5">
                   Your recent service for <strong className="text-slate-800">{recentUnreviewedCompleted.motorcycles?.model || 'Motorcycle'}</strong> (#{recentUnreviewedCompleted.ticket_code}) has been completed. How was the quality of service?
@@ -442,7 +467,13 @@ export default function OverviewTab({
       )}
 
       {/* 2. Top Bento Grid Row: VIP Pass (5 cols) & Interactive Stage Stepper (7 cols) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5">
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      >
         {/* Card 1: Active Service Unit / Motorcycle Bay Pass */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3.5">
           <div>
@@ -491,7 +522,7 @@ export default function OverviewTab({
                   {activeTicket ? 'Ticket Ref' : 'Odometer'}
                 </span>
                 <span className="font-mono font-bold">
-                  {activeTicket ? `#${activeTicket.ticket_code}` : primaryBike?.odometer || '0 km'}
+                  {activeTicket ? `#${activeTicket.ticket_code}` : primaryBike?.odometer || '—'}
                 </span>
               </div>
               <div className="text-right">
@@ -499,7 +530,11 @@ export default function OverviewTab({
                   {activeTicket ? 'Assigned Bay' : 'Next Due'}
                 </span>
                 <span className="font-bold truncate block">
-                  {activeTicket ? (activeTicket.assigned_bay || 'Bay Pending') : primaryBike?.next_service || 'Routine Check'}
+                  {activeTicket
+                    ? activeTicket.assigned_bay || 'Bay Pending'
+                    : primaryNextService
+                    ? nextServiceShort(primaryNextService)
+                    : '—'}
                 </span>
               </div>
             </div>
@@ -528,7 +563,7 @@ export default function OverviewTab({
                 {activeTicket ? 'Lead Mechanic' : 'Vehicle Condition'}
               </span>
               <span className="font-bold text-slate-800">
-                {activeTicket ? (activeTicket.assigned_mechanic || 'Pending Assignment') : (primaryBike?.status || 'Good Standing')}
+                {activeTicket ? (activeTicket.assigned_mechanic || 'Pending Assignment') : (primaryBike?.status || '—')}
               </span>
             </div>
 
@@ -539,7 +574,9 @@ export default function OverviewTab({
               <span className="font-bold text-slate-800">
                 {activeTicket
                   ? activeTicket.dropoff_date || activeTicket.estimated_pickup || 'Standard Queue'
-                  : primaryBike?.next_service || 'Pending Schedule'}
+                  : primaryNextService
+                  ? nextServiceShort(primaryNextService)
+                  : '—'}
               </span>
             </div>
           </div>
@@ -734,10 +771,16 @@ export default function OverviewTab({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* 3. Bottom Bento Grid Row (Service Records & Garage Fleet Milestone - NO FAKE SPECIALISTS) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+      <motion.div
+        className="grid grid-cols-1 lg:grid-cols-12 gap-5"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      >
         {/* Bottom Left: Genuine Service History Table (NO HARDCODED ROWS) */}
         <div className="lg:col-span-8 bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 shadow-xs space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -864,22 +907,61 @@ export default function OverviewTab({
               </div>
               <div>
                 <h4 className="text-xs font-bold text-slate-900">Next Service Due</h4>
-                <p className="text-[11px] text-slate-400">Preventive maintenance counter</p>
+                <p className="text-[11px] text-slate-400">
+                  Preventive maintenance every {PMS_INTERVAL_MONTHS} months
+                </p>
               </div>
             </div>
 
-            <div className="flex items-baseline justify-between pt-1">
-              <div className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                {primaryBike?.next_service || '3,000 km'}
+            {!scheduleBike || !nextService ? (
+              <div className="space-y-2 pt-1">
+                <div className="text-lg font-bold text-slate-900">No motorcycle yet</div>
+                <p className="text-[11px] text-slate-500">
+                  Book your first service. Your next maintenance date is set automatically once it's done.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onBookClick()}
+                  className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                >
+                  Book a Service
+                </button>
               </div>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                On Schedule
-              </span>
-            </div>
+            ) : (
+              <>
+                <div className="flex items-start justify-between gap-3 pt-1">
+                  <div className="min-w-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                      {nextService.dueDate ? formatServiceDate(nextService.dueDate) : 'After first service'}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {nextService.daysLeft !== null
+                        ? `Due ${describeDaysLeft(nextService.daysLeft)}`
+                        : 'Set automatically when your first service is completed.'}
+                    </p>
+                  </div>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border shrink-0 ${NEXT_SERVICE_BADGE[nextService.status].className}`}
+                  >
+                    {NEXT_SERVICE_BADGE[nextService.status].label}
+                  </span>
+                </div>
 
-            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">
-              Assigned to: <strong className="text-slate-800">{activeBikeModel}</strong>
-            </div>
+                <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500 space-y-0.5">
+                  <div>
+                    Motorcycle:{' '}
+                    <strong className="text-slate-800">
+                      {scheduleBike.model} · {scheduleBike.plate_number}
+                    </strong>
+                  </div>
+                  {nextService.lastServiceDate && (
+                    <div>
+                      Last service: <strong className="text-slate-800">{formatServiceDate(nextService.lastServiceDate)}</strong>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Sub-Card 2: Registered Garage Fleet Summary */}
@@ -900,6 +982,9 @@ export default function OverviewTab({
                     <div>
                       <span className="font-bold text-slate-800 block text-xs">{bike.model}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{bike.plate_number}</span>
+                      <span className="text-[10px] text-slate-500 block">
+                        Next PMS: {nextServiceShort(getNextService(bike, serviceHistory))}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -914,7 +999,70 @@ export default function OverviewTab({
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* 4. Shop location: open the map or get directions in Google Maps */}
+      <motion.div
+        className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] shadow-xs overflow-hidden grid grid-cols-1 lg:grid-cols-12"
+        initial={{ opacity: 0, y: 24 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="lg:col-span-7 h-52 sm:h-64 lg:h-auto lg:min-h-[260px] bg-slate-100">
+          <iframe
+            title={`Map of ${SHOP_INFO.name}`}
+            src={SHOP_MAP_EMBED_URL}
+            className="w-full h-full border-0"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+          />
+        </div>
+        <div className="lg:col-span-5 p-5 sm:p-7 flex flex-col justify-between gap-5">
+          <div className="space-y-3">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-orange-100/70 text-orange-700">
+              Visit the shop
+            </span>
+            <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+              Find <span className="text-orange-500">MotoCare</span>
+            </h3>
+            <div className="space-y-2 text-sm text-slate-600">
+              <p className="flex items-start gap-2">
+                <MapPin className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                <span>{SHOP_INFO.address}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Clock className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                <span>{SHOP_INFO.hours}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                <Phone className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+                <span className="select-all">{SHOP_INFO.phone}</span>
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <a
+              href={SHOP_DIRECTIONS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition active:scale-95"
+            >
+              <Navigation className="w-4 h-4" />
+              Get directions
+            </a>
+            <a
+              href={SHOP_MAPS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-sm font-semibold transition"
+            >
+              <MapPin className="w-4 h-4 text-orange-500" />
+              Open in Google Maps
+            </a>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

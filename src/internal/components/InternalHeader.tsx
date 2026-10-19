@@ -33,7 +33,7 @@ export default function InternalHeader({
   onToggleMobileMenu,
   currentRole,
   currentUserName = 'Workshop Personnel',
-  activeTab = 'actions',
+  activeTab = 'dashboard',
   setActiveTab,
   notifications = [],
   onMarkNotificationRead,
@@ -82,8 +82,10 @@ export default function InternalHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-30 pt-3 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto">
-        <div className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
+      {/* The strip around the floating header is filled with the page color (fading out at the bottom),
+          so content scrolling underneath never peeks through above or beside it */}
+      <header className="sticky top-0 z-30 pt-3 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto bg-gradient-to-b from-[#f2f4f7] from-75% to-[#f2f4f7]/0">
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-[1.75rem] px-3.5 sm:px-5 py-2.5 card-elevated flex items-center justify-between gap-2 sm:gap-4 relative">
           
           {/* Left: mobile menu toggle + current page title (brand lives in the sidebar) */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -97,10 +99,10 @@ export default function InternalHeader({
             </button>
 
             <div className="min-w-0 pl-1">
-              <h1 className="text-base sm:text-xl font-black text-slate-900 tracking-tight truncate">
+              <h1 className="font-display text-lg sm:text-xl font-bold text-slate-900 tracking-tight truncate leading-tight">
                 {INTERNAL_TAB_INFO[activeTab].title}
               </h1>
-              <p className="hidden sm:block text-xs text-slate-500 font-medium truncate">
+              <p className="hidden sm:block text-xs text-slate-500 truncate">
                 {INTERNAL_TAB_INFO[activeTab].subtitle}
               </p>
             </div>
@@ -114,17 +116,17 @@ export default function InternalHeader({
               <button
                 type="button"
                 onClick={onOpenHardcopyModal}
-                className={`relative px-3 py-1.5 rounded-full border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                className={`relative h-9 px-3 rounded-full border text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
                   pendingHardcopyCount > 0
-                    ? 'bg-amber-50 hover:bg-amber-100 border-amber-300 text-amber-900 animate-pulse'
-                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200/80 text-slate-700'
+                    ? 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-800'
+                    : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
                 }`}
-                title="View customer certified hardcopy maintenance record requests"
+                title="Customer requests for a certified hardcopy of their service records"
               >
-                <Stamp className="w-3.5 h-3.5 text-orange-500" />
+                <Stamp className="w-4 h-4 text-orange-500" />
                 <span className="hidden sm:inline">Hardcopies</span>
                 {pendingHardcopyCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-orange-500 text-white text-[10px] font-black">
+                  <span className="min-w-[20px] px-1.5 rounded-full bg-orange-500 text-white text-[11px] font-semibold leading-5 text-center">
                     {pendingHardcopyCount}
                   </span>
                 )}
@@ -139,13 +141,15 @@ export default function InternalHeader({
                   setIsNotifOpen((prev) => !prev);
                   setIsUserMenuOpen(false);
                 }}
-                className="w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer relative"
-                title="Floor Notifications"
+                className="w-9 h-9 rounded-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-900 flex items-center justify-center transition cursor-pointer relative"
+                title="Notifications"
                 aria-label="View notifications"
               >
                 <Bell className="w-4 h-4" />
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-orange-500 border-2 border-white animate-pulse" />
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 border-2 border-white text-white text-[10px] font-semibold flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
               </button>
 
@@ -223,20 +227,18 @@ export default function InternalHeader({
                   setIsUserMenuOpen((prev) => !prev);
                   setIsNotifOpen(false);
                 }}
-                className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full hover:bg-slate-50 border border-slate-200/60 hover:border-slate-300 transition cursor-pointer"
-                title="User Profile Menu"
+                className="flex items-center gap-2 pl-1 pr-2.5 h-9 rounded-full bg-white hover:bg-slate-50 border border-slate-200 transition cursor-pointer"
+                title="Account menu"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center text-xs font-bold">
                   {userInitial}
                 </div>
-                <div className="hidden sm:block text-left">
-                  <span className="text-xs font-semibold text-slate-800 max-w-[110px] truncate block leading-tight">
+                <div className="hidden sm:block text-left leading-tight">
+                  <span className="text-sm font-medium text-slate-800 max-w-[110px] truncate block">
                     {currentUserName.split(' ')[0]}
                   </span>
-                  <span className={`text-[9px] font-bold uppercase tracking-wider block ${
-                    currentRole === 'admin' ? 'text-orange-600' : 'text-blue-600'
-                  }`}>
-                    {currentRole === 'admin' ? 'ADMIN' : 'STAFF'}
+                  <span className="text-[11px] text-slate-500 block">
+                    {currentRole === 'admin' ? 'Owner' : 'Staff'}
                   </span>
                 </div>
                 <ChevronDown
@@ -250,52 +252,38 @@ export default function InternalHeader({
               {isUserMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white border border-slate-200/90 rounded-2xl sm:rounded-[1.75rem] shadow-xl z-50 p-2 space-y-1 animate-in fade-in zoom-in-95 duration-150">
                   <div className="p-3 border-b border-slate-100 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-xs">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center text-sm font-bold shrink-0">
                       {userInitial}
                     </div>
-                    <div className="truncate">
-                      <div className="text-xs font-bold text-slate-900 truncate">
-                        {currentUserName}
-                      </div>
-                      <div className="text-[11px] font-semibold text-orange-600 uppercase tracking-wider">
-                        {currentRole === 'admin' ? 'Workshop Administrator' : 'Service Staff'}
-                      </div>
+                    <div className="min-w-0 leading-tight">
+                      <div className="text-sm font-semibold text-slate-900 truncate">{currentUserName}</div>
+                      <div className="text-xs text-slate-500">{currentRole === 'admin' ? 'Shop owner' : 'Staff'}</div>
                     </div>
                   </div>
 
-                  <div className="px-3 py-2 text-[11px] text-slate-500 bg-slate-50 rounded-xl space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span>Access Level</span>
-                      <strong className="text-slate-800 uppercase">{currentRole}</strong>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Workshop Mode</span>
-                      <strong className="text-slate-800">Live Floor</strong>
-                    </div>
-                  </div>
+                  {/* Team is an owner-only page */}
+                  {currentRole === 'admin' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setActiveTab?.('staff');
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                    >
+                      <User className="w-4 h-4 text-slate-400" />
+                      <span>Team</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsUserMenuOpen(false);
-                      setActiveTab?.('staff');
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                    onClick={handleLogoutClick}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                   >
-                    <User className="w-4 h-4 text-orange-500" />
-                    <span>Team Management</span>
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign out</span>
                   </button>
-
-                  <div className="pt-1 border-t border-slate-100">
-                    <button
-                      type="button"
-                      onClick={handleLogoutClick}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Sign Out</span>
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
@@ -311,27 +299,23 @@ export default function InternalHeader({
               <LogOut className="w-6 h-6" />
             </div>
             <div className="text-center space-y-1">
-              <h3 className="font-bold text-sm sm:text-base text-slate-900">
-                Sign Out of Workshop Console?
-              </h3>
-              <p className="text-xs text-slate-500">
-                Are you sure you want to end your active session on this terminal?
-              </p>
+              <h3 className="font-display text-lg font-bold text-slate-900">Sign out?</h3>
+              <p className="text-sm text-slate-500">You&apos;ll need to sign in again to use the console on this device.</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 pt-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
               <button
                 type="button"
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2.5 rounded-full bg-slate-100 hover:bg-slate-200 font-bold text-slate-700 transition cursor-pointer"
+                className="px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 font-semibold text-slate-700 transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmLogout}
-                className="px-4 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 font-bold text-white transition cursor-pointer shadow-xs"
+                className="px-4 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 font-semibold text-white transition cursor-pointer"
               >
-                Yes, Sign Out
+                Sign out
               </button>
             </div>
           </div>

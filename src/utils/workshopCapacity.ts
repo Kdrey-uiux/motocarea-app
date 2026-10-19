@@ -2,16 +2,16 @@
  * MotoCare Workshop & Bay Capacity Engine
  *
  * Business Rules:
- * 1. Fixed Workshop Capacity: Exactly 10 hydraulic bays / 10 slots per working day.
+ * 1. Fixed Workshop Capacity: Exactly 6 hydraulic bays / 6 slots per working day.
  * 2. Operating Schedule: Monday to Saturday (8:00 AM – 6:00 PM).
  * 3. Sunday Policy: Strictly CLOSED (Shop rest day, 0 slots, booking blocked).
- * 4. Standard Lock: Locked to 10 bays to guarantee 1:1 synchronization between
+ * 4. Standard Lock: Locked to 6 bays to guarantee 1:1 synchronization between
  *    customer online reservations and physical workshop floor lifts.
  */
 
-export const FIXED_WORKSHOP_CAPACITY = 10;
-export const BASE_MIN_CAPACITY = 10;
-export const ABSOLUTE_MAX_CAPACITY = 10;
+export const FIXED_WORKSHOP_CAPACITY = 6;
+export const BASE_MIN_CAPACITY = 6;
+export const ABSOLUTE_MAX_CAPACITY = 6;
 export const CAPACITY_OVERRIDE_KEY = 'motocare_daily_capacity_overrides';
 
 export interface DayCapacityInfo {
@@ -47,7 +47,7 @@ export function isSundayDate(dateStr: string): boolean {
 /**
  * Calculates the capacity limit for a specific date:
  * - Sunday: 0 slots (Closed)
- * - Monday to Saturday: Fixed 10 slots
+ * - Monday to Saturday: Fixed 6 slots
  */
 export function getDailyCapacityLimit(dateStr: string, _activeTechCount?: number): number {
   if (isSundayDate(dateStr)) {
@@ -57,7 +57,7 @@ export function getDailyCapacityLimit(dateStr: string, _activeTechCount?: number
 }
 
 /**
- * Enforces the locked standard of 10 slots per workday.
+ * Enforces the locked standard of 6 slots per workday.
  * Non-destructive fallback for existing callers.
  */
 export function setDailyCapacityLimit(dateStr: string, _capacity: number): number {

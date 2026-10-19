@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Rethink+Sans:ital,wght@0,400..800;1,400..800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -8,14 +8,27 @@
   html {
     overflow-y: scroll;
     scrollbar-gutter: stable;
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    font-family: 'Rethink Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    /* Body text: Rethink Sans. Headings: Bricolage Grotesque (see h1, h2 below and the font-display class) */
+    font-family: 'Rethink Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     color: #1e293b;
     background-color: #ffffff;
     -webkit-font-smoothing: antialiased;
+  }
+
+  h1,
+  h2 {
+    font-family: 'Bricolage Grotesque', 'Rethink Sans', system-ui, sans-serif;
+  }
+
+  /* Customer dashboard: card titles use the heading font as well (landing page style) */
+  .rider-ui h3,
+  .rider-ui h4 {
+    font-family: 'Bricolage Grotesque', 'Rethink Sans', system-ui, sans-serif;
+    letter-spacing: -0.01em;
   }
 
   /* Placeholders must never look like real values: lighter + italic */
@@ -42,13 +55,276 @@
 }
 
 /* =========================================================================
-/* =========================================================================
-   PRINT / PDF OFFICIAL SERVICE SLIP & HISTORY LEDGER FORMATTING
+   ELEVATED CARDS (staff console): soft two-layer shadow so white cards stand
+   out from the gray background; .card-lift adds a small hover lift for cards
+   that can be clicked.
    ========================================================================= */
+.card-elevated {
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 28px -12px rgba(15, 23, 42, 0.12);
+}
+.card-lift {
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 18px 36px -14px rgba(15, 23, 42, 0.2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .card-lift:hover {
+    transform: none;
+  }
+}
+
+/* =========================================================================
+   PRINTED DOCUMENTS (components/print/PrintTemplate.tsx)
+   Every printout is a .print-doc mounted in .print-doc-root at the end of <body>.
+   printDocument() adds body.printing-doc so only that document goes on paper.
+   ========================================================================= */
+.print-doc-root {
+  display: none;
+}
+
+.print-doc {
+  font-family: 'Rethink Sans', Arial, sans-serif;
+  color: #0f172a;
+  font-size: 9.5pt;
+  line-height: 1.4;
+}
+.print-doc__letterhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid #0f172a;
+}
+.print-doc__brand {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.print-doc__logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #f97316;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.print-doc__shop {
+  font-family: 'Bricolage Grotesque', Arial, sans-serif;
+  font-size: 13pt;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+.print-doc__shop span {
+  color: #f97316;
+}
+.print-doc__contact {
+  font-size: 8pt;
+  color: #475569;
+}
+.print-doc__meta {
+  text-align: right;
+}
+.print-doc__title {
+  font-family: 'Bricolage Grotesque', Arial, sans-serif;
+  font-size: 14pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-bottom: 4px;
+}
+.print-doc__meta table {
+  margin-left: auto;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+.print-doc__meta th {
+  text-align: left;
+  font-weight: 600;
+  color: #64748b;
+  padding: 1px 10px 1px 0;
+}
+.print-doc__meta td {
+  text-align: right;
+  font-weight: 700;
+  padding: 1px 0;
+}
+.print-doc__mono {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+.print-doc__body {
+  padding-top: 12px;
+}
+.print-doc__section {
+  margin-bottom: 12px;
+  break-inside: avoid;
+}
+.print-doc__section-title {
+  font-size: 8pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #334155;
+  margin: 0 0 5px;
+}
+.print-doc__fields {
+  display: grid;
+  border-top: 1px solid #cbd5e1;
+  border-left: 1px solid #cbd5e1;
+}
+.print-doc__fields--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.print-doc__fields--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.print-doc__field {
+  padding: 5px 8px;
+  border-right: 1px solid #cbd5e1;
+  border-bottom: 1px solid #cbd5e1;
+  min-width: 0;
+}
+.print-doc__field--wide {
+  grid-column: 1 / -1;
+}
+.print-doc__label {
+  font-size: 7pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+.print-doc__value {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.print-doc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
+}
+.print-doc__table th,
+.print-doc__table td {
+  border: 1px solid #cbd5e1;
+  padding: 4px 7px;
+  text-align: left;
+  vertical-align: top;
+}
+.print-doc__table th {
+  background: #f1f5f9;
+  font-size: 7pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #334155;
+}
+.print-doc__table tr {
+  break-inside: avoid;
+}
+.print-doc__center {
+  text-align: center !important;
+}
+.print-doc__box {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #334155;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+.print-doc__text {
+  font-size: 8.5pt;
+  color: #334155;
+  margin: 0;
+}
+.print-doc__statement {
+  border: 1px solid #0f172a;
+  padding: 7px 10px;
+  font-size: 9pt;
+}
+.print-doc__lines div {
+  height: 20px;
+  border-bottom: 1px solid #cbd5e1;
+}
+.print-doc__signatures {
+  display: grid;
+  gap: 28px;
+  margin-top: 26px;
+  break-inside: avoid;
+}
+.print-doc__signer {
+  text-align: center;
+}
+.print-doc__signer-name {
+  border-bottom: 1px solid #0f172a;
+  padding-bottom: 3px;
+  min-height: 1.4em;
+  font-weight: 700;
+}
+.print-doc__signer-role {
+  font-size: 7.5pt;
+  color: #64748b;
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.print-doc__footer {
+  margin-top: 18px;
+  break-inside: avoid;
+}
+.print-doc__footnote {
+  font-size: 7.5pt;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+.print-doc__footer-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #cbd5e1;
+  padding-top: 5px;
+  font-size: 7pt;
+  color: #94a3b8;
+}
+
+/* Half-page slips (walk-in ticket) */
+.print-doc--compact {
+  max-width: 120mm;
+  margin: 0 auto;
+}
+.print-doc--compact .print-doc__letterhead {
+  flex-direction: column;
+  align-items: stretch;
+}
+.print-doc--compact .print-doc__meta {
+  text-align: left;
+}
+.print-doc--compact .print-doc__meta table {
+  margin-left: 0;
+}
+.print-doc--compact .print-doc__footer-line {
+  flex-direction: column;
+  gap: 2px;
+}
+
 @media print {
   @page {
     size: portrait;
-    margin: 10mm 12mm;
+    margin: 12mm 14mm;
   }
 
   html,
@@ -64,65 +340,11 @@
     print-color-adjust: exact !important;
   }
 
-  /* Hide app navigation chrome, header, sidebar, FABs, and screen-only controls */
-  header,
-  aside,
-  nav,
-  button,
-  input,
-  .print-hide {
+  /* Only the document goes on paper: the app, modals and overlays are hidden */
+  body.printing-doc > *:not(.print-doc-root) {
     display: none !important;
   }
-
-  /* Ensure official document fits cleanly on a single sheet of paper */
-  .print-document {
+  body.printing-doc > .print-doc-root {
     display: block !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: visible !important;
-    box-sizing: border-box !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    page-break-after: avoid !important;
-    break-after: avoid !important;
-  }
-
-  .print-body {
-    width: 100% !important;
-  }
-
-  .print-footer {
-    margin-top: 24px !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  .print-document table {
-    width: 100% !important;
-    border-collapse: collapse !important;
-    table-layout: fixed !important;
-  }
-
-  .print-document tr {
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-  }
-
-  /* Siguraduhing visible at malinis ang resibo modal kung sakaling i-print */
-  .print-slip-modal {
-    position: static !important;
-    background: transparent !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-    border: none !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: none !important;
-    overflow: visible !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
   }
 }

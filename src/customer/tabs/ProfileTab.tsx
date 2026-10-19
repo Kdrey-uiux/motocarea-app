@@ -30,7 +30,7 @@ export default function ProfileTab({
               {initials}
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-[-0.02em] leading-snug">
                 {userProfile?.full_name || 'Rider Customer'}
               </h2>
               <p className="text-xs text-slate-500 font-medium">

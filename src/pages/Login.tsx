@@ -18,6 +18,7 @@ import {
   X,
   RefreshCw
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import LegalTermsModal from '../components/legal/LegalTermsModal';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
@@ -42,6 +43,25 @@ const getAuthRedirectUrl = (path: string = '/login?verified=true') => {
 };
 
 const AUTH_TIMEOUT_MS = 25000;
+
+/** A failed Google sign-in comes back as ?error_description=... (or in the #hash) */
+function readOAuthError(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const description = params.get('error_description') || hashParams.get('error_description');
+  return description ? `Google sign-in failed: ${description.replace(/\+/g, ' ')}` : null;
+}
+
+function GoogleIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+      <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+      <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+      <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+  );
+}
 
 /**
  * Stops the form from spinning forever when Supabase Auth doesn't answer
@@ -117,7 +137,8 @@ export default function Login() {
 
   // Status & Feedback States
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(readOAuthError);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [verificationSent, setVerificationSent] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -376,6 +397,9 @@ export default function Login() {
         const result = await verifyCustomerSession();
         if (result.status === 'customer' && isMounted) {
           navigate('/dashboard', { replace: true });
+        } else if (result.status === 'workshop' && isMounted && searchParams.get('oauth') === 'google') {
+          // Came back from Google with an admin/staff email
+          setErrorMessage(WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE);
         }
       } catch (err) {
         console.error('Session check on login error:', err);
@@ -396,6 +420,26 @@ export default function Login() {
     }, 1000);
     return () => clearInterval(timer);
   }, [resendCooldown]);
+
+  // Google sign-in: also creates the customer account on first use (profile trigger in 01_profiles.sql).
+  // Comes back to this page, where the session check above sends customers to the dashboard.
+  const handleGoogleSignIn = async () => {
+    if (googleLoading || loading) return;
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setGoogleLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/login?oauth=google`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) {
+      setGoogleLoading(false);
+      setErrorMessage(`Google sign-in failed: ${error.message}`);
+    }
+  };
 
   const checkUserRoleAndRedirect = async (userId: string) => {
     const { data: profile } = await supabase
@@ -605,20 +649,52 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/60 text-slate-900 flex items-center justify-center p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
-      <div className="max-w-md w-full bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-xs">
-        
-        {/* Brand Logo */}
-        <div className="flex justify-center mb-6">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-500/20 text-white group-hover:scale-105 transition-transform">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
-          </Link>
-        </div>
+    <div className="relative min-h-screen bg-white text-slate-900 flex flex-col overflow-hidden selection:bg-orange-500 selection:text-white">
+      {/* Decorative shapes (same family as the landing page) */}
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-8 sm:left-[6%] bottom-6 sm:bottom-12 w-24 h-12 sm:w-32 sm:h-16 rounded-t-full border-[16px] sm:border-[22px] border-b-0 border-orange-500"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0, rotate: [0, -8, 0] }}
+        transition={{ opacity: { duration: 0.8, delay: 0.3 }, y: { duration: 0.8, delay: 0.3 }, rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}
+      />
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-4 sm:right-[7%] top-24 sm:top-32 flex flex-col gap-2"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0, x: [0, -8, 0] }}
+        transition={{ opacity: { duration: 0.8, delay: 0.4 }, y: { duration: 0.8, delay: 0.4 }, x: { duration: 7, repeat: Infinity, ease: 'easeInOut' } }}
+      >
+        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-tl-full bg-orange-200" />
+        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-bl-full bg-amber-200" />
+      </motion.div>
+
+      {/* Top bar */}
+      <header className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2 group">
+          <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
+            <Wrench className="w-4 h-4" />
+          </div>
+          <span className="font-display text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
+            Moto<span className="text-orange-500">Care</span>
+          </span>
+        </Link>
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 transition"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home</span>
+        </Link>
+      </header>
+
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 pb-12 pt-4">
+      <motion.div
+        initial={{ opacity: 0, y: 24, filter: 'blur(8px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="max-w-md w-full bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-6 sm:p-8 shadow-xl shadow-slate-900/[0.04]"
+      >
 
         {/* Verification Sent Screen */}
         {verificationSent ? (
@@ -671,17 +747,29 @@ export default function Login() {
                   >
                     <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
                   </button>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Reset Password</h2>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <span className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-medium bg-orange-100/70 text-orange-700">
+                    Account Recovery
+                  </span>
+                  <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-[-0.03em] text-slate-900">
+                    Reset <span className="text-orange-500">password</span>
+                  </h2>
+                  <p className="text-slate-500 text-sm mt-2">
                     Enter your registered email to receive recovery instructions
                   </p>
                 </div>
               ) : (
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                    {mode === 'register' ? 'Create Rider Account' : 'Welcome Back'}
+                  <span className="inline-flex items-center px-3.5 py-1 rounded-full text-xs font-medium bg-orange-100/70 text-orange-700">
+                    {mode === 'register' ? 'New Rider' : 'Rider Portal'}
+                  </span>
+                  <h2 className="mt-3 text-3xl sm:text-4xl font-extrabold tracking-[-0.03em] text-slate-900">
+                    {mode === 'register' ? (
+                      <>Create your <span className="text-orange-500">account</span></>
+                    ) : (
+                      <>Welcome <span className="text-orange-500">back</span></>
+                    )}
                   </h2>
-                  <p className="text-slate-500 text-xs mt-1">
+                  <p className="text-slate-500 text-sm mt-2">
                     {mode === 'register'
                       ? 'Register your profile to book motorcycle services & track repairs'
                       : 'Sign in to access your MotoCare portal'}
@@ -1113,6 +1201,53 @@ export default function Login() {
               </button>
             </form>
 
+            {/* Google sign-in / sign-up */}
+            {mode !== 'forgot_password' && (
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center gap-3 text-xs text-slate-400">
+                  <span className="h-px flex-1 bg-slate-200" />
+                  or
+                  <span className="h-px flex-1 bg-slate-200" />
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading || loading}
+                  className="w-full bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-semibold py-3 rounded-full transition flex items-center justify-center gap-2.5 active:scale-[0.98] cursor-pointer"
+                >
+                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-5 h-5" />}
+                  Continue with Google
+                </button>
+                {mode === 'register' && (
+                  <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+                    By continuing with Google, you agree to the{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLegalModalTab('terms');
+                        setIsLegalModalOpen(true);
+                      }}
+                      className="text-orange-600 font-semibold hover:underline cursor-pointer"
+                    >
+                      Terms
+                    </button>{' '}
+                    and{' '}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLegalModalTab('privacy');
+                        setIsLegalModalOpen(true);
+                      }}
+                      className="text-orange-600 font-semibold hover:underline cursor-pointer"
+                    >
+                      Privacy Policy
+                    </button>
+                    .
+                  </p>
+                )}
+              </div>
+            )}
+
             {/* Bottom Switcher */}
             {mode !== 'forgot_password' && (
               <div className="mt-6 text-center text-xs text-slate-500 border-t border-slate-200/80 pt-4">
@@ -1143,7 +1278,17 @@ export default function Login() {
             )}
           </>
         )}
-      </div>
+      </motion.div>
+
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+        className="mt-6 text-xs sm:text-sm text-slate-500 text-center"
+      >
+        Book online · Track every repair stage · Pay cash at the counter
+      </motion.p>
+      </main>
 
       {/* Philippine Law Compliant Terms of Service & Privacy Policy Modal */}
       <LegalTermsModal

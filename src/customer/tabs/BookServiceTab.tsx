@@ -33,7 +33,6 @@ import {
   CalendarSync
 } from 'lucide-react';
 import { TabType } from '../../types/dashboard';
-import { getBayCapacity } from '../../utils/mockReservations';
 import {
   FIXED_WORKSHOP_CAPACITY,
   isSundayDate
@@ -368,7 +367,15 @@ export default function BookServiceTab({
       isPast?: boolean;
       isToday?: boolean;
       isSunday?: boolean;
-      capacity?: ReturnType<typeof getBayCapacity>;
+      capacity?: {
+        date: string;
+        dayLabel: string;
+        status: 'AVAILABLE' | 'LIMITED' | 'FULL' | 'CLOSED';
+        occupiedCount: number;
+        totalSlots: number;
+        remainingSlots: number;
+        isSunday?: boolean;
+      };
     }> = [];
 
     // Preceding empty cells
@@ -408,7 +415,7 @@ export default function BookServiceTab({
         continue;
       }
 
-      // Monday to Saturday: Fixed 10 slots (Workshop-wide real-time bookings)
+      // Monday to Saturday: Fixed daily slots (Workshop-wide real-time bookings)
       const realBookingsOnDate = workshopBookings.filter(
         (t) => t.dropoff_date === dateKey && t.status !== 'CANCELLED' && t.status !== 'CANCELLED_BY_ADMIN' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
       ).length;
@@ -466,7 +473,7 @@ export default function BookServiceTab({
     setCalendarMonth(today);
   };
 
-  // Live capacity calculation for daily slots limit (Fixed 10 Slots, Closed Sunday)
+  // Live capacity calculation for daily slots limit (Fixed daily slots, Closed Sunday)
   const currentCapacity = useMemo(() => {
     if (!dropoffDate) {
       return {
@@ -562,7 +569,7 @@ export default function BookServiceTab({
         return;
       }
       if (isDateFullyBooked) {
-        setErrorMsg('Please select an available date. This date has reached its maximum 10 booking capacity.');
+        setErrorMsg(`Please select an available date. This date has reached its maximum ${FIXED_WORKSHOP_CAPACITY} booking capacity.`);
         return;
       }
       if (!selectedTimeWindow) {
@@ -788,6 +795,28 @@ export default function BookServiceTab({
 
   return (
     <div className="w-full space-y-6">
+      {/* Page header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 px-1.5 sm:px-1">
+        <div className="min-w-0">
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-orange-100/70 text-orange-700">
+            {activeReschedule ? 'Reschedule' : 'New Booking'}
+          </span>
+          <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-[-0.035em] leading-[1.05]">
+            {activeReschedule ? (
+              <>Pick a new <span className="text-orange-500">schedule</span></>
+            ) : (
+              <>Book a <span className="text-orange-500">service</span></>
+            )}
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">Four quick steps. The shop confirms your booking before your drop-off day.</p>
+        </div>
+        <p className="text-xs text-slate-500 sm:text-right shrink-0">
+          Open Monday to Saturday
+          <br className="hidden sm:block" />
+          <span className="sm:hidden"> · </span>6 bookings a day · Pay cash at the counter
+        </p>
+      </div>
+
       {/* Reschedule Active Banner */}
       {activeReschedule && (
         <div className="bg-gradient-to-r from-orange-50 via-amber-50/50 to-white border border-orange-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
@@ -942,10 +971,10 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 1 && (
         <div className="space-y-4 pb-16 sm:pb-8">
-          <div id="tour-booking-packages" className="bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-6 shadow-xs space-y-4">
+          <div id="tour-booking-packages" className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-4">
             {/* Header Title & Subtitle */}
             <div className="pb-3 sm:pb-4 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900 leading-snug">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-[-0.02em] leading-snug">
                 Select Motorcycle Service
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -1185,10 +1214,10 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 2 && (
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
               <div>
-                <h2 className="text-base font-bold text-slate-900 leading-snug">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-[-0.02em] leading-snug">
                   Vehicle Information & Special Requests
                 </h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -1521,11 +1550,11 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 3 && (
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-6">
             {/* Header / Intro */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
               <div>
-                <h2 className="text-base font-bold text-slate-900 leading-snug">
+                <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-[-0.02em] leading-snug">
                   Select Drop-off Date & Arrival Window
                 </h2>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -1562,7 +1591,7 @@ export default function BookServiceTab({
                     ? 'Fully Booked for Selected Date'
                     : currentCapacity.status === 'LIMITED'
                     ? `High Demand: ${currentCapacity.remainingSlots} slots remaining`
-                    : `${currentCapacity.remainingSlots} of 10 slots available`}
+                    : `${currentCapacity.remainingSlots} of ${FIXED_WORKSHOP_CAPACITY} slots available`}
                 </span>
               )}
             </div>
@@ -1575,7 +1604,7 @@ export default function BookServiceTab({
                     Step 1: Choose Workshop Date
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Monday to Saturday schedule • Maximum 10 intake slots per day (Closed on Sundays)
+                    Monday to Saturday schedule • Maximum {FIXED_WORKSHOP_CAPACITY} intake slots per day (Closed on Sundays)
                   </p>
                 </div>
 
@@ -1870,12 +1899,12 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 4 && (
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-6">
             <div className="pb-4 border-b border-slate-100">
               <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest block">
                 Final Step • Transparent Summary
               </span>
-              <h2 className="text-base font-bold text-slate-900 leading-snug mt-0.5">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-[-0.02em] leading-snug mt-0.5">
                 Review Your Reservation
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">

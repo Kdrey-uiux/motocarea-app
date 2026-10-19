@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { db } from '../lib/supabase';
 import { 
   InternalTab, 
@@ -11,7 +11,7 @@ import {
 import { getInternalSession, clearInternalSession } from './utils/internalAuth';
 import { canAccessTab } from './utils/permissions';
 import { normalizeBayNumber } from './utils/bays';
-import { INTERNAL_TAB_TITLES } from './utils/tabTitles';
+import { internalTabFromSlug, internalTabPath } from './utils/tabTitles';
 import { fetchDatabaseStaffMembers } from './utils/databaseStaffManager';
 import { runMissedBookingScanInBackground } from '../utils/bookingLifecycle';
 import { parseTicketNotes } from '../utils/ticketNotesParser';
@@ -20,6 +20,7 @@ import { AlertCircle } from 'lucide-react';
 
 // Components
 import InternalHeader from './components/InternalHeader';
+import { isPendingOnlineBooking } from './utils/ticketActions';
 import InternalSidebar from './components/InternalSidebar';
 import ToastViewport from './components/ToastViewport';
 
@@ -33,12 +34,10 @@ import InternalReviewsTab from './tabs/InternalReviewsTab';
 import { HardcopyRequest, fetchHardcopyRequests, HARDCOPY_BROADCAST_CHANNEL } from '../lib/hardcopyService';
 
 // Tabs
-import InternalActionCenterTab from './tabs/InternalActionCenterTab';
 import { useActionCenterData } from './hooks/useActionCenterData';
 import InternalDashboardTab from './tabs/InternalDashboardTab';
 import InternalQueueTab, { type OperationalView } from './tabs/InternalQueueTab';
 import InternalBaysTab from './tabs/InternalBaysTab';
-import InternalBillingTab from './tabs/InternalBillingTab';
 import InternalStaffTab from './tabs/InternalStaffTab';
 import InternalAuditTab from './tabs/InternalAuditTab';
 import InternalMessagesTab from './tabs/InternalMessagesTab';
@@ -172,19 +171,24 @@ export default function InternalConsole() {
     };
   }, [sessionUserId]);
 
-  // Home tab: the owner lands on the Dashboard, staff on the Action Center
-  const homeTab: InternalTab = currentRole === 'admin' ? 'dashboard' : 'actions';
-  const [requestedTab, setRequestedTab] = useState<InternalTab>(homeTab);
+  // Home tab: owner and staff both land on the Dashboard
+  const homeTab: InternalTab = 'dashboard';
+  // The page comes from the URL (/internal/queue, /internal/team, ...) so refresh and Back work
+  const location = useLocation();
+  const navigate = useNavigate();
+  const urlTab = internalTabFromSlug(location.pathname.replace(/^\/internal\/?/, '').split('/')[0]);
+  const requestedTab: InternalTab = urlTab ?? homeTab;
+  const setRequestedTab = useCallback((tab: InternalTab) => navigate(internalTabPath(tab)), [navigate]);
   // Tab Guard: staff asking for an admin-only tab see the queue instead
   const activeTab: InternalTab = canAccessTab(currentRole, requestedTab) ? requestedTab : 'queue';
-  // One-shot focus targets used when the Action Center deep-links into another tab
+
+  // Bare /internal, unknown pages and blocked pages get the URL of the page actually shown
+  useEffect(() => {
+    if (urlTab !== activeTab) navigate(internalTabPath(activeTab), { replace: true });
+  }, [urlTab, activeTab, navigate]);
+  // One-shot focus targets used when the Dashboard deep-links into another tab
   const [queueFocusView, setQueueFocusView] = useState<OperationalView | undefined>(undefined);
   const [messagesFocusUserId, setMessagesFocusUserId] = useState<string | undefined>(undefined);
-
-  // Browser tab shows the current page (e.g. "Workshop Queue · MotoCare")
-  useEffect(() => {
-    document.title = `${INTERNAL_TAB_TITLES[activeTab]} · MotoCare`;
-  }, [activeTab]);
 
   // Regular navigation (sidebar/header) always opens tabs in their default state
   const navigateToTab = useCallback((tab: InternalTab) => {
@@ -411,26 +415,15 @@ export default function InternalConsole() {
   }, [loadTickets, loadStaff, loadHardcopies]);
 
   // Derived counts for sidebar badges
+  // Sidebar Queue badge: new online booking requests waiting to be accepted or declined
   const queueCount = useMemo(() => {
     return tickets.filter(
       (t) =>
-        t.status !== 'COMPLETED' &&
-        t.status !== 'CANCELLED' &&
-        t.status !== 'CANCELLED_BY_ADMIN' &&
-        t.status !== 'MISSED' &&
-        t.status !== 'NO_SHOW'
+        isPendingOnlineBooking(t) &&
+        !['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'].includes(t.status)
     ).length;
   }, [tickets]);
 
-  const readyBillingCount = useMemo(() => {
-    return tickets.filter(
-      (t) =>
-        t.stage === 5 &&
-        t.status !== 'COMPLETED' &&
-        t.status !== 'CANCELLED' &&
-        t.status !== 'CANCELLED_BY_ADMIN'
-    ).length;
-  }, [tickets]);
 
   const occupiedBaysCount = useMemo(() => {
     const bays = new Set<number>();
@@ -460,7 +453,7 @@ export default function InternalConsole() {
     return hardcopyRequests.filter((r) => r.status !== 'CLAIMED').length;
   }, [hardcopyRequests]);
 
-  // Everything customers did that needs a response (Action Center + live sidebar badges)
+  // Everything customers did that needs a response (live sidebar badges)
   const actionData = useActionCenterData(tickets, hardcopyRequests);
 
   // Logout handler: Hard location replace burns the session and history snapshot
@@ -507,16 +500,24 @@ export default function InternalConsole() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f2f4f7] text-slate-800 font-sans antialiased selection:bg-orange-500 selection:text-white relative">
+    <div className="isolate min-h-screen bg-[#f2f4f7] text-slate-800 font-sans antialiased selection:bg-orange-500 selection:text-white relative">
+      {/* Soft color fades so the gray background isn't flat (no shapes in the work console) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -z-10 -top-40 -right-40 w-[42rem] h-[42rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.10)_0%,rgba(249,115,22,0)_65%)] print:hidden"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -z-10 -bottom-48 left-24 lg:left-[16rem] w-[40rem] h-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.10)_0%,rgba(251,191,36,0)_65%)] print:hidden"
+      />
+
       {/* Slim Floating Left Dock (Fixed on Desktop) */}
       <InternalSidebar
         activeTab={activeTab}
         setActiveTab={navigateToTab}
         queueCount={queueCount}
         occupiedBaysCount={occupiedBaysCount}
-        readyBillingCount={readyBillingCount}
         messagesCount={actionData.chatsToAnswer.length}
-        actionCount={actionData.totalActions}
         pendingReviewsCount={actionData.pendingReviews.length}
         currentRole={currentRole}
         currentUserName={currentUserName}
@@ -562,26 +563,6 @@ export default function InternalConsole() {
             </div>
           )}
 
-          {activeTab === 'actions' && (
-            <InternalActionCenterTab
-              data={actionData}
-              tickets={tickets}
-              currentStaffName={currentUserName}
-              onRefresh={refreshTickets}
-              onRefreshHardcopies={loadHardcopies}
-              onOpenStage5Billing={handleOpenStage5Billing}
-              onOpenQueue={(view) => {
-                setQueueFocusView(view);
-                setRequestedTab('queue');
-              }}
-              onOpenConversation={(userId) => {
-                setMessagesFocusUserId(userId);
-                setRequestedTab('messages');
-              }}
-              onNavigateTab={navigateToTab}
-            />
-          )}
-
           {activeTab === 'reviews' && (
             <InternalReviewsTab
               tickets={tickets}
@@ -593,12 +574,15 @@ export default function InternalConsole() {
           {activeTab === 'dashboard' && canAccessTab(currentRole, 'dashboard') && (
             <InternalDashboardTab
               tickets={tickets}
-              staffList={staffList}
               loading={loading}
               onRefresh={refreshTickets}
               onOpenDispatch={handleOpenDispatch}
               onOpenStage5Billing={handleOpenStage5Billing}
               setActiveTab={navigateToTab}
+              onOpenQueueView={(view) => {
+                setQueueFocusView(view);
+                setRequestedTab('queue');
+              }}
               currentRole={currentRole}
               currentUserName={currentUserName}
             />
@@ -625,16 +609,9 @@ export default function InternalConsole() {
             <InternalBaysTab
               tickets={tickets}
               onOpenDispatch={handleOpenDispatch}
-              onRefresh={refreshTickets}
-            />
-          )}
-
-          {activeTab === 'billing' && (
-            <InternalBillingTab
-              tickets={tickets}
               onOpenStage5Billing={handleOpenStage5Billing}
-              onOpenReceiptPrint={handleOpenReceiptPrint}
-              currentRole={currentRole}
+              currentStaffName={currentUserName}
+              onRefresh={refreshTickets}
             />
           )}
 

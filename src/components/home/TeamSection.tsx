@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Code2, Layout, Smartphone, Database } from 'lucide-react';
+import { Code2, Layout, Database, ClipboardList } from 'lucide-react';
 
 interface TeamMember {
   name: string;
@@ -10,34 +10,35 @@ interface TeamMember {
 }
 
 export default function TeamSection() {
+  // Project manager first, then the rest of the team (roles from the official team list)
   const members: TeamMember[] = [
     {
+      name: 'Ferdinand Casey Santiago',
+      role: 'Project Manager',
+      focus: 'Quality Assurance Tester · Researcher',
+      image: '/team/ferdinand.jpg',
+      icon: <ClipboardList className="w-3.5 h-3.5 text-orange-500" />
+    },
+    {
+      name: 'Juliana Alejandria',
+      role: 'Database Admin',
+      focus: 'Researcher',
+      image: '/team/juliana.jpg',
+      icon: <Database className="w-3.5 h-3.5 text-orange-500" />
+    },
+    {
       name: 'Kurt Andrei Alerta',
-      role: 'Fullstack Developer',
-      focus: 'System Architecture & Supabase Integration',
+      role: 'Back-end Developer',
+      focus: 'Researcher',
       image: '/team/kurt.jpg',
       icon: <Code2 className="w-3.5 h-3.5 text-orange-500" />
     },
     {
       name: 'Amytha Marie Bautista',
-      role: 'Frontend Developer',
-      focus: 'UI/UX Design & Component Styling',
+      role: 'Front-end Developer',
+      focus: 'Researcher',
       image: '/team/amytha.jpg',
       icon: <Layout className="w-3.5 h-3.5 text-orange-500" />
-    },
-    {
-      name: 'Juliana Alejandria',
-      role: 'Frontend Developer',
-      focus: 'Responsive Layouts & User Flow',
-      image: '/team/juliana.jpg',
-      icon: <Smartphone className="w-3.5 h-3.5 text-orange-500" />
-    },
-    {
-      name: 'Ferdinand Casey Santiago',
-      role: 'Backend Developer',
-      focus: 'Database Schema & Security Policies',
-      image: '/team/ferdinand.jpg',
-      icon: <Database className="w-3.5 h-3.5 text-orange-500" />
     }
   ];
 
@@ -86,7 +87,7 @@ export default function TeamSection() {
   return (
     <section
       id="team"
-      className="scroll-mt-16 sm:scroll-mt-20 py-14 sm:py-20 bg-slate-50 border-t border-slate-200/80 overflow-hidden relative"
+      className="scroll-mt-16 sm:scroll-mt-20 py-16 sm:py-24 bg-slate-50 overflow-hidden relative"
     >
       <style>{`
         @keyframes teamContinuousMarquee {
@@ -110,15 +111,15 @@ export default function TeamSection() {
 
       <div className="space-y-8 sm:space-y-10">
         {/* Centered Header */}
-        <div className="text-center max-w-2xl mx-auto space-y-2 px-4">
-          <span className="text-xs font-bold uppercase tracking-wider text-orange-600 bg-orange-50 px-3.5 py-1 rounded-full border border-orange-200/80 inline-block shadow-2xs">
+        <div className="text-center max-w-3xl mx-auto px-4">
+          <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-orange-100/70 text-orange-700">
             Project Authors
           </span>
-          <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight pt-1">
-            The Development Team
+          <h2 className="text-balance mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.035em] text-slate-900 leading-[1.04]">
+            The <span className="text-orange-500">team</span> behind MotoCare
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-            The engineering team behind the MotoCare Service Management System.
+          <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed">
+            The people who designed and built the MotoCare Service Management System.
           </p>
         </div>
 

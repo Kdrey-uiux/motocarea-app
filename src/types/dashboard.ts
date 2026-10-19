@@ -70,3 +70,22 @@ export interface ChatMessage {
   created_at: string;
   is_read?: boolean;
 }
+/** URL path for each customer dashboard page, e.g. /dashboard/book */
+export const CUSTOMER_TAB_SLUGS: Record<TabType, string> = {
+  overview: '',
+  book: 'book',
+  history: 'service-records',
+  profile: 'profile',
+  settings: 'settings',
+};
+
+export function customerTabPath(tab: TabType): string {
+  const slug = CUSTOMER_TAB_SLUGS[tab];
+  return slug ? `/dashboard/${slug}` : '/dashboard';
+}
+
+/** The dashboard page for a URL slug (empty = overview), or null when unknown */
+export function customerTabFromSlug(slug: string): TabType | null {
+  const match = (Object.keys(CUSTOMER_TAB_SLUGS) as TabType[]).find((tab) => CUSTOMER_TAB_SLUGS[tab] === slug);
+  return match ?? null;
+}

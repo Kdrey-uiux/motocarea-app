@@ -1,9 +1,7 @@
 import {
-  BellRing,
   LayoutGrid,
   Inbox,
   Wrench,
-  ClipboardCheck,
   MessageSquare,
   Bike,
   Layers,
@@ -16,16 +14,15 @@ import {
 } from 'lucide-react';
 import { InternalTab, UserRole } from '../types/internal';
 import { canAccessTab } from '../utils/permissions';
+import { WORKSHOP_BAY_COUNT } from '../utils/bays';
 
 interface InternalSidebarProps {
   activeTab: InternalTab;
   setActiveTab: (tab: InternalTab) => void;
   queueCount: number;
   occupiedBaysCount: number;
-  readyBillingCount: number;
   /** Conversations waiting for a reply from the shop */
   messagesCount: number;
-  actionCount?: number;
   /** Reviews waiting for approval */
   pendingReviewsCount?: number;
   currentRole: UserRole;
@@ -40,7 +37,8 @@ interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: number | string;
-  badgeColor?: string;
+  /** 'alert' = needs attention (orange), 'info' = just a count (gray) */
+  badgeTone?: 'alert' | 'info';
 }
 
 interface NavGroup {
@@ -63,20 +61,20 @@ function NavButton({
       type="button"
       onClick={() => onSelect(item.id)}
       aria-current={isActive ? 'page' : undefined}
-      className={`w-full h-9 px-3 rounded-xl flex items-center justify-between gap-2 transition-all duration-150 cursor-pointer ${
-        isActive
-          ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
-          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+      className={`relative w-full h-10 px-3 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
+        isActive ? 'bg-orange-50 text-orange-700' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
       }`}
     >
+      {/* Active marker on the left edge */}
+      {isActive && <span aria-hidden="true" className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-orange-500" />}
       <span className="flex items-center gap-3 min-w-0">
-        <Icon className="w-4 h-4 shrink-0" />
-        <span className="text-[13px] font-semibold truncate">{item.label}</span>
+        <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
+        <span className={`text-sm truncate ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
       </span>
       {item.badge !== undefined && (
         <span
-          className={`text-[10px] px-2 py-0.5 rounded-full font-bold shrink-0 ${
-            isActive ? 'bg-white/25 text-white' : item.badgeColor || 'bg-slate-100 text-slate-700'
+          className={`min-w-[22px] px-1.5 rounded-full text-[11px] font-semibold leading-5 text-center tabular-nums shrink-0 ${
+            item.badgeTone === 'alert' ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-600'
           }`}
         >
           {item.badge}
@@ -91,9 +89,7 @@ export default function InternalSidebar({
   setActiveTab,
   queueCount,
   occupiedBaysCount,
-  readyBillingCount,
   messagesCount,
-  actionCount = 0,
   pendingReviewsCount = 0,
   currentRole,
   currentUserName = 'Staff Member',
@@ -104,51 +100,37 @@ export default function InternalSidebar({
   // Badges only for things that need attention (or quick capacity info)
   const allGroups: NavGroup[] = [
     {
-      title: 'Daily Work',
+      title: 'Daily work',
       items: [
-        // Owner's home tab sits on top (hidden for staff by canAccessTab)
+        // Home tab for owner and staff
         { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid },
-        {
-          id: 'actions',
-          label: 'Action Center',
-          icon: BellRing,
-          badge: actionCount > 0 ? actionCount : undefined,
-          badgeColor: 'bg-rose-500 text-white',
-        },
         {
           id: 'queue',
           label: 'Queue',
           icon: Inbox,
           badge: queueCount > 0 ? queueCount : undefined,
-          badgeColor: 'bg-slate-100 text-slate-700',
+          badgeTone: 'alert',
         },
         {
           id: 'bays',
           label: 'Bays',
           icon: Wrench,
-          badge: `${occupiedBaysCount}/10`,
-          badgeColor: 'bg-slate-100 text-slate-700',
-        },
-        {
-          id: 'billing',
-          label: 'Counter Release',
-          icon: ClipboardCheck,
-          badge: readyBillingCount > 0 ? readyBillingCount : undefined,
-          badgeColor: 'bg-emerald-500 text-white',
+          badge: `${occupiedBaysCount}/${WORKSHOP_BAY_COUNT}`,
+          badgeTone: 'info',
         },
         {
           id: 'messages',
           label: 'Messages',
           icon: MessageSquare,
           badge: messagesCount > 0 ? messagesCount : undefined,
-          badgeColor: 'bg-sky-500 text-white',
+          badgeTone: 'alert',
         },
         {
           id: 'reviews',
           label: 'Reviews',
           icon: Star,
           badge: pendingReviewsCount > 0 ? pendingReviewsCount : undefined,
-          badgeColor: 'bg-amber-500 text-white',
+          badgeTone: 'alert',
         },
       ],
     },
@@ -156,7 +138,7 @@ export default function InternalSidebar({
       title: 'Records',
       items: [
         { id: 'fleet', label: 'Vehicles', icon: Bike },
-        { id: 'services', label: 'Services & Prices', icon: Layers },
+        { id: 'services', label: 'Services', icon: Layers },
       ],
     },
     {
@@ -173,14 +155,14 @@ export default function InternalSidebar({
 
   const userInitial =
     currentUserName ? currentUserName.trim().charAt(0).toUpperCase() : currentRole === 'admin' ? 'A' : 'S';
-  const roleLabel = currentRole === 'admin' ? 'Workshop Owner' : 'Staff Member';
-  const homeTab: InternalTab = currentRole === 'admin' ? 'dashboard' : 'actions';
+  const roleLabel = currentRole === 'admin' ? 'Shop owner' : 'Staff';
+  const homeTab: InternalTab = 'dashboard';
 
   const renderNav = (onSelect: (tab: InternalTab) => void) => (
-    <nav className="flex flex-col gap-4 w-full">
+    <nav className="flex flex-col gap-5 w-full">
       {groups.map((group) => (
         <div key={group.title} className="space-y-0.5">
-          <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">{group.title}</p>
+          <p className="px-3 pb-1 text-xs font-medium text-slate-400">{group.title}</p>
           {group.items.map((item) => (
             <NavButton key={item.id} item={item} isActive={activeTab === item.id} onSelect={onSelect} />
           ))}
@@ -195,44 +177,45 @@ export default function InternalSidebar({
         <Wrench className="w-5 h-5" />
       </div>
       <div>
-        <span className="text-base font-bold text-slate-900 leading-tight block">
+        <span className="font-display text-lg font-extrabold tracking-tight text-slate-900 leading-tight block">
           Moto<span className="text-orange-500">Care</span>
         </span>
-        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">
-          {currentRole === 'admin' ? 'Owner Console' : 'Staff Console'}
+        <span className="text-xs text-slate-400 block">
+          {currentRole === 'admin' ? 'Owner console' : 'Staff console'}
         </span>
       </div>
     </button>
   );
 
   const userCard = (
-    <div className="flex flex-col gap-1.5 w-full pt-3 border-t border-slate-100 shrink-0">
-      <div className="w-full p-2 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+    <div className="w-full pt-3 border-t border-slate-100 shrink-0">
+      <div className="w-full p-2 rounded-2xl bg-slate-50 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center font-bold text-sm shrink-0">
           {userInitial}
         </div>
-        <div className="truncate flex-1">
-          <div className="text-xs font-bold text-slate-900 truncate">{currentUserName}</div>
-          <div className="text-[10px] text-orange-600 font-bold uppercase tracking-wider truncate">{roleLabel}</div>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div className="text-sm font-semibold text-slate-900 truncate">{currentUserName}</div>
+          <div className="text-xs text-slate-500 truncate">{roleLabel}</div>
         </div>
+        {onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer shrink-0"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        )}
       </div>
-      {onLogout && (
-        <button
-          type="button"
-          onClick={onLogout}
-          className="w-full h-9 px-4 rounded-xl flex items-center justify-center gap-2 text-rose-600 hover:bg-rose-50 transition cursor-pointer font-semibold text-xs"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          <span>Sign Out</span>
-        </button>
-      )}
     </div>
   );
 
   return (
     <>
       {/* 1. DESKTOP SIDEBAR (labeled, grouped) */}
-      <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-60 p-4 bg-white border border-slate-200/80 rounded-[1.75rem] shadow-xs flex-col justify-between z-40">
+      <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-60 p-4 bg-white border border-slate-200/70 rounded-[1.75rem] card-elevated flex-col justify-between z-40">
         <div className="flex flex-col gap-4 w-full min-h-0">
           <div className="px-1 pt-1">{brand(() => setActiveTab(homeTab))}</div>
           <div className="overflow-y-auto no-scrollbar min-h-0">{renderNav(setActiveTab)}</div>

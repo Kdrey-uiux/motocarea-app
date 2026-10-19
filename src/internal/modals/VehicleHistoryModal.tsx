@@ -1,10 +1,7 @@
+import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
-import { 
-  X, 
-  Bike, 
-  Calendar, 
-  Wrench 
-} from 'lucide-react';
+import { X, Bike, Calendar, UserCheck, Phone } from 'lucide-react';
+import { stageName } from '../../utils/serviceStages';
 
 interface VehicleHistoryModalProps {
   vehicle: {
@@ -20,140 +17,148 @@ interface VehicleHistoryModalProps {
   onClose: () => void;
 }
 
-export default function VehicleHistoryModal({
-  vehicle,
-  tickets,
-  isOpen,
-  onClose,
-}: VehicleHistoryModalProps) {
+/** Plain-language status for a past or current visit */
+function visitStatus(t: InternalTicket): { label: string; dot: string } {
+  switch (t.status) {
+    case 'COMPLETED':
+      return { label: 'Released', dot: 'bg-emerald-500' };
+    case 'CANCELLED':
+    case 'CANCELLED_BY_ADMIN':
+      return { label: 'Cancelled', dot: 'bg-slate-400' };
+    case 'MISSED':
+    case 'NO_SHOW':
+      return { label: 'Missed', dot: 'bg-rose-500' };
+    case 'READY_FOR_PICKUP':
+      return { label: 'Ready for pickup', dot: 'bg-orange-500' };
+    default:
+      return { label: `Stage ${t.stage} · ${stageName(t.stage)}`, dot: 'bg-orange-500' };
+  }
+}
+
+/** Every visit of one motorcycle (by plate), newest first */
+export default function VehicleHistoryModal({ vehicle, tickets, isOpen, onClose }: VehicleHistoryModalProps) {
   if (!isOpen || !vehicle) return null;
 
   const vehiclePlate = vehicle.plate_number.toUpperCase();
+  const visits = tickets
+    .filter((t) => (t.motorcycles?.plate_number || '').toUpperCase() === vehiclePlate)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const released = visits.filter((t) => t.status === 'COMPLETED').length;
+  const hasPhone = vehicle.owner_phone && vehicle.owner_phone !== 'N/A';
 
-  // Find all past tickets for this vehicle
-  const pastTickets = tickets.filter((t) => {
-    const ticketPlate = (t.motorcycles?.plate_number || '').toUpperCase();
-    return ticketPlate === vehiclePlate;
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 text-slate-900 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[90vh] animate-in fade-in zoom-in-95">
-        
+  return createPortal(
+    <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <div className="bg-white w-full max-w-2xl rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-orange-500 text-white flex items-center justify-center font-bold">
+        <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200/80 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <span className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
               <Bike className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-bold text-sm sm:text-base leading-tight">
-                Vehicle Service Log & Maintenance History
+            </span>
+            <div className="min-w-0">
+              <h3 className="font-display text-lg font-bold tracking-tight text-slate-900 truncate" title={vehicle.model}>
+                {vehicle.model}
               </h3>
-              <p className="text-[11px] text-slate-400">
-                {vehicle.model} • Plate: {vehicle.plate_number}
+              <p className="text-sm text-slate-500 flex items-center gap-2">
+                <span className="font-mono text-xs font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                  {vehicle.plate_number}
+                </span>
+                Service history
               </p>
             </div>
           </div>
-
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition cursor-pointer"
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-6 overflow-y-auto space-y-5 text-xs">
-          
-          {/* Vehicle Metadata Summary */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Owner</span>
-              <span className="font-bold text-slate-900 truncate block">{vehicle.owner_name || 'Rider Customer'}</span>
+        <div className="p-5 sm:p-6 overflow-y-auto space-y-5">
+          {/* Owner + totals */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+              <span className="block text-xs text-slate-400">Owner</span>
+              <span className="block font-medium text-slate-900 truncate">{vehicle.owner_name || 'Rider'}</span>
+              {hasPhone && (
+                <a href={`tel:${vehicle.owner_phone}`} className="text-xs text-slate-500 hover:text-orange-600 inline-flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {vehicle.owner_phone}
+                </a>
+              )}
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Contact</span>
-              <span className="font-medium text-slate-700">{vehicle.owner_phone || 'N/A'}</span>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+              <span className="block text-xs text-slate-400">Visits</span>
+              <span className="font-display text-2xl font-bold text-slate-900">{visits.length}</span>
+              <span className="text-xs text-slate-500"> · {released} released</span>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Services</span>
-              <span className="font-black text-slate-900 text-sm">{pastTickets.length} visits</span>
+            <div className="rounded-2xl bg-slate-50 px-4 py-3">
+              <span className="block text-xs text-slate-400">Mileage</span>
+              <span className="font-display text-2xl font-bold text-slate-900">{vehicle.odometer || '—'}</span>
             </div>
           </div>
 
-          {/* Past Service Timeline */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-slate-800 text-xs uppercase tracking-wider">
-              Chronological Service Log
-            </h4>
-
-            {pastTickets.length === 0 ? (
-              <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-200/80 italic">
-                No past service orders logged yet for this vehicle.
-              </div>
+          {/* Timeline */}
+          <div>
+            <h4 className="font-display text-base font-bold text-slate-900 mb-3">Visits, newest first</h4>
+            {visits.length === 0 ? (
+              <p className="py-8 text-center text-sm text-slate-400 rounded-2xl border border-dashed border-slate-200">
+                No visits recorded for this motorcycle yet.
+              </p>
             ) : (
-              <div className="space-y-3">
-                {pastTickets.map((t) => (
-                  <div
-                    key={t.id}
-                    className="p-4 bg-white border border-slate-200 rounded-2xl shadow-xs space-y-2 hover:border-orange-200 transition"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-orange-600 text-xs">
-                          #{t.ticket_code}
-                        </span>
-                        <span className="font-bold text-slate-900">{t.service_type}</span>
+              <ol className="relative space-y-3 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
+                {visits.map((t) => {
+                  const status = visitStatus(t);
+                  const mechanic = t.assigned_mechanic && t.assigned_mechanic !== 'Queued for Assignment' ? t.assigned_mechanic : null;
+                  return (
+                    <li key={t.id} className="relative pl-7">
+                      <span className={`absolute left-0 top-4 w-[15px] h-[15px] rounded-full border-[3px] border-white ${status.dot} shadow-sm`} />
+                      <div className="rounded-2xl border border-slate-200/80 px-4 py-3 hover:border-orange-200 transition">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-900">{t.service_type}</p>
+                            <p className="text-xs text-slate-500 flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+                              <span className="font-mono">{t.ticket_code}</span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                {new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                              {mechanic && (
+                                <span className="flex items-center gap-1">
+                                  <UserCheck className="w-3.5 h-3.5 text-slate-400" />
+                                  {mechanic}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium whitespace-nowrap shrink-0">
+                            <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                            {status.label}
+                          </span>
+                        </div>
                       </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        t.status === 'COMPLETED'
-                          ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                          : 'bg-amber-50 text-amber-800 border border-amber-200'
-                      }`}>
-                        {t.status}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        {new Date(t.created_at).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                      {t.assigned_mechanic && (
-                        <span className="flex items-center gap-1">
-                          <Wrench className="w-3.5 h-3.5 text-slate-400" />
-                          Tech: {t.assigned_mechanic}
-                        </span>
-                      )}
-                    </div>
-
-                  </div>
-                ))}
-              </div>
+                    </li>
+                  );
+                })}
+              </ol>
             )}
           </div>
-
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex justify-end">
+        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition cursor-pointer"
+            className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer"
           >
-            Close History
+            Close
           </button>
         </div>
-
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

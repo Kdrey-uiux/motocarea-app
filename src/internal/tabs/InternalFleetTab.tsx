@@ -327,337 +327,285 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
       .slice(0, 8);
   }, [catalog, regModel]);
 
-  return (
-    <div className="space-y-6">
-      {/* Top Banner & Sub-Tab Switcher */}
-      <div className="flex flex-wrap items-center justify-end gap-2 px-1">
-        {/* Sub-tab Navigation */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200/80 self-start md:self-auto">
-          <button
-            type="button"
-            onClick={() => setSubTab('fleet')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'fleet'
-                ? 'bg-white text-orange-600 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Bike className="w-3.5 h-3.5" />
-            <span>Customer Fleet ({fleet.length})</span>
-          </button>
+  const activeModels = catalog.filter((m) => m.is_active !== false).length;
+  const card = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
+  const primaryBtn =
+    'px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0';
+  const iconBtn =
+    'w-10 h-10 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer shrink-0';
+  const searchInput =
+    'w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
-          <button
-            type="button"
-            onClick={() => setSubTab('catalog')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
-              subTab === 'catalog'
-                ? 'bg-white text-orange-600 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <BookOpen className="w-3.5 h-3.5" />
-            <span>Official Catalog ({catalog.length})</span>
-          </button>
+  return (
+    <div className="space-y-4">
+      {/* Toolbar: which list + the main action for it */}
+      <div className={`${card} p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3`}>
+        <div className="flex items-center p-1 bg-slate-100 rounded-full self-start">
+          {(
+            [
+              { id: 'fleet', label: 'Customer motorcycles', short: 'Motorcycles', icon: Bike, count: fleet.length },
+              { id: 'catalog', label: 'Model catalog', short: 'Catalog', icon: BookOpen, count: catalog.length },
+            ] as const
+          ).map((tab) => {
+            const Icon = tab.icon;
+            const selected = subTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setSubTab(tab.id)}
+                aria-pressed={selected}
+                className={`px-3.5 py-2 rounded-full text-sm flex items-center gap-2 transition cursor-pointer whitespace-nowrap ${
+                  selected ? 'bg-white text-slate-900 font-semibold shadow-xs' : 'text-slate-500 hover:text-slate-900 font-medium'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${selected ? 'text-orange-500' : 'text-slate-400'}`} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className="sm:hidden">{tab.short}</span>
+                <span className="text-xs text-slate-400 tabular-nums">{tab.count}</span>
+              </button>
+            );
+          })}
         </div>
+
+        {subTab === 'fleet' ? (
+          <button type="button" onClick={() => setIsRegisterOpen(true)} className={`self-start sm:self-auto ${primaryBtn}`}>
+            <Plus className="w-4 h-4" />
+            Register motorcycle
+          </button>
+        ) : (
+          isAdmin && (
+            <button type="button" onClick={() => setIsAddModelOpen(true)} className={`self-start sm:self-auto ${primaryBtn}`}>
+              <Plus className="w-4 h-4" />
+              Add model
+            </button>
+          )
+        )}
       </div>
 
-      {/* ======================================================== */}
-      {/* SUB-TAB 1: CUSTOMER FLEET REGISTRY */}
-      {/* ======================================================== */}
+      {/* ======================== CUSTOMER MOTORCYCLES ======================== */}
       {subTab === 'fleet' && (
-        <div className="space-y-6">
-          {/* Controls Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
+        <section className={`${card} overflow-clip`}>
+          <div className="px-4 sm:px-5 py-4 flex items-center gap-2 border-b border-slate-100">
+            <div className="relative flex-1 max-w-lg">
               <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search by plate number, model, or customer..."
+                placeholder="Search plate, model, owner or phone"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-orange-500 shadow-2xs"
+                className={searchInput}
               />
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={refreshBikes}
-                className="p-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
-                title="Refresh database records"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${loadingBikes ? 'animate-spin text-orange-500' : ''}`} />
-                <span className="hidden sm:inline">Refresh</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsRegisterOpen(true)}
-                className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Register Vehicle</span>
-              </button>
-            </div>
+            <button type="button" onClick={refreshBikes} className={iconBtn} title="Refresh" aria-label="Refresh motorcycles">
+              <RefreshCw className={`w-4 h-4 ${loadingBikes ? 'animate-spin text-orange-500' : ''}`} />
+            </button>
+            <span className="hidden md:block ml-auto text-sm text-slate-400">
+              {filteredFleet.length} motorcycle{filteredFleet.length === 1 ? '' : 's'}
+            </span>
           </div>
 
-          {/* Fleet Grid */}
           {loadingBikes ? (
-            <div className="p-12 text-center bg-white border border-slate-200/80 rounded-2xl">
-              <Loader2 className="w-8 h-8 text-orange-500 animate-spin mx-auto mb-2" />
-              <p className="text-xs text-slate-500 font-medium">Loading motorcycle fleet records...</p>
+            <div className="p-12 text-center">
+              <Loader2 className="w-7 h-7 text-orange-500 animate-spin mx-auto mb-2" />
+              <p className="text-sm text-slate-500">Loading motorcycles…</p>
             </div>
           ) : filteredFleet.length === 0 ? (
-            <div className="p-12 text-center bg-white border border-slate-200/80 rounded-2xl">
-              <Bike className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <h3 className="font-bold text-sm text-slate-700">No Vehicles Found</h3>
-              <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1">
-                {searchQuery ? 'No motorcycles match your search.' : 'No customer vehicles registered in the workshop yet.'}
+            <div className="p-12 text-center">
+              <span className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mx-auto">
+                <Bike className="w-6 h-6" />
+              </span>
+              <p className="mt-3 font-display font-bold text-slate-900">No motorcycles found</p>
+              <p className="text-sm text-slate-500">
+                {searchQuery ? 'Try another plate, model or name.' : 'Motorcycles show up here once a customer books or one is registered.'}
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredFleet.map((bike) => (
-                <div
-                  key={bike.id}
-                  className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs hover:shadow-xs transition space-y-3 flex flex-col justify-between"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+            <>
+              {/* Column labels (desktop) */}
+              <div className="hidden md:grid grid-cols-12 gap-4 px-5 py-2.5 text-xs font-medium text-slate-400 border-b border-slate-100">
+                <span className="col-span-5">Motorcycle</span>
+                <span className="col-span-3">Owner</span>
+                <span className="col-span-2">Mileage · visits</span>
+                <span className="col-span-2 text-right">History</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {filteredFleet.map((bike) => {
+                  const hasPhone = bike.owner_phone && bike.owner_phone !== 'N/A';
+                  return (
+                    <div
+                      key={bike.id}
+                      className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 md:items-center px-4 sm:px-5 py-4 hover:bg-slate-50/60 transition"
+                    >
+                      <div className="md:col-span-5 flex items-center gap-3 min-w-0">
+                        <span className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                           <Bike className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-sm text-slate-900 leading-tight">
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-900 truncate" title={bike.model}>
                             {bike.model}
-                          </h4>
-                          <span className="inline-block px-2 py-0.5 mt-0.5 rounded-md bg-slate-100 font-mono font-bold text-[11px] text-slate-700">
-                            {bike.plate_number}
-                          </span>
+                          </p>
+                          <p className="text-xs text-slate-500 flex items-center gap-2">
+                            <span className="font-mono font-medium text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+                              {bike.plate_number}
+                            </span>
+                            {bike.year_model && <span>{bike.year_model}</span>}
+                          </p>
                         </div>
                       </div>
 
-                      <span className="px-2 py-0.5 rounded-full bg-orange-100/60 text-orange-700 text-[10px] font-bold">
-                        {bike.ticketsCount} {bike.ticketsCount === 1 ? 'Service' : 'Services'}
-                      </span>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                          <User className="w-3.5 h-3.5" /> Owner
-                        </span>
-                        <span className="font-semibold text-slate-800">{bike.owner_name}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                          <Phone className="w-3.5 h-3.5" /> Contact
-                        </span>
-                        {bike.owner_phone && bike.owner_phone !== 'N/A' ? (
+                      <div className="md:col-span-3 min-w-0 pl-14 md:pl-0 text-sm">
+                        <p className="font-medium text-slate-800 truncate flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0 md:hidden" />
+                          {bike.owner_name}
+                        </p>
+                        {hasPhone ? (
                           <a
                             href={`tel:${bike.owner_phone}`}
-                            className="font-semibold text-orange-600 hover:underline"
+                            className="text-xs text-slate-500 hover:text-orange-600 inline-flex items-center gap-1"
                           >
+                            <Phone className="w-3 h-3" />
                             {bike.owner_phone}
                           </a>
                         ) : (
-                          <span className="text-slate-400">N/A</span>
+                          <span className="text-xs text-slate-400">No phone</span>
                         )}
                       </div>
 
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400 text-[11px]">
-                          <Gauge className="w-3.5 h-3.5" /> Mileage
-                        </span>
-                        <span className="font-semibold text-slate-700 font-mono text-[11px]">
+                      <div className="md:col-span-2 pl-14 md:pl-0 text-sm flex md:block items-center gap-3">
+                        <p className="text-slate-700 flex items-center gap-1.5">
+                          <Gauge className="w-3.5 h-3.5 text-slate-400" />
                           {bike.odometer || '0 km'}
-                        </span>
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {bike.ticketsCount} visit{bike.ticketsCount === 1 ? '' : 's'}
+                        </p>
+                      </div>
+
+                      <div className="md:col-span-2 pl-14 md:pl-0 md:text-right">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVehicle(bike)}
+                          className="px-3.5 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-slate-700 text-xs font-semibold transition cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <History className="w-3.5 h-3.5" />
+                          History
+                        </button>
                       </div>
                     </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedVehicle(bike)}
-                    className="w-full mt-2 py-2 px-3 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:text-orange-700 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
-                  >
-                    <History className="w-3.5 h-3.5 text-orange-500" />
-                    <span>View Service Timeline</span>
-                  </button>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            </>
           )}
-        </div>
+        </section>
       )}
 
-      {/* ======================================================== */}
-      {/* SUB-TAB 2: OFFICIAL MOTORCYCLE DIRECTORY (CATALOG) */}
-      {/* ======================================================== */}
+      {/* ======================== MODEL CATALOG ======================== */}
       {subTab === 'catalog' && (
-        <div className="space-y-6">
-          {/* Catalog KPI Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Total Catalog Models
-              </span>
-              <div className="text-2xl font-black text-slate-900">{catalog.length}</div>
-              <p className="text-[11px] text-slate-400 mt-1">2024–2026 Philippine Lineup</p>
-            </div>
-
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Active in Booking
-              </span>
-              <div className="text-2xl font-black text-emerald-600">
-                {catalog.filter((m) => m.is_active !== false).length}
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">Available for rider selection</p>
-            </div>
-
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                Supported Brands
-              </span>
-              <div className="text-2xl font-black text-orange-600">{availableBrands.length - 1}</div>
-              <p className="text-[11px] text-slate-400 mt-1">Honda, Yamaha, Suzuki, CFMoto, etc.</p>
-            </div>
-          </div>
-
-          {/* Controls & Filter Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search official model name or category (e.g. NMAX, Click, 450MT)..."
-                value={catalogSearch}
-                onChange={(e) => setCatalogSearch(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-orange-500 shadow-2xs"
-              />
-            </div>
-
+        <section className={`${card} overflow-clip`}>
+          <div className="px-4 sm:px-5 pt-4 pb-3 space-y-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={refreshCatalog}
-                className="p-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
-                title="Reload catalog"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-slate-500 ${loadingCatalog ? 'animate-spin text-orange-500' : ''}`} />
-                <span className="hidden sm:inline">Reload</span>
+              <div className="relative flex-1 max-w-lg">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search model or category (e.g. NMAX, Click, Scooter)"
+                  value={catalogSearch}
+                  onChange={(e) => setCatalogSearch(e.target.value)}
+                  className={searchInput}
+                />
+              </div>
+              <button type="button" onClick={refreshCatalog} className={iconBtn} title="Reload" aria-label="Reload catalog">
+                <RefreshCw className={`w-4 h-4 ${loadingCatalog ? 'animate-spin text-orange-500' : ''}`} />
               </button>
-
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setIsAddModelOpen(true)}
-                  className="px-4 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Add Official Model</span>
-                </button>
-              )}
+              <p className="hidden md:block ml-auto text-sm text-slate-400">
+                {catalog.length} models · {activeModels} bookable · {availableBrands.length - 1} brands
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none]">
+              {availableBrands.map((brand) => {
+                const selected = selectedBrand === brand;
+                return (
+                  <button
+                    key={brand}
+                    type="button"
+                    onClick={() => setSelectedBrand(brand)}
+                    aria-pressed={selected}
+                    className={`px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition cursor-pointer ${
+                      selected
+                        ? 'bg-orange-50 text-orange-700 font-semibold'
+                        : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                    }`}
+                  >
+                    {brand}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Brand Filter Pills */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-            {availableBrands.map((brand) => (
-              <button
-                key={brand}
-                type="button"
-                onClick={() => setSelectedBrand(brand)}
-                className={`px-3 py-1.5 rounded-full font-bold transition whitespace-nowrap cursor-pointer text-xs ${
-                  selectedBrand === brand
-                    ? 'bg-slate-900 text-white shadow-2xs'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                {brand}
-              </button>
-            ))}
-          </div>
-
-          {/* Official Catalog Table */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase font-bold text-[10px] tracking-wider">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="text-xs text-slate-400 border-b border-slate-100">
+                <tr>
+                  <th className="py-2.5 px-4 sm:pl-5 font-medium">Model</th>
+                  <th className="py-2.5 px-4 font-medium">Brand</th>
+                  <th className="py-2.5 px-4 font-medium">Category</th>
+                  <th className="py-2.5 px-4 font-medium">Engine</th>
+                  <th className="py-2.5 px-4 font-medium">Status</th>
+                  {isAdmin && <th className="py-2.5 px-4 sm:pr-5 font-medium text-right">Action</th>}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {filteredCatalog.length === 0 ? (
                   <tr>
-                    <th className="py-3 px-4">Official Model Name</th>
-                    <th className="py-3 px-4">Brand</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Engine CC</th>
-                    <th className="py-3 px-4">Status</th>
-                    {isAdmin && <th className="py-3 px-4 text-right">Actions</th>}
+                    <td colSpan={isAdmin ? 6 : 5} className="py-12 text-center text-slate-400">
+                      No models match your filter.
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredCatalog.length === 0 ? (
-                    <tr>
-                      <td colSpan={isAdmin ? 6 : 5} className="py-10 text-center text-slate-400">
-                        No motorcycle models match your filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredCatalog.map((model, idx) => {
-                      const isActive = model.is_active !== false;
-                      return (
-                        <tr key={model.id || `${model.name}-${idx}`} className="hover:bg-slate-50/60 transition">
-                          <td className="py-3 px-4 font-bold text-slate-900">
-                            {model.name}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-semibold text-[11px]">
-                              {model.brand}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-slate-600 font-medium text-[11px]">
-                            {model.category || 'Standard'}
-                          </td>
-                          <td className="py-3 px-4 font-mono font-semibold text-slate-600 text-[11px]">
-                            {model.cc_displacement ? `${model.cc_displacement} cc` : '—'}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                ) : (
+                  filteredCatalog.map((model, idx) => {
+                    const isActive = model.is_active !== false;
+                    return (
+                      <tr key={model.id || `${model.name}-${idx}`} className="hover:bg-slate-50/60 transition">
+                        <td className={`py-3 px-4 sm:pl-5 font-medium ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>
+                          {model.name}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600">{model.brand}</td>
+                        <td className="py-3 px-4 text-slate-500">{model.category || 'Standard'}</td>
+                        <td className="py-3 px-4 text-slate-500 tabular-nums whitespace-nowrap">
+                          {model.cc_displacement ? `${model.cc_displacement} cc` : '—'}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium whitespace-nowrap">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                            {isActive ? 'Bookable' : 'Hidden from booking'}
+                          </span>
+                        </td>
+                        {isAdmin && (
+                          <td className="py-3 px-4 sm:pr-5 text-right">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(model)}
+                              className={`px-3 py-1 rounded-full border text-xs font-semibold transition cursor-pointer whitespace-nowrap ${
                                 isActive
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  ? 'border-slate-200 bg-white text-slate-600 hover:text-rose-700 hover:border-rose-200 hover:bg-rose-50'
+                                  : 'border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100'
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                              {isActive ? 'Active' : 'Deactivated'}
-                            </span>
+                              {isActive ? 'Hide' : 'Make bookable'}
+                            </button>
                           </td>
-                          {isAdmin && (
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => handleToggleStatus(model)}
-                                className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer ${
-                                  isActive
-                                    ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                                }`}
-                              >
-                                {isActive ? 'Deactivate' : 'Activate'}
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </section>
       )}
 
       {/* ======================================================== */}

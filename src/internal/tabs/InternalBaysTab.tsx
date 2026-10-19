@@ -1,90 +1,93 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
-import { isAwaitingArrival } from '../utils/ticketActions';
-import { 
-  CheckCircle2, 
-  ArrowRight, 
-  ShieldAlert, 
-  Plus, 
-  X
-} from 'lucide-react';
+import { isAwaitingArrival, advanceTicketStage } from '../utils/ticketActions';
+import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power } from 'lucide-react';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
+import { SERVICE_STAGES } from '../../utils/serviceStages';
+import { useNow } from '../hooks/useNow';
+
+// Shared looks (same as the staff Dashboard and Queue)
+const CARD = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
+const SECONDARY_BTN =
+  'px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer flex items-center gap-1.5';
 
 interface InternalBaysTabProps {
   tickets: InternalTicket[];
   onOpenDispatch: (ticket: InternalTicket) => void;
+  /** Release / mark-ready modal (stages 4 and 5) */
+  onOpenStage5Billing?: (ticket: InternalTicket) => void;
+  currentStaffName?: string;
   onRefresh?: () => void;
 }
+
+// A motorcycle this long on a bay gets an amber time badge
+const LONG_JOB_MINUTES = 180;
 
 const ALL_WORKSHOP_BAYS = [
   {
     id: 'bay-1',
     bayNumber: '01',
     name: 'Bay 01',
-    type: 'Change Oil & Quick Service',
   },
   {
     id: 'bay-2',
     bayNumber: '02',
     name: 'Bay 02',
-    type: 'CVT Cleaning & Tuning',
   },
   {
     id: 'bay-3',
     bayNumber: '03',
     name: 'Bay 03',
-    type: 'Engine Repair & Overhaul',
   },
   {
     id: 'bay-4',
     bayNumber: '04',
     name: 'Bay 04',
-    type: 'Electrical & Wiring',
   },
   {
     id: 'bay-5',
     bayNumber: '05',
     name: 'Bay 05',
-    type: 'Brakes & Suspension',
   },
   {
     id: 'bay-6',
     bayNumber: '06',
     name: 'Bay 06',
-    type: 'FI Cleaning & Tuning',
-  },
-  {
-    id: 'bay-7',
-    bayNumber: '07',
-    name: 'Bay 07',
-    type: 'Tires & Vulcanizing',
-  },
-  {
-    id: 'bay-8',
-    bayNumber: '08',
-    name: 'Bay 08',
-    type: 'General Service',
-  },
-  {
-    id: 'bay-9',
-    bayNumber: '09',
-    name: 'Bay 09',
-    type: 'Major Repair',
-  },
-  {
-    id: 'bay-10',
-    bayNumber: '10',
-    name: 'Bay 10',
-    type: 'Final Check & Detailing',
   },
 ];
 
 export default function InternalBaysTab({
   tickets,
   onOpenDispatch,
+  onOpenStage5Billing,
+  currentStaffName = 'Workshop Staff',
+  onRefresh,
 }: InternalBaysTabProps) {
+  const [advancingId, setAdvancingId] = useState<string | null>(null);
+
+  // Next step for a motorcycle on a bay, same as the Queue buttons
+  const runNextStep = async (ticket: InternalTicket) => {
+    if (ticket.stage <= 1) {
+      onOpenDispatch(ticket);
+      return;
+    }
+    if (ticket.stage >= 4) {
+      if (onOpenStage5Billing) onOpenStage5Billing(ticket);
+      else onOpenDispatch(ticket);
+      return;
+    }
+    setAdvancingId(ticket.id);
+    const result = await advanceTicketStage(ticket, ticket.stage + 1, currentStaffName);
+    setAdvancingId(null);
+    if (!result.success) {
+      toast.error('Error: ' + (result.error || 'Failed to advance stage.'));
+      return;
+    }
+    onRefresh?.();
+  };
   // Maintenance state per bay (shared across all devices via Supabase app_settings)
   const [maintenanceBays, setMaintenanceBays] = useState<Record<string, boolean>>(() =>
     readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {})
@@ -97,6 +100,8 @@ export default function InternalBaysTab({
     window.addEventListener(SHARED_SETTINGS.bayMaintenance.event, handleMaintenanceChange);
     return () => window.removeEventListener(SHARED_SETTINGS.bayMaintenance.event, handleMaintenanceChange);
   }, []);
+
+  const now = useNow();
 
   // Quick Dispatch Selection Modal State for vacant bay
   const [dispatchTargetBay, setDispatchTargetBay] = useState<string | null>(null);
@@ -124,7 +129,7 @@ export default function InternalBaysTab({
     });
   };
 
-  // Map tickets to all 10 official workshop bays using exact integer normalization
+  // Map tickets to all 6 official workshop bays using exact integer normalization
   const baysData = useMemo(() => {
     return ALL_WORKSHOP_BAYS.map((staticBay) => {
       const isUnderMaintenance = !!maintenanceBays[staticBay.id];
@@ -179,227 +184,322 @@ export default function InternalBaysTab({
   const vacantLiftsCount = baysData.filter((b) => b.status === 'AVAILABLE').length;
   const occupiedLiftsCount = baysData.filter((b) => b.status === 'OCCUPIED').length;
   const maintenanceLiftsCount = baysData.filter((b) => b.status === 'MAINTENANCE').length;
+  const workingBays = Math.max(1, baysData.length - maintenanceLiftsCount);
+  const usePct = Math.round((occupiedLiftsCount / workingBays) * 100);
+
+  const minutesIn = (createdAt: string) => Math.max(1, Math.floor((now - new Date(createdAt).getTime()) / 60000));
+  const formatMinutes = (mins: number) =>
+    mins < 60 ? `${mins}m` : `${Math.floor(mins / 60)}h ${mins % 60 ? `${mins % 60}m` : ''}`.trim();
 
   return (
-    <div className="space-y-6">
-      {/* 1. Bay summary (page title lives in the console header) */}
-      <div className="flex justify-end">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="px-3.5 py-1.5 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200/80 shadow-2xs">
-            {vacantLiftsCount} Available
+    <div className="space-y-4">
+      {/* 1. Slim summary: how full the floor is */}
+      <div className={`${CARD} px-5 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6`}>
+        <div className="flex items-baseline gap-2 shrink-0">
+          <span className="font-display text-3xl font-bold text-slate-900 tabular-nums">{occupiedLiftsCount}</span>
+          <span className="text-sm text-slate-500">of {workingBays} bays in use</span>
+        </div>
+        <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+          <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${usePct}%` }} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 shrink-0">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-orange-500" />
+            {occupiedLiftsCount} in use
           </span>
-          <span className="px-3.5 py-1.5 rounded-full bg-amber-50 text-amber-800 text-xs font-bold border border-amber-200/80 shadow-2xs">
-            {occupiedLiftsCount} Occupied
+          <span className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            {vacantLiftsCount} free
           </span>
           {maintenanceLiftsCount > 0 && (
-            <span className="px-3.5 py-1.5 rounded-full bg-rose-50 text-rose-800 text-xs font-bold border border-rose-200/80 shadow-2xs">
-              {maintenanceLiftsCount} Maintenance
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-slate-400" />
+              {maintenanceLiftsCount} maintenance
             </span>
           )}
         </div>
       </div>
 
-      {/* 10-Bay Workshop Floor Schematic Grid (2 Rows of 5 Bays) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+      {/* 2. Waiting for a bay (only when there are some) */}
+      {queueTickets.length > 0 && (
+        <section className="rounded-2xl sm:rounded-[1.75rem] border border-orange-200/80 bg-gradient-to-r from-orange-50 via-orange-50/40 to-white px-4 sm:px-5 py-4 shadow-[0_12px_32px_-16px_rgba(249,115,22,0.35)] flex flex-col lg:flex-row lg:items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/25">
+              <Clock className="w-5 h-5" />
+            </span>
+            <div>
+              <h2 className="font-display text-base font-bold tracking-tight text-slate-900">
+                {queueTickets.length} waiting for a bay
+              </h2>
+              <p className="text-xs text-slate-500">
+                {vacantLiftsCount > 0 ? 'Checked in. Put them on a free bay.' : 'No free bay right now.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 lg:ml-auto lg:justify-end">
+            {queueTickets.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center gap-3 bg-white border border-slate-200/70 rounded-full pl-4 pr-1.5 py-1.5 card-elevated min-w-0 max-w-full"
+              >
+                <div className="min-w-0 leading-tight">
+                  <p className="text-sm font-semibold text-slate-900 truncate">{t.motorcycles?.model || 'Motorcycle'}</p>
+                  <p className="text-xs text-slate-500 truncate">
+                    <span className="font-mono">{t.motorcycles?.plate_number}</span> · waiting {formatMinutes(minutesIn(t.created_at))}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenDispatch(t)}
+                  disabled={vacantLiftsCount === 0}
+                  className="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                >
+                  Assign bay
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 3. Floor plan: the six bays as equal slots, like the real shop floor */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-fr">
         {baysData.map((bay) => {
-          const isOccupied = bay.status === 'OCCUPIED' && bay.activeTicket;
+          const ticket = bay.status === 'OCCUPIED' ? bay.activeTicket : undefined;
           const isMaintenance = bay.status === 'MAINTENANCE';
 
-          return (
-            <div
-              key={bay.id}
-              className={`bg-white border rounded-2xl p-4 shadow-xs flex flex-col justify-between transition-all duration-200 relative overflow-hidden ${
-                isMaintenance
-                  ? 'border-rose-200 bg-rose-50/20'
-                  : isOccupied
-                  ? 'border-amber-300 bg-amber-50/15 ring-1 ring-amber-300/50'
-                  : 'border-slate-200/90 hover:border-slate-300'
-              }`}
-            >
-              <div className="space-y-3">
-                {/* Bay Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 ${
-                        isMaintenance
-                          ? 'bg-rose-100 text-rose-700'
-                          : isOccupied
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-emerald-100 text-emerald-800'
-                      }`}
-                    >
-                      {bay.bayNumber}
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="font-bold text-xs text-slate-900 leading-tight truncate">{bay.name}</h3>
-                      <p className="text-[10px] text-slate-500 font-medium truncate">{bay.type}</p>
-                    </div>
-                  </div>
+          /* ---- Bay with a motorcycle ---- */
+          if (ticket) {
+            const mechanic =
+              ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? ticket.assigned_mechanic : null;
+            const mins = minutesIn(ticket.created_at);
+            const isLong = mins >= LONG_JOB_MINUTES;
+            const nextLabel =
+              ticket.stage <= 1
+                ? 'Start'
+                : ticket.stage < 4
+                ? `To ${SERVICE_STAGES[ticket.stage]?.name ?? 'next stage'}`
+                : ticket.stage === 4
+                ? 'Mark ready'
+                : 'Release';
 
+            return (
+              <div key={bay.id} className={`${CARD} relative overflow-hidden p-5 flex flex-col min-h-[16rem]`}>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-slate-900">
+                    <span className="w-8 h-8 rounded-xl bg-orange-500 text-white font-display font-bold flex items-center justify-center shadow-md shadow-orange-500/25">
+                      {bay.bayNumber}
+                    </span>
+                    Bay {bay.bayNumber}
+                  </span>
                   <span
-                    className={`w-2 h-2 rounded-full shrink-0 mt-1 ${
-                      isMaintenance
-                        ? 'bg-rose-500'
-                        : isOccupied
-                        ? 'bg-amber-500 animate-pulse'
-                        : 'bg-emerald-500'
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                      isLong ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
                     }`}
-                    title={isMaintenance ? 'Under Maintenance' : isOccupied ? 'Occupied' : 'Available'}
-                  />
+                    title={isLong ? 'On the bay for more than 3 hours' : 'Time in the shop'}
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    {formatMinutes(mins)}
+                  </span>
                 </div>
 
-                {/* Status Content */}
-                {isMaintenance ? (
-                  <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200 text-xs space-y-1">
-                    <div className="flex items-center gap-1 font-bold text-rose-800 text-[11px]">
-                      <ShieldAlert className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                      <span>Offline for Servicing</span>
+                <div className="mt-4 min-w-0">
+                  <p className="font-display text-lg font-bold tracking-tight text-slate-900 leading-snug truncate" title={ticket.motorcycles?.model}>
+                    {ticket.motorcycles?.model || 'Motorcycle'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">
+                    <span className="font-mono">{ticket.motorcycles?.plate_number || 'No plate'}</span> · {ticket.service_type}
+                  </p>
+                </div>
+
+                <div className="mt-4 grid grid-cols-5 gap-1" aria-label={`Stage ${ticket.stage} of 5`}>
+                  {SERVICE_STAGES.map((st) => (
+                    <div key={st.step} className="min-w-0">
+                      <div
+                        className={`h-1.5 rounded-full ${
+                          st.step < ticket.stage ? 'bg-orange-300' : st.step === ticket.stage ? 'bg-orange-500' : 'bg-slate-200'
+                        }`}
+                      />
+                      <span
+                        className={`block text-[10px] mt-1 truncate ${
+                          st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-400'
+                        }`}
+                      >
+                        {st.name}
+                      </span>
                     </div>
+                  ))}
+                </div>
+
+                <div className="mt-auto pt-4 flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2 min-w-0 text-sm text-slate-600">
+                    <span
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                        mechanic ? 'bg-gradient-to-tr from-orange-500 to-amber-400 text-white' : 'bg-slate-100 text-slate-400'
+                      }`}
+                    >
+                      {mechanic ? mechanic.charAt(0).toUpperCase() : <UserCheck className="w-3.5 h-3.5" />}
+                    </span>
+                    <span className="truncate">{mechanic || 'No mechanic'}</span>
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       type="button"
-                      onClick={() => toggleMaintenance(bay.id)}
-                      className="text-[10px] text-rose-700 hover:underline font-bold cursor-pointer"
+                      onClick={() => onOpenDispatch(ticket)}
+                      className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer"
                     >
-                      Mark as Online →
+                      Manage
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => runNextStep(ticket)}
+                      disabled={advancingId === ticket.id}
+                      className="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1"
+                    >
+                      {nextLabel}
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
-                ) : isOccupied && bay.activeTicket ? (
-                  <div className="p-2.5 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono font-bold text-orange-600 text-xs">
-                        #{bay.activeTicket.ticket_code}
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-900 text-[10px] font-bold border border-amber-200">
-                        Stage {bay.activeTicket.stage}
-                      </span>
-                    </div>
-
-                    <div className="space-y-0.5 text-slate-600">
-                      <span className="font-bold text-slate-900 block truncate text-xs">
-                        {bay.activeTicket.motorcycles?.model || 'Motorcycle'}
-                      </span>
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono bg-slate-100 px-1 rounded text-slate-700 text-[10px]">
-                          {bay.activeTicket.motorcycles?.plate_number || 'NO PLATE'}
-                        </span>
-                        <span className="text-slate-500 text-[10px] truncate max-w-[80px]">
-                          {bay.activeTicket.assigned_mechanic || 'Unassigned'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-200/60 text-xs flex flex-col items-center justify-center text-center gap-1 text-emerald-800 py-3.5">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                    <span className="text-[11px] font-bold">Lift Available</span>
-                  </div>
-                )}
+                </div>
               </div>
+            );
+          }
 
-              {/* Action Button at Bottom */}
-              <div className="pt-2.5 mt-2.5 border-t border-slate-100 flex items-center justify-between gap-1.5">
+          /* ---- Bay under maintenance: striped, out of use ---- */
+          if (isMaintenance) {
+            return (
+              <div
+                key={bay.id}
+                className="relative rounded-2xl sm:rounded-[1.75rem] border border-slate-200 p-5 flex flex-col min-h-[16rem] bg-[repeating-linear-gradient(135deg,#f1f5f9_0,#f1f5f9_12px,#e9eef4_12px,#e9eef4_24px)]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-500">Bay {bay.bayNumber}</span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white text-slate-600 text-xs font-medium">
+                    <ShieldAlert className="w-3.5 h-3.5" />
+                    Maintenance
+                  </span>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                  <span className="font-display text-7xl font-bold text-slate-300/90 leading-none">{bay.bayNumber}</span>
+                </div>
                 <button
                   type="button"
                   onClick={() => toggleMaintenance(bay.id)}
-                  className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                  className="self-center px-4 py-1.5 rounded-full border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
                 >
-                  {isMaintenance ? 'Clear' : 'Service'}
+                  <Power className="w-3.5 h-3.5" />
+                  Back online
                 </button>
+              </div>
+            );
+          }
 
-                {isOccupied && bay.activeTicket ? (
+          /* ---- Free bay: an empty spot on the floor ---- */
+          return (
+            <div
+              key={bay.id}
+              className="group relative rounded-2xl sm:rounded-[1.75rem] bg-white/50 border-2 border-dashed border-slate-300/80 hover:border-orange-300 hover:bg-white min-h-[16rem] transition hover:shadow-[0_10px_28px_-12px_rgba(15,23,42,0.15)]"
+            >
+              <div className="h-full p-[1.125rem] flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-slate-500">Bay {bay.bayNumber}</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-700">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    Free
+                  </span>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                  <span className="font-display text-7xl font-bold text-slate-300 group-hover:text-orange-200 leading-none transition">
+                    {bay.bayNumber}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => onOpenDispatch(bay.activeTicket!)}
-                    className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                    onClick={() => toggleMaintenance(bay.id)}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                    title="Set to maintenance"
+                    aria-label={`Set Bay ${bay.bayNumber} to maintenance`}
                   >
-                    <span>View</span>
-                    <ArrowRight className="w-3 h-3" />
+                    <Power className="w-4 h-4" />
                   </button>
-                ) : !isMaintenance ? (
                   <button
                     type="button"
                     onClick={() => setDispatchTargetBay(`Bay ${bay.bayNumber}`)}
-                    className="px-2.5 py-1 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-bold rounded-lg text-[11px] transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                    className="px-4 py-1.5 rounded-full bg-white border border-slate-200 group-hover:border-orange-300 text-slate-700 group-hover:text-orange-700 text-xs font-semibold transition cursor-pointer flex items-center gap-1 shadow-xs"
                   >
-                    <Plus className="w-3 h-3" />
-                    <span>Assign</span>
+                    <Plus className="w-3.5 h-3.5" />
+                    Assign
                   </button>
-                ) : null}
+                </div>
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Quick Dispatch Modal for Vacant Bay */}
-      {dispatchTargetBay && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-sm sm:text-base text-slate-900">
-                  Assign Motorcycle to {dispatchTargetBay}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Select a queued motorcycle from Stage 1 intake to assign to this bay.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDispatchTargetBay(null)}
-                className="text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="max-h-64 overflow-y-auto space-y-2 text-xs">
-              {queueTickets.length === 0 ? (
-                <div className="p-4 text-center text-slate-400 bg-slate-50 rounded-xl italic">
-                  No motorcycles in queue waiting for bay assignment.
+      {/* Pick a waiting motorcycle for a free bay */}
+      {dispatchTargetBay &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-[1.75rem] max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+              <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200/80 flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">Assign to {dispatchTargetBay}</h3>
+                  <p className="text-sm text-slate-500">Pick a motorcycle waiting at intake.</p>
                 </div>
-              ) : (
-                queueTickets.map((t) => (
-                  <div
-                    key={t.id}
-                    onClick={() => {
-                      setDispatchTargetBay(null);
-                      onOpenDispatch({ ...t, assigned_bay: dispatchTargetBay });
-                    }}
-                    className="p-3 bg-white border border-slate-200 hover:border-orange-500 rounded-xl flex items-center justify-between cursor-pointer transition hover:shadow-xs"
-                  >
-                    <div>
-                      <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                        <span className="font-mono text-orange-600">#{t.ticket_code}</span>
-                        <span>{t.motorcycles?.model || 'Motorcycle'}</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        {t.customer_name} • {t.service_type}
-                      </p>
-                    </div>
+                <button
+                  type="button"
+                  onClick={() => setDispatchTargetBay(null)}
+                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                    <span className="px-2.5 py-1 bg-orange-500 text-white font-bold rounded-lg text-[11px] shrink-0">
-                      Assign to Bay
-                    </span>
+              <div className="max-h-72 overflow-y-auto p-3">
+                {queueTickets.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <Wrench className="w-6 h-6 text-slate-300 mx-auto" />
+                    <p className="mt-2 text-sm text-slate-500">No motorcycles waiting for a bay.</p>
+                    <p className="text-xs text-slate-400">Check one in or create a walk-in from the Queue first.</p>
                   </div>
-                ))
-              )}
-            </div>
+                ) : (
+                  queueTickets.map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => {
+                        setDispatchTargetBay(null);
+                        onOpenDispatch({ ...t, assigned_bay: dispatchTargetBay });
+                      }}
+                      className="w-full text-left px-3 py-3 rounded-2xl hover:bg-orange-50 flex items-center justify-between gap-3 transition cursor-pointer group"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-900 truncate">
+                          {t.motorcycles?.model || 'Motorcycle'}
+                          <span className="ml-2 font-mono text-xs text-slate-500">{t.motorcycles?.plate_number}</span>
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {t.ticket_code} · {t.customer_name || 'Walk-in'} · {t.service_type}
+                        </p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-orange-500 shrink-0" />
+                    </button>
+                  ))
+                )}
+              </div>
 
-            <div className="flex justify-end pt-2">
-              <button
-                type="button"
-                onClick={() => setDispatchTargetBay(null)}
-                className="px-4 py-2 text-slate-500 font-bold text-xs cursor-pointer hover:text-slate-800"
-              >
-                Close
-              </button>
+              <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 flex justify-end">
+                <button type="button" onClick={() => setDispatchTargetBay(null)} className={SECONDARY_BTN}>
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
-
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react';
 import { HardcopyRequest, updateHardcopyStatus } from '../../lib/hardcopyService';
+import { db } from '../../lib/supabase';
+import { PrintPreviewModal } from '../../components/print/PrintTemplate';
+import { CertifiedRecordDocument, type PrintServiceRow } from '../../components/print/MotoCareDocuments';
 import { 
   X, 
   Stamp, 
@@ -28,9 +31,25 @@ export default function HardcopyRequestsModal({
   currentStaffName = 'Lead Service Advisor',
 }: HardcopyRequestsModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'READY_FOR_PICKUP' | 'CLAIMED'>('PENDING');
+  // Open on the tab that has work in it: pending first, then ready for pickup, else everything
+  const pickStartTab = (): 'ALL' | 'PENDING' | 'READY_FOR_PICKUP' => {
+    if (requests.some((r) => r.status === 'PENDING')) return 'PENDING';
+    if (requests.some((r) => r.status === 'READY_FOR_PICKUP')) return 'READY_FOR_PICKUP';
+    return 'ALL';
+  };
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'READY_FOR_PICKUP' | 'CLAIMED'>(pickStartTab);
+  // Each time the modal opens, start again on the tab with work in it
+  const [wasOpen, setWasOpen] = useState(isOpen);
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen) {
+      setStatusFilter(pickStartTab());
+      setSearchQuery('');
+    }
+  }
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [printableRequest, setPrintableRequest] = useState<HardcopyRequest | null>(null);
+  const [printableRows, setPrintableRows] = useState<PrintServiceRow[] | null>(null);
 
   const filteredRequests = useMemo(() => {
     return requests.filter((req) => {
@@ -84,97 +103,124 @@ export default function HardcopyRequestsModal({
     }
   };
 
-  const handlePrintCertificate = (req: HardcopyRequest) => {
+  // Opens a preview of the certified record, with the motorcycle's completed services listed
+  const handlePrintCertificate = async (req: HardcopyRequest) => {
     setPrintableRequest(req);
-    setTimeout(() => {
-      window.print();
-    }, 150);
+    setPrintableRows(null);
+    const { data, error } = await db()
+      .from('service_tickets')
+      .select(
+        'id, ticket_code, service_type, status, created_at, updated_at, paid_at, dropoff_date, assigned_bay, assigned_mechanic, motorcycles!inner(model, plate_number)'
+      )
+      .eq('user_id', req.userId)
+      .eq('status', 'COMPLETED')
+      .eq('motorcycles.plate_number', req.plateNumber)
+      .order('created_at', { ascending: true });
+    if (error) console.error('Failed to load service history for certificate:', error);
+    setPrintableRows((data || []) as unknown as PrintServiceRow[]);
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-      <div className="bg-white border border-slate-200 text-slate-800 w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
-        
-        {/* Modal Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-xs">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white text-slate-800 w-full max-w-3xl rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="px-5 sm:px-6 pt-5 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
               <Stamp className="w-5 h-5" />
             </div>
-            <div>
-              <h3 className="font-bold text-base sm:text-lg leading-tight">
-                Official Certified Hardcopy Requests
+            <div className="min-w-0">
+              <h3 className="font-display text-lg sm:text-xl font-bold tracking-tight text-slate-900 leading-tight">
+                Hardcopy requests
               </h3>
-              <p className="text-xs text-slate-400">
-                Customer requests for stamped & certified physical maintenance records
+              <p className="text-xs sm:text-sm text-slate-500 truncate">
+                Stamped and signed service records that customers asked for.
               </p>
             </div>
           </div>
-
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition cursor-pointer"
+            aria-label="Close"
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Toolbar & Filter Tabs */}
-        <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70 space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-sm">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by rider, plate, ID, or purpose..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-orange-500 font-medium"
-              />
-            </div>
-
-            {/* Status Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-              {[
-                { id: 'PENDING', label: 'Pending Signature', count: counts.pending, color: 'text-amber-700 bg-amber-50' },
-                { id: 'READY_FOR_PICKUP', label: 'Ready for Pickup', count: counts.ready, color: 'text-emerald-700 bg-emerald-50' },
-                { id: 'CLAIMED', label: 'Claimed', count: counts.claimed, color: 'text-slate-600 bg-slate-100' },
-                { id: 'ALL', label: 'All Requests', count: counts.all, color: 'text-slate-700 bg-slate-100' },
-              ].map((tab) => (
+        {/* Tabs + search */}
+        <div className="mt-4 border-b border-slate-200/80">
+          <nav className="flex items-center gap-5 overflow-x-auto px-5 sm:px-6 -mb-px [scrollbar-width:none]" aria-label="Request status">
+            {[
+              { id: 'PENDING', label: 'To sign', count: counts.pending, alert: counts.pending > 0 },
+              { id: 'READY_FOR_PICKUP', label: 'Ready for pickup', count: counts.ready },
+              { id: 'CLAIMED', label: 'Claimed', count: counts.claimed },
+              { id: 'ALL', label: 'All', count: counts.all },
+            ].map((tab) => {
+              const isSelected = statusFilter === tab.id;
+              return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setStatusFilter(tab.id as typeof statusFilter)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer shrink-0 flex items-center gap-1.5 ${
-                    statusFilter === tab.id
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white hover:bg-slate-200/80 text-slate-600 border border-slate-200'
+                  className={`flex items-center gap-2 py-3 border-b-2 text-sm whitespace-nowrap transition cursor-pointer ${
+                    isSelected
+                      ? 'border-orange-500 text-slate-900 font-semibold'
+                      : 'border-transparent text-slate-500 hover:text-slate-800 font-medium'
                   }`}
                 >
                   <span>{tab.label}</span>
-                  <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                    statusFilter === tab.id ? 'bg-white/20 text-white' : tab.color
-                  }`}>
+                  <span
+                    className={`min-w-[22px] px-1.5 rounded-md text-xs font-semibold leading-5 text-center tabular-nums ${
+                      tab.alert ? 'bg-amber-100 text-amber-800' : isSelected ? 'bg-orange-50 text-orange-700' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
                     {tab.count}
                   </span>
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </nav>
+        </div>
+        <div className="px-5 sm:px-6 py-3 bg-slate-50/70 border-b border-slate-200/80">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search customer, plate, request ID or purpose"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+            />
           </div>
         </div>
 
-        {/* Requests List */}
-        <div className="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1 text-xs">
+        {/* Requests */}
+        <div className="p-4 sm:p-6 overflow-y-auto space-y-3 flex-1 bg-slate-50/40">
           {filteredRequests.length === 0 ? (
-            <div className="p-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-              <FileText className="w-10 h-10 text-slate-300 mx-auto" />
-              <p className="font-semibold text-slate-600 text-sm">No Certified Hardcopy Requests Found</p>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                {statusFilter === 'PENDING'
-                  ? 'All certified records have been processed and stamped.'
-                  : 'No customer requests match your current search filter.'}
+            <div className="py-12 text-center">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto">
+                <FileText className="w-6 h-6 text-slate-400" />
+              </div>
+              <p className="font-semibold text-slate-900 text-sm mt-4">
+                {searchQuery.trim()
+                  ? 'No requests match your search'
+                  : {
+                      PENDING: 'No requests waiting for signature',
+                      READY_FOR_PICKUP: 'Nothing waiting for pickup',
+                      CLAIMED: 'No claimed copies yet',
+                      ALL: 'No hardcopy requests yet',
+                    }[statusFilter]}
+              </p>
+              <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+                {searchQuery.trim()
+                  ? 'Try a different name, plate or request ID.'
+                  : {
+                      PENDING: 'New customer requests show up here for stamping and sign-off.',
+                      READY_FOR_PICKUP: 'Signed copies waiting at the front desk show up here.',
+                      CLAIMED: 'Copies the customer has picked up show up here.',
+                      ALL: 'Customers can request a certified copy from their Service Records page.',
+                    }[statusFilter]}
               </p>
             </div>
           ) : (
@@ -187,116 +233,93 @@ export default function HardcopyRequestsModal({
                 hour: '2-digit',
                 minute: '2-digit',
               });
+              const status =
+                req.status === 'PENDING'
+                  ? { label: 'To sign', icon: Clock, className: 'bg-amber-50 text-amber-800 border-amber-200' }
+                  : req.status === 'READY_FOR_PICKUP'
+                  ? { label: 'Ready for pickup', icon: CheckCircle2, className: 'bg-emerald-50 text-emerald-800 border-emerald-200' }
+                  : { label: 'Claimed', icon: Check, className: 'bg-slate-100 text-slate-600 border-slate-200' };
 
               return (
-                <div
-                  key={req.id}
-                  className={`p-4 rounded-2xl border transition shadow-2xs space-y-3 ${
-                    req.status === 'PENDING'
-                      ? 'border-amber-200 bg-amber-50/20'
-                      : req.status === 'READY_FOR_PICKUP'
-                      ? 'border-emerald-200 bg-emerald-50/15'
-                      : 'border-slate-200 bg-white'
-                  }`}
-                >
-                  {/* Top Row: ID, Purpose & Status */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono font-bold text-orange-600 text-xs px-2.5 py-0.5 rounded-md bg-orange-50 border border-orange-200">
-                        #{req.id}
-                      </span>
-                      <span className="font-bold text-slate-900 text-xs sm:text-sm">
-                        {req.purpose || 'Official Certified Vehicle Record'}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        • Requested {formattedDate}
-                      </span>
+                <div key={req.id} className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 space-y-4 shadow-2xs">
+                  {/* Purpose, ID, date and status */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-display text-base font-bold tracking-tight text-slate-900 leading-snug">
+                        {req.purpose || 'Official certified vehicle record'}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        <span className="font-mono font-semibold text-orange-600">#{req.id}</span>
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        Requested {formattedDate}
+                      </p>
                     </div>
-
-                    <div>
-                      {req.status === 'PENDING' ? (
-                        <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 text-[10px] font-bold border border-amber-200 flex items-center gap-1 w-fit">
-                          <Clock className="w-3 h-3 text-amber-600" />
-                          <span>Pending Stamp & Sign</span>
-                        </span>
-                      ) : req.status === 'READY_FOR_PICKUP' ? (
-                        <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold border border-emerald-200 flex items-center gap-1 w-fit">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>Ready for Pickup at Front Desk</span>
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200 flex items-center gap-1 w-fit">
-                          <Check className="w-3 h-3 text-slate-500" />
-                          <span>Claimed by Rider</span>
-                        </span>
-                      )}
-                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center gap-1 shrink-0 ${status.className}`}>
+                      <status.icon className="w-3.5 h-3.5" />
+                      {status.label}
+                    </span>
                   </div>
 
-                  {/* Rider & Motorcycle Details */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-50/80 border border-slate-100 text-xs">
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Rider Customer</span>
-                      <span className="font-bold text-slate-900 block truncate">{req.customerName}</span>
-                      {req.customerPhone && (
-                        <span className="text-[11px] text-slate-500 block">{req.customerPhone}</span>
-                      )}
+                  {/* Customer, motorcycle, pickup */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                    <div className="min-w-0">
+                      <span className="text-xs text-slate-500 block">Customer</span>
+                      <span className="font-semibold text-slate-900 block truncate">{req.customerName}</span>
+                      {req.customerPhone && <span className="text-xs text-slate-500 block">{req.customerPhone}</span>}
                     </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Motorcycle Unit</span>
-                      <span className="font-bold text-slate-900 block truncate">{req.bikeModel}</span>
-                      <span className="font-mono text-[11px] text-slate-600 block">{req.plateNumber}</span>
+                    <div className="min-w-0">
+                      <span className="text-xs text-slate-500 block">Motorcycle</span>
+                      <span className="font-semibold text-slate-900 block truncate" title={req.bikeModel}>{req.bikeModel}</span>
+                      <span className="font-mono text-xs text-slate-500 block">{req.plateNumber}</span>
                     </div>
-                    <div>
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Delivery / Hub</span>
-                      <span className="font-semibold text-slate-700 block">Santa Maria Front Desk</span>
-                      <span className="text-[11px] text-emerald-600 font-medium">Free Official Service</span>
+                    <div className="min-w-0">
+                      <span className="text-xs text-slate-500 block">Pickup</span>
+                      <span className="font-semibold text-slate-900 block">Santa Maria front desk</span>
+                      <span className="text-xs text-slate-500 block">No charge</span>
                     </div>
                   </div>
 
                   {req.notes && (
-                    <div className="text-[11px] text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/80">
-                      <span className="font-bold text-slate-700">Rider Note:</span> {req.notes}
+                    <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-xl">
+                      <span className="font-semibold text-slate-800">Customer note:</span> {req.notes}
                     </div>
                   )}
 
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                  {/* Actions */}
+                  <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2 pt-3 border-t border-slate-100">
                     <button
                       type="button"
                       onClick={() => handlePrintCertificate(req)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                      title="Print official stamped certificate"
+                      className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      title="Print the certificate"
                     >
-                      <Printer className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Print Certificate</span>
+                      <Printer className="w-4 h-4 text-slate-500" />
+                      <span>Print certificate</span>
                     </button>
 
-                    <div className="flex items-center gap-2">
-                      {req.status === 'PENDING' && (
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleUpdateStatus(req, 'READY_FOR_PICKUP')}
-                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer disabled:opacity-50"
-                        >
-                          <Stamp className="w-3.5 h-3.5" />
-                          <span>Sign & Mark Ready for Pickup</span>
-                        </button>
-                      )}
+                    {req.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleUpdateStatus(req, 'READY_FOR_PICKUP')}
+                        className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                      >
+                        <Stamp className="w-4 h-4" />
+                        <span>{isUpdating ? 'Saving...' : 'Sign & mark ready'}</span>
+                      </button>
+                    )}
 
-                      {req.status === 'READY_FOR_PICKUP' && (
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleUpdateStatus(req, 'CLAIMED')}
-                          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer disabled:opacity-50"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Mark as Claimed at Counter</span>
-                        </button>
-                      )}
-                    </div>
+                    {req.status === 'READY_FOR_PICKUP' && (
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleUpdateStatus(req, 'CLAIMED')}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold rounded-xl text-sm flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>{isUpdating ? 'Saving...' : 'Mark as claimed'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -304,70 +327,35 @@ export default function HardcopyRequestsModal({
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Authorized by {currentStaffName} • Santa Maria Hub, Bulacan</span>
+        {/* Footer */}
+        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 flex items-center justify-between gap-3 text-xs text-slate-500">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="truncate">Signed by {currentStaffName} · Santa Maria, Bulacan</span>
           </span>
-
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold transition cursor-pointer"
+            className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-sm transition cursor-pointer shrink-0"
           >
             Close
           </button>
         </div>
-
       </div>
 
-      {/* HIDDEN PRINT-ONLY OFFICIAL CERTIFIED SERVICE RECORD PREVIEW */}
-      {printableRequest && (
-        <div className="hidden print:block fixed inset-0 bg-white p-8 font-sans text-black z-9999">
-          <div className="text-center border-b-2 border-black pb-4 mb-6">
-            <h1 className="text-2xl font-black uppercase tracking-tight">MotoCare Workshop & Service Center</h1>
-            <p className="text-xs">Santa Maria Hub, Bulacan • Phone: +63 985 245 5897</p>
-            <h2 className="text-base font-bold uppercase tracking-wider mt-3 underline">
-              Official Certified Vehicle Maintenance Record
-            </h2>
-            <p className="text-[11px] text-slate-600">Reference #{printableRequest.id}</p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 border border-black p-4 mb-6 text-xs">
-            <div>
-              <p><strong>Customer / Owner:</strong> {printableRequest.customerName}</p>
-              <p><strong>Contact Number:</strong> {printableRequest.customerPhone || 'N/A'}</p>
-              <p><strong>Purpose of Record:</strong> {printableRequest.purpose}</p>
-            </div>
-            <div>
-              <p><strong>Motorcycle Model:</strong> {printableRequest.bikeModel}</p>
-              <p><strong>Plate / MV File Number:</strong> {printableRequest.plateNumber}</p>
-              <p><strong>Date Issued:</strong> {new Date().toLocaleDateString('en-US')}</p>
-            </div>
-          </div>
-
-          <div className="border border-black p-4 mb-8 text-xs leading-relaxed">
-            <p className="font-bold mb-2">Certification of Workshop Maintenance:</p>
-            <p>
-              This certifies that the motorcycle unit described above is registered in the official MotoCare
-              Workshop Management System. All diagnostic inspections, component torquing, fluids replacement,
-              and safety tests have been performed in accordance with manufacturer technical specifications
-              and standard multi-point quality assurance protocols.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 gap-8 pt-12 text-xs">
-            <div className="text-center border-t border-black pt-2">
-              <p className="font-bold">{currentStaffName}</p>
-              <p className="text-[11px] text-slate-600">Lead Technician / Service Advisor</p>
-            </div>
-            <div className="text-center border-t border-black pt-2">
-              <p className="font-bold">[ OFFICIAL MOTOCARE STAMP ]</p>
-              <p className="text-[11px] text-slate-600">Authorized Workshop Seal</p>
-            </div>
-          </div>
-        </div>
+      {/* Certified record preview (shared print template); shown once its service history has loaded */}
+      {printableRequest && printableRows && (
+        <PrintPreviewModal
+          title="Certified maintenance record"
+          description={`${printableRequest.id} · ${printableRequest.customerName} · ${printableRequest.plateNumber}`}
+          printLabel="Print record"
+          onClose={() => {
+            setPrintableRequest(null);
+            setPrintableRows(null);
+          }}
+        >
+          <CertifiedRecordDocument request={printableRequest} rows={printableRows} certifiedBy={currentStaffName} />
+        </PrintPreviewModal>
       )}
     </div>
   );

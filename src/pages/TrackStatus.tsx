@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   Calendar,
   Radio,
-  Loader2
+  Loader2,
+  Store
 } from 'lucide-react';
 
 interface PublicTicket {
@@ -61,6 +62,45 @@ async function lookupPublicTicket(code: string): Promise<PublicTicket | null> {
   } as PublicTicket;
 }
 
+type TicketKind = 'account' | 'walkin';
+
+// YYYY-MM-DD of a timestamp in Philippine time (the shop's calendar day)
+function manilaDateKey(timestamp: string): string {
+  return new Date(timestamp).toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+}
+
+/**
+ * Whether a code belongs to a rider account or is a walk-in ticket (null = not found).
+ * Uses ticket_lookup_kind() (migration 12); older databases fall back to a direct read.
+ */
+async function lookupTicketKind(code: string): Promise<TicketKind | null> {
+  const { data, error } = await supabase.rpc('ticket_lookup_kind', { p_code: code });
+  if (!error) return (data as TicketKind | null) || null;
+  if (error.code !== FUNCTION_NOT_FOUND) throw error;
+
+  const { data: row } = await supabase
+    .from('service_tickets')
+    .select('user_id')
+    .eq('ticket_code', code)
+    .maybeSingle();
+  if (row) return row.user_id ? 'account' : 'walkin';
+  // The row may just be hidden by row-level security; let the public lookup decide
+  return (await lookupPublicTicket(code)) ? 'account' : null;
+}
+
+/**
+ * Walk-in lookup: returns the ticket only when the creation date matches.
+ * The database checks the date (migration 12); older databases check it here.
+ */
+async function lookupWalkInTicket(code: string, createdOn: string): Promise<PublicTicket | null> {
+  const { data, error } = await supabase.rpc('track_ticket', { p_code: code, p_created_on: createdOn });
+  if (!error) return (data as PublicTicket | null) || null;
+  if (error.code !== FUNCTION_NOT_FOUND) throw error;
+
+  const found = await lookupPublicTicket(code);
+  return found && manilaDateKey(found.created_at) === createdOn ? found : null;
+}
+
 function isSearchableCode(code: string): boolean {
   return Boolean(code) && code !== 'MC-' && code !== 'MC-W-';
 }
@@ -89,14 +129,58 @@ export default function TrackStatus() {
   const [ticket, setTicket] = useState<PublicTicket | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Walk-in tickets (no rider account) need the ticket's creation date before details are shown
+  const [verifyCode, setVerifyCode] = useState<string | null>(null);
+  const [verifyDate, setVerifyDate] = useState('');
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+  // Codes the visitor already verified this visit, so live refreshes keep working
+  // A walk-in slip's QR code links to /track/MC-W-1234?d=YYYY-MM-DD: the date on the slip,
+  // so scanning it shows the status right away (a wrong date falls back to the form)
+  const [verifiedDates] = useState(() => {
+    const dates = new Map<string, string>();
+    const qrDate = new URLSearchParams(window.location.search).get('d');
+    if (ticketCode && qrDate && /^\d{4}-\d{2}-\d{2}$/.test(qrDate)) {
+      dates.set(normalizeTicketCode(ticketCode), qrDate);
+    }
+    return dates;
+  });
+
   // Looks up a (normalized) code; the spinner is switched on by whoever starts the search
   const fetchTicket = useCallback((cleanCode: string) => {
-    return lookupPublicTicket(cleanCode)
-      .then((data) => {
+    const notFound = `No service record found for ticket code "${cleanCode}". Please verify your ticket reference.`;
+    return lookupTicketKind(cleanCode)
+      .then(async (kind) => {
+        if (!kind) {
+          setTicket(null);
+          setVerifyCode(null);
+          setErrorMsg(notFound);
+          return;
+        }
+
+        const verifiedOn = verifiedDates.get(cleanCode);
+        if (kind === 'walkin' && !verifiedOn) {
+          // Ask for the creation date before showing anything
+          setTicket(null);
+          setErrorMsg(null);
+          setVerifyCode(cleanCode);
+          return;
+        }
+
+        const data = kind === 'walkin' && verifiedOn
+          ? await lookupWalkInTicket(cleanCode, verifiedOn)
+          : await lookupPublicTicket(cleanCode);
+        if (!data && kind === 'walkin') {
+          // The saved or scanned date didn't match: ask for it instead
+          verifiedDates.delete(cleanCode);
+          setTicket(null);
+          setErrorMsg(null);
+          setVerifyCode(cleanCode);
+          return;
+        }
+        setVerifyCode(null);
         setTicket(data);
-        setErrorMsg(
-          data ? null : `No service record found for ticket code "${cleanCode}". Please verify your ticket reference.`
-        );
+        setErrorMsg(data ? null : notFound);
       })
       .catch((err: unknown) => {
         console.error('Track lookup error:', err);
@@ -104,7 +188,32 @@ export default function TrackStatus() {
         setTicket(null);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [verifiedDates]);
+
+  const handleVerifyWalkIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!verifyCode || !verifyDate) return;
+    setIsVerifying(true);
+    setVerifyError(null);
+    try {
+      const data = await lookupWalkInTicket(verifyCode, verifyDate);
+      if (!data) {
+        setVerifyError(
+          "The ticket number and date don't match our records. Check the date on your slip from the counter, or ask our staff."
+        );
+        return;
+      }
+      verifiedDates.set(verifyCode, verifyDate);
+      setVerifyCode(null);
+      setVerifyDate('');
+      setTicket(data);
+    } catch (err: unknown) {
+      console.error('Walk-in verification error:', err);
+      setVerifyError(err instanceof Error ? err.message : 'Unable to verify the ticket. Please try again.');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   // The code in the URL (/track/MC-1234) fills the search box and starts the lookup
   const urlCode = ticketCode ? normalizeTicketCode(ticketCode) : '';
@@ -333,6 +442,64 @@ export default function TrackStatus() {
           </div>
         )}
 
+        {/* Walk-in Verification (ticket has no rider account) */}
+        {verifyCode && !ticket && (
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-xs space-y-5 animate-in fade-in max-w-md mx-auto w-full">
+            <div className="text-center space-y-2">
+              <div className="w-11 h-11 rounded-2xl bg-orange-50 border border-orange-200/80 text-orange-600 flex items-center justify-center mx-auto">
+                <Store className="w-5 h-5" />
+              </div>
+              <h2 className="text-base sm:text-lg font-bold text-slate-900">Verify your walk-in ticket</h2>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                This ticket was created at our counter and isn't linked to a MotoCare account. To protect your
+                details, confirm the date the shop created your ticket.
+              </p>
+            </div>
+
+            {verifyError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-rose-700 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{verifyError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerifyWalkIn} className="space-y-3.5 text-xs">
+              <div>
+                <span className="font-bold text-slate-700 block mb-1">Ticket number</span>
+                <div className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 font-mono font-bold text-slate-900 tracking-wider">
+                  {verifyCode}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="walkin-created-date" className="font-bold text-slate-700 block mb-1">
+                  Date the ticket was created
+                </label>
+                <input
+                  id="walkin-created-date"
+                  type="date"
+                  required
+                  value={verifyDate}
+                  max={manilaDateKey(new Date().toISOString())}
+                  onChange={(e) => {
+                    setVerifyDate(e.target.value);
+                    setVerifyError(null);
+                  }}
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">It's the date on your slip from the counter.</p>
+              </div>
+              <button
+                type="submit"
+                disabled={isVerifying || !verifyDate}
+                className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 rounded-full transition flex items-center justify-center gap-2 shadow-sm shadow-orange-500/20 active:scale-[0.98] cursor-pointer"
+              >
+                {isVerifying ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                <span>{isVerifying ? 'Checking...' : 'Verify & Show Status'}</span>
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* Ticket Details Card */}
         {ticket && (
           <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-xs space-y-6 animate-in fade-in">
@@ -459,10 +626,11 @@ export default function TrackStatus() {
 
               <div className="p-3.5 rounded-xl sm:rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-1 shadow-2xs">
                 <span className="text-slate-400 text-[10px] block uppercase font-bold tracking-wider">
-                  Estimated Cost
+                  Payment
                 </span>
-                <span className="font-extrabold text-emerald-600 text-sm font-mono block">
-                  {ticket.total_estimate || 'Quoted on inspection'}
+                {/* No payments go through the system: the final amount is settled in cash at pickup */}
+                <span className="font-semibold text-slate-700 text-xs block">
+                  Pay at the counter on pickup
                 </span>
               </div>
 

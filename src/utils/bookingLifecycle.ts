@@ -164,7 +164,7 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
             bikeModel,
             plateNumber: plateNum,
             serviceType: ticket.service_type,
-            rescheduleUrl: `/dashboard?tab=book&reschedule=${ticket.ticket_code}`,
+            rescheduleUrl: `/dashboard/book?reschedule=${ticket.ticket_code}`,
             message: `Your motorcycle (${bikeModel} - ${plateNum}) was not checked in for appointment #${ticket.ticket_code}. Your booking details are saved, and you can reschedule to a new date and time at any time.`,
           };
 

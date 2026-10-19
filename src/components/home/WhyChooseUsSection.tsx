@@ -1,73 +1,101 @@
-import { ShieldCheck, Award, Clock, Search, CheckCircle2, Phone } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ShieldCheck, Award, Clock, Radio, BadgeCheck, MessageCircle, ArrowRight } from 'lucide-react';
+import { SectionPill } from './motion';
+
+// Each tile gets its own tone and a soft decorative shape, so the grid feels varied
+const PERKS = [
+  {
+    icon: ShieldCheck,
+    title: 'Skilled Mechanics',
+    desc: 'Trained in proper procedures and diagnostics.',
+    tone: 'bg-orange-500',
+    shape: 'absolute -right-10 -top-10 w-40 h-40 rounded-full border-[18px] border-white/15',
+  },
+  {
+    icon: Award,
+    title: 'Genuine Parts',
+    desc: 'Authentic replacement parts for your safety.',
+    tone: 'bg-slate-800',
+    shape: 'absolute -right-6 -bottom-12 w-36 h-36 rounded-full bg-orange-500/20 blur-xl',
+  },
+  {
+    icon: Clock,
+    title: 'Prompt Turnaround',
+    desc: 'Six bookings a day, so every bike gets attention.',
+    tone: 'bg-slate-800',
+    shape: 'absolute right-0 top-0 w-24 h-full bg-gradient-to-l from-white/5 to-transparent',
+  },
+  {
+    icon: Radio,
+    title: 'Live Tracking',
+    desc: 'Follow all five repair stages from your phone.',
+    tone: 'bg-amber-500',
+    shape: 'absolute -right-8 bottom-4 w-32 h-16 rounded-t-full border-[14px] border-b-0 border-white/20',
+  },
+  {
+    icon: BadgeCheck,
+    title: '7-Day Warranty',
+    desc: 'Workmanship backed by our service warranty.',
+    tone: 'bg-slate-800',
+    shape: 'absolute -left-10 -bottom-10 w-32 h-32 rounded-full border-[16px] border-white/5',
+  },
+  {
+    icon: MessageCircle,
+    title: 'Rider Support',
+    desc: 'Chat with the shop about your booking anytime.',
+    tone: 'bg-orange-600',
+    shape: 'absolute right-4 top-4 w-16 h-16 rounded-2xl bg-white/10 rotate-12',
+  },
+];
 
 export default function WhyChooseUsSection() {
-  const perks = [
-    {
-      icon: <ShieldCheck className="w-5 h-5 text-orange-500" />,
-      title: 'Certified Technicians',
-      desc: 'Skilled mechanics trained in standard operating procedures and diagnostics.'
-    },
-    {
-      icon: <Award className="w-5 h-5 text-orange-500" />,
-      title: 'Genuine OEM Parts',
-      desc: 'Only authentic and certified replacement parts used for your bike’s safety.'
-    },
-    {
-      icon: <Clock className="w-5 h-5 text-orange-500" />,
-      title: 'Prompt Turnaround',
-      desc: 'Automated queue scheduling to respect your time and release your unit promptly.'
-    },
-    {
-      icon: <Search className="w-5 h-5 text-orange-500" />,
-      title: 'Real-time Tracking',
-      desc: 'Direct online updates from initial check-in until ready for pickup.'
-    },
-    {
-      icon: <CheckCircle2 className="w-5 h-5 text-orange-500" />,
-      title: 'Service Warranty',
-      desc: 'Guaranteed repair quality backed by our comprehensive warranty period.'
-    },
-    {
-      icon: <Phone className="w-5 h-5 text-orange-500" />,
-      title: 'Rider Support',
-      desc: 'Direct communication with workshop advisors for estimates and consultations.'
-    }
-  ];
-
+  // No scroll animations in this section: everything is shown as is
   return (
-    <section id="why-us" className="scroll-mt-16 sm:scroll-mt-20 py-12 sm:py-20 px-3.5 sm:px-6 lg:px-8 bg-white border-b border-slate-200/80">
-      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <span className="text-orange-600 text-xs font-bold tracking-wider uppercase bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full">
-            Why MotoCare
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight pt-1">
-            Why Choose Us
+    <section id="why-us" className="scroll-mt-16 sm:scroll-mt-20 bg-slate-950 px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+      <div className="max-w-6xl mx-auto">
+        <div className="text-center max-w-3xl mx-auto">
+          <SectionPill tone="dark">The MotoCare Advantage</SectionPill>
+          <h2 className="text-balance mt-5 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.035em] text-white leading-[1.04]">
+            Real mechanics. <span className="text-orange-500">Real updates.</span>
           </h2>
-          <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto">
-            Dedicated to giving your motorcycle the highest standard of service and care.
+          <p className="mt-4 text-base sm:text-lg text-slate-400 leading-relaxed">
+            We treat every motorcycle like our own, and we keep you in the loop from drop-off to pickup.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
-          {perks.map((p, idx) => (
+        <div className="mt-12 sm:mt-14 grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {PERKS.map((perk) => (
             <div
-              key={idx}
-              className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-6 shadow-2xs hover:shadow-md hover:border-orange-300 transition duration-150 flex flex-col justify-between"
+              key={perk.title}
+              className={`relative overflow-hidden rounded-2xl sm:rounded-3xl ${perk.tone} p-6 sm:p-7 min-h-[160px] sm:min-h-[210px] flex flex-col justify-between`}
             >
-              <div>
-                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-orange-50 border border-orange-200/70 flex items-center justify-center mb-2.5 sm:mb-3.5 shadow-2xs shrink-0">
-                  {p.icon}
-                </div>
-                <h3 className="font-bold text-xs sm:text-base text-slate-900 mb-1 leading-snug">
-                  {p.title}
+              <span aria-hidden="true" className={perk.shape} />
+              <div className="relative w-10 h-10 rounded-full bg-white/15 flex items-center justify-center">
+                <perk.icon className="w-5 h-5 text-white" />
+              </div>
+              <div className="relative mt-8">
+                <h3 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-white leading-tight">
+                  {perk.title}
                 </h3>
-                <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed line-clamp-3 sm:line-clamp-none">
-                  {p.desc}
-                </p>
+                <p className="mt-1.5 text-sm text-white/75 leading-relaxed">{perk.desc}</p>
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-10 sm:mt-12 flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-8">
+          <Link to="/login" className="group inline-flex items-center gap-4 text-white font-semibold">
+            <span>Book a Service</span>
+            <span className="w-12 h-12 rounded-full bg-orange-500 group-hover:bg-orange-400 flex items-center justify-center transition-transform group-hover:translate-x-1">
+              <ArrowRight className="w-5 h-5" />
+            </span>
+          </Link>
+          <a href="#tracking-hero" className="group inline-flex items-center gap-4 text-white font-semibold">
+            <span>Track My Repair</span>
+            <span className="w-12 h-12 rounded-full border border-white/25 group-hover:border-white/60 flex items-center justify-center transition-transform group-hover:translate-x-1">
+              <ArrowRight className="w-5 h-5" />
+            </span>
+          </a>
         </div>
       </div>
     </section>

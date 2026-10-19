@@ -1,71 +1,78 @@
-import { Calendar, Clock, Wrench, CheckCircle2 } from 'lucide-react';
+import { useRef } from 'react';
+import { motion, useScroll, useTransform } from 'motion/react';
+import { CalendarCheck, Ticket, Wrench, KeyRound } from 'lucide-react';
+import { Reveal, SectionPill } from './motion';
+import { staggerChild, staggerParent } from './motionVariants';
+
+const STEPS = [
+  {
+    icon: CalendarCheck,
+    title: 'Book online',
+    desc: 'Pick a service, your motorcycle, a date (Monday to Saturday) and an arrival window.',
+  },
+  {
+    icon: Ticket,
+    title: 'Drop off your bike',
+    desc: 'Bring it in during your window. Walk-ins are welcome too and get a ticket number at the counter.',
+  },
+  {
+    icon: Wrench,
+    title: 'Track every stage',
+    desc: 'Follow the repair live: Intake, Inspect, Service, Test, and Ready.',
+  },
+  {
+    icon: KeyRound,
+    title: 'Pick up & ride',
+    desc: "We'll tell you when it's ready. Pay cash at the counter and ride out.",
+  },
+];
 
 export default function HowItWorksSection() {
-  const steps = [
-    {
-      step: 'STEP 1',
-      title: 'Book Online',
-      desc: 'Select your preferred service schedule and register your motorcycle profile.',
-      icon: <Calendar className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-    },
-    {
-      step: 'STEP 2',
-      title: 'Shop Drop-Off',
-      desc: 'Bring your motorcycle to the shop and get your unique Tracking Ticket Code.',
-      icon: <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-    },
-    {
-      step: 'STEP 3',
-      title: 'Expert Servicing',
-      desc: 'Our certified mechanics perform repairs while you track the status online in real time.',
-      icon: <Wrench className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-    },
-    {
-      step: 'STEP 4',
-      title: 'Ready for Pickup',
-      desc: 'Receive immediate status update when your motorcycle is tested and ready to ride.',
-      icon: <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-    }
-  ];
+  // Scroll-linked: the lines between steps draw from left to right as you scroll
+  const listRef = useRef<HTMLOListElement>(null);
+  const { scrollYProgress } = useScroll({ target: listRef, offset: ['start 0.9', 'start 0.4'] });
+  const lineScale = useTransform(scrollYProgress, [0, 1], [0, 1]);
 
   return (
-    <section id="how-it-works" className="scroll-mt-16 sm:scroll-mt-20 py-12 sm:py-20 px-3.5 sm:px-6 lg:px-8 bg-slate-100/50 border-b border-slate-200/80">
-      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <span className="text-orange-600 text-xs font-bold tracking-wider uppercase bg-orange-50 border border-orange-200/80 px-3 py-1 rounded-full">
-            Simple Process
-          </span>
-          <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight pt-1">
-            How It Works
+    <section id="how-it-works" className="scroll-mt-16 sm:scroll-mt-20 px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+      <div className="max-w-7xl mx-auto">
+        <Reveal className="text-center max-w-3xl mx-auto">
+          <SectionPill>How it works</SectionPill>
+          <h2 className="text-balance mt-4 text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-[-0.035em] text-slate-900 leading-[1.04]">
+            From booking to pickup, <span className="text-orange-500">in four steps</span>
           </h2>
-          <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto">
-            Servicing your motorcycle with full transparency and zero guesswork.
+          <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed">
+            Full transparency, zero guesswork. You always know where your motorcycle is.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          {steps.map((s, idx) => (
-            <div
-              key={idx}
-              className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-6 text-center shadow-2xs hover:shadow-sm transition flex flex-col justify-between"
-            >
-              <div className="space-y-2 sm:space-y-3">
-                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-orange-500 flex items-center justify-center mx-auto shadow-sm shadow-orange-500/25">
-                  {s.icon}
+        <motion.ol
+          ref={listRef}
+          className="mt-12 sm:mt-16 grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+          variants={staggerParent}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true, margin: '0px 0px -10% 0px' }}
+        >
+          {STEPS.map((step, i) => (
+            <motion.li key={step.title} variants={staggerChild} className="relative">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0">
+                  <step.icon className="w-5 h-5" />
                 </div>
-                <div className="text-[10px] sm:text-[11px] font-bold text-orange-600 tracking-wider uppercase">
-                  {s.step}
-                </div>
-                <h3 className="text-xs sm:text-base font-bold text-slate-900 leading-snug">
-                  {s.title}
-                </h3>
-                <p className="text-slate-500 text-[11px] sm:text-xs leading-relaxed max-w-xs mx-auto line-clamp-3 sm:line-clamp-none">
-                  {s.desc}
-                </p>
+                <span className="font-display text-sm font-bold text-orange-500">0{i + 1}</span>
+                {/* Connector to the next step (desktop) */}
+                {i < STEPS.length - 1 && (
+                  <span aria-hidden="true" className="hidden lg:block flex-1 h-px bg-slate-200 ml-1 overflow-hidden">
+                    <motion.span style={{ scaleX: lineScale }} className="block h-full bg-orange-400 origin-left" />
+                  </span>
+                )}
               </div>
-            </div>
+              <h3 className="mt-5 font-display text-xl font-bold tracking-tight text-slate-900">{step.title}</h3>
+              <p className="mt-2 text-sm text-slate-500 leading-relaxed">{step.desc}</p>
+            </motion.li>
           ))}
-        </div>
+        </motion.ol>
       </div>
     </section>
   );

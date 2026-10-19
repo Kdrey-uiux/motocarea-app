@@ -4,7 +4,7 @@ import { recordAuditLog } from './databaseAuditLogger';
 import { InternalTicket } from '../types/internal';
 
 /**
- * Workshop ticket actions shared by the Queue and the Action Center,
+ * Workshop ticket actions shared by the Queue and other console screens,
  * so both screens behave exactly the same.
  */
 
@@ -76,6 +76,42 @@ export async function acceptOnlineBooking(
       : 'Online booking accepted and placed into Stage 1 intake.',
     previousValue: ticket.status,
     newValue: 'IN_PROGRESS',
+  });
+
+  broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
+  return { success: true };
+}
+
+/**
+ * Moves a motorcycle on a bay to the next repair stage (2 → 3 → 4). Stage 5 is
+ * "ready for pickup", which goes through the release modal instead.
+ */
+export async function advanceTicketStage(
+  ticket: InternalTicket,
+  nextStage: number,
+  actor: string
+): Promise<{ success: boolean; error?: string }> {
+  const updates = {
+    stage: nextStage,
+    status: nextStage === 5 ? 'READY_FOR_PICKUP' : 'IN_PROGRESS',
+  };
+
+  const { data, error } = await db()
+    .from('service_tickets')
+    .update(updates)
+    .eq('id', ticket.id)
+    .select('id, ticket_code');
+
+  if (error) return { success: false, error: error.message };
+  if (!data || data.length === 0) return { success: false, error: RLS_WRITE_ERROR };
+
+  await recordAuditLog({
+    ticketCode: ticket.ticket_code,
+    action: 'STAGE_ADVANCE',
+    actor,
+    details: `Stage advanced from Stage ${ticket.stage} to Stage ${nextStage}`,
+    previousValue: `Stage ${ticket.stage}`,
+    newValue: `Stage ${nextStage}`,
   });
 
   broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
