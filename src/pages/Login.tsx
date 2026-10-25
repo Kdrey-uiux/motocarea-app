@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { verifyCustomerSession, WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE } from '../lib/customerAuth';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -20,7 +20,8 @@ import {
 import { motion } from 'motion/react';
 import LegalTermsModal from '../components/legal/LegalTermsModal';
 import MotoCareLogo from '../components/brand/MotoCareLogo';
-import { getCaptchaToken } from '../lib/captcha';
+import { CAPTCHA_ENABLED } from '../lib/captcha';
+import TurnstileWidget, { type TurnstileHandle } from '../components/auth/TurnstileWidget';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
 
@@ -138,6 +139,9 @@ export default function Login() {
 
   // Status & Feedback States
   const [loading, setLoading] = useState(false);
+  // Cloudflare check (only when a site key is set): one token per request
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(readOAuthError);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -484,6 +488,11 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (CAPTCHA_ENABLED && !captchaToken) {
+      setErrorMessage('Please finish the security check above the button.');
+      return;
+    }
+    const tokenForRequest = captchaToken ?? undefined;
     setLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -536,12 +545,11 @@ export default function Login() {
         const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
         // Create Account via Supabase (with the Cloudflare check when it is set up)
-        const captchaToken = await getCaptchaToken('signup');
         const { data: signUpData, error: signUpError } = await withAuthTimeout(supabase.auth.signUp({
           email: cleanEmail,
           password: registerPassword,
           options: {
-            captchaToken,
+            captchaToken: tokenForRequest,
             data: {
               first_name: firstName.trim(),
               last_name: lastName.trim(),
@@ -605,11 +613,10 @@ export default function Login() {
         }
         const targetEmail = rawInput.toLowerCase();
 
-        const captchaToken = await getCaptchaToken('login');
         const { data: authData, error: authError } = await withAuthTimeout(supabase.auth.signInWithPassword({
           email: targetEmail,
           password: signInPassword,
-          options: { captchaToken },
+          options: { captchaToken: tokenForRequest },
         }));
 
         if (authError) {
@@ -637,10 +644,9 @@ export default function Login() {
         }
         const recoveryEmail = rawInput.toLowerCase();
 
-        const captchaToken = await getCaptchaToken('password_reset');
         const { error } = await withAuthTimeout(supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: getAuthRedirectUrl('/reset-password'),
-          captchaToken,
+          captchaToken: tokenForRequest,
         }));
 
         if (error) throw error;
@@ -652,6 +658,8 @@ export default function Login() {
       setErrorMessage((err instanceof Error && err.message) || 'An unexpected authentication error occurred.');
     } finally {
       setLoading(false);
+      // The token was used up: get a fresh check for the next try
+      captchaRef.current?.reset();
     }
   };
 
@@ -1178,10 +1186,19 @@ export default function Login() {
                 </div>
               )}
 
+              {/* Cloudflare security check (shows only when a site key is set) */}
+              <TurnstileWidget
+                key={mode}
+                ref={captchaRef}
+                action={mode === 'register' ? 'signup' : mode === 'forgot_password' ? 'password_reset' : 'login'}
+                onToken={setCaptchaToken}
+                className="pt-1"
+              />
+
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || (mode === 'register' && !isFormValid)}
+                disabled={loading || (mode === 'register' && !isFormValid) || (CAPTCHA_ENABLED && !captchaToken)}
                 className="w-full mt-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full transition flex items-center justify-center gap-2 shadow-sm shadow-orange-500/20 active:scale-[0.98] cursor-pointer"
               >
                 {loading ? (

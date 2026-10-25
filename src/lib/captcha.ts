@@ -5,8 +5,9 @@
  * getCaptchaToken() and passes it to Supabase as `captchaToken`; Supabase checks it on the
  * server once CAPTCHA protection is turned on (Dashboard → Authentication → Attack Protection).
  *
- * The check is usually invisible. Only when Cloudflare wants an interaction does a small card
- * with the Turnstile box appear at the bottom of the screen.
+ * Sign-in forms show the Cloudflare box itself (components/auth/TurnstileWidget.tsx) and pass
+ * its token. Owner-only actions (adding staff, staff password reset) use getCaptchaToken(),
+ * which checks quietly and only shows a small card when Cloudflare wants a click.
  *
  * Without VITE_TURNSTILE_SITE_KEY nothing changes: getCaptchaToken() returns undefined and
  * sign-in works as before (turn CAPTCHA on in Supabase only after the key is deployed).
@@ -17,6 +18,7 @@ interface TurnstileRenderOptions {
   action?: string;
   appearance?: 'always' | 'execute' | 'interaction-only';
   theme?: 'auto' | 'light' | 'dark';
+  size?: 'normal' | 'flexible' | 'compact';
   callback?: (token: string) => void;
   'error-callback'?: () => void;
   'expired-callback'?: () => void;
@@ -28,18 +30,26 @@ declare global {
   interface Window {
     turnstile?: {
       render: (container: HTMLElement, options: TurnstileRenderOptions) => string;
+      reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
     };
   }
 }
 
 const SITE_KEY = (import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined)?.trim();
+
+/** True once a Turnstile site key is configured (the check is on) */
+export const CAPTCHA_ENABLED = Boolean(SITE_KEY);
+
+export function getTurnstileSiteKey(): string | undefined {
+  return SITE_KEY;
+}
 const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const GIVE_UP_AFTER_MS = 90_000;
 
 let scriptLoading: Promise<void> | null = null;
 
-function loadTurnstile(): Promise<void> {
+export function loadTurnstile(): Promise<void> {
   if (window.turnstile) return Promise.resolve();
   if (!scriptLoading) {
     scriptLoading = new Promise((resolve, reject) => {

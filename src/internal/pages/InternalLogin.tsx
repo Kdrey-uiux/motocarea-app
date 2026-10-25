@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { 
   authenticateInternal, 
@@ -15,13 +15,15 @@ import {
   CheckCircle2 
 } from '../../components/icons';
 import { useThemePreference } from '../../utils/theme';
+import { CAPTCHA_ENABLED } from '../../lib/captcha';
+import TurnstileWidget, { type TurnstileHandle } from '../../components/auth/TurnstileWidget';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 export default function InternalLogin() {
   const navigate = useNavigate();
 
   // Same look as the console: saved light/dark choice and the iOS system font
-  useThemePreference();
+  const [, , isDarkTheme] = useThemePreference();
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add('ios-ui');
@@ -35,6 +37,9 @@ export default function InternalLogin() {
   const [rememberMe, setRememberMe] = useState(() => Boolean(getRememberedEmail()));
 
   const [loading, setLoading] = useState(false);
+  // Cloudflare check (only when a site key is set): one token per sign-in try
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaRef = useRef<TurnstileHandle>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -48,6 +53,10 @@ export default function InternalLogin() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (CAPTCHA_ENABLED && !captchaToken) {
+      setErrorMessage('Please finish the security check above the button.');
+      return;
+    }
     setLoading(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -55,7 +64,7 @@ export default function InternalLogin() {
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-      const result = await authenticateInternal(cleanEmail, password, rememberMe);
+      const result = await authenticateInternal(cleanEmail, password, rememberMe, captchaToken ?? undefined);
 
       if (!result.success || !result.session) {
         throw new Error(result.error || 'Access Denied: Invalid work credentials or unauthorized personnel.');
@@ -77,6 +86,8 @@ export default function InternalLogin() {
       );
     } finally {
       setLoading(false);
+      // The token was used up: get a fresh check for the next try
+      captchaRef.current?.reset();
     }
   };
 
@@ -177,10 +188,13 @@ export default function InternalLogin() {
             </label>
           </div>
 
+          {/* Cloudflare security check (shows only when a site key is set) */}
+          <TurnstileWidget ref={captchaRef} action="staff_login" onToken={setCaptchaToken} theme={isDarkTheme ? 'dark' : 'light'} />
+
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (CAPTCHA_ENABLED && !captchaToken)}
             className="w-full bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-semibold py-3 rounded-full text-sm transition cursor-pointer shadow-md shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
           >
             {loading ? (

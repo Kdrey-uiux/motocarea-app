@@ -127,7 +127,9 @@ export function setRememberedEmail(email: string): void {
 export async function authenticateInternal(
   email: string,
   password?: string,
-  rememberMe: boolean = false
+  rememberMe: boolean = false,
+  /** Token from the visible Cloudflare box; without it a quiet check runs */
+  captchaToken?: string
 ): Promise<{ success: boolean; session?: InternalSession; error?: string }> {
   const cleanEmail = email.trim().toLowerCase();
 
@@ -136,12 +138,12 @@ export async function authenticateInternal(
   }
 
   try {
-    const captchaToken = await getCaptchaToken('staff_login');
+    const token = captchaToken ?? (await getCaptchaToken('staff_login'));
     const { data: authData, error: authError } =
       await internalTabAuthClient.auth.signInWithPassword({
         email: cleanEmail,
         password,
-        options: { captchaToken },
+        options: { captchaToken: token },
       });
 
     // Created but not confirmed yet (usually a staff account made before migration 13)
