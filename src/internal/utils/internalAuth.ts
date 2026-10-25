@@ -1,4 +1,5 @@
 import { workshopSupabase, WORKSHOP_TOKEN_STORAGE_KEY } from '../../lib/supabase';
+import { getCaptchaToken } from '../../lib/captcha';
 
 const INTERNAL_AUTH_KEY = 'motocare_internal_auth_session';
 const INTERNAL_SUPABASE_TOKEN_KEY = WORKSHOP_TOKEN_STORAGE_KEY;
@@ -135,10 +136,12 @@ export async function authenticateInternal(
   }
 
   try {
+    const captchaToken = await getCaptchaToken('staff_login');
     const { data: authData, error: authError } =
       await internalTabAuthClient.auth.signInWithPassword({
         email: cleanEmail,
         password,
+        options: { captchaToken },
       });
 
     // Created but not confirmed yet (usually a staff account made before migration 13)

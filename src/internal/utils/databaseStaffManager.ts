@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { InternalStaffMember } from '../types/internal';
 import { db, supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../../lib/supabase';
 import { recordAuditLog } from './databaseAuditLogger';
+import { getCaptchaToken } from '../../lib/captcha';
 
 const STAFF_REALTIME_CHANNEL = 'motocare_staff_realtime';
 const STAFF_STORAGE_KEY = 'motocare_internal_staff_registry';
@@ -157,10 +158,12 @@ export async function createDatabaseStaffMember({
     }
 
     // 2. Create the Supabase Auth user with a non-persisting provisioning client
+    const captchaToken = await getCaptchaToken('staff_signup');
     const { data: authData, error: authError } = await staffProvisioningClient.auth.signUp({
       email: cleanEmail,
       password,
       options: {
+        captchaToken,
         data: {
           full_name: cleanName,
           phone_number: cleanPhone,
@@ -381,8 +384,10 @@ export async function sendStaffPasswordResetEmail(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const siteUrl = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, '');
+    const captchaToken = await getCaptchaToken('staff_password_reset');
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: `${siteUrl}/reset-password`,
+      captchaToken,
     });
     if (error) {
       return { success: false, error: error.message };

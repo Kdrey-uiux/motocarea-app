@@ -445,3 +445,34 @@ html.dark:has(.loading-screen) body {
     display: block !important;
   }
 }
+/* =========================================================================
+   SECURITY CHECK (lib/captcha.ts): Cloudflare Turnstile card. It stays invisible
+   while the check runs quietly, and only shows when Cloudflare asks for a click.
+   Kept in the page (not display:none) so the check can run.
+   ========================================================================= */
+.captcha-host {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 200;
+  transform: translate(-50%, 8px);
+  padding: 12px 12px 10px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid rgb(15 23 42 / 0.08);
+  box-shadow: 0 18px 40px -16px rgb(15 23 42 / 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.captcha-host--visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+.captcha-host__note {
+  margin: 0 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}

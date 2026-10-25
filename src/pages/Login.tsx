@@ -20,6 +20,7 @@ import {
 import { motion } from 'motion/react';
 import LegalTermsModal from '../components/legal/LegalTermsModal';
 import MotoCareLogo from '../components/brand/MotoCareLogo';
+import { getCaptchaToken } from '../lib/captcha';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
 
@@ -534,11 +535,13 @@ export default function Login() {
         const cleanEmail = email.trim().toLowerCase();
         const fullName = `${firstName.trim()} ${lastName.trim()}`;
 
-        // Create Account via Supabase
+        // Create Account via Supabase (with the Cloudflare check when it is set up)
+        const captchaToken = await getCaptchaToken('signup');
         const { data: signUpData, error: signUpError } = await withAuthTimeout(supabase.auth.signUp({
           email: cleanEmail,
           password: registerPassword,
           options: {
+            captchaToken,
             data: {
               first_name: firstName.trim(),
               last_name: lastName.trim(),
@@ -602,9 +605,11 @@ export default function Login() {
         }
         const targetEmail = rawInput.toLowerCase();
 
+        const captchaToken = await getCaptchaToken('login');
         const { data: authData, error: authError } = await withAuthTimeout(supabase.auth.signInWithPassword({
           email: targetEmail,
           password: signInPassword,
+          options: { captchaToken },
         }));
 
         if (authError) {
@@ -632,8 +637,10 @@ export default function Login() {
         }
         const recoveryEmail = rawInput.toLowerCase();
 
+        const captchaToken = await getCaptchaToken('password_reset');
         const { error } = await withAuthTimeout(supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: getAuthRedirectUrl('/reset-password'),
+          captchaToken,
         }));
 
         if (error) throw error;
