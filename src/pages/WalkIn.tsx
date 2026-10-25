@@ -14,7 +14,7 @@ import MotoCareLogo from '../components/brand/MotoCareLogo';
 
 /**
  * Landing page for walk-in customers: no account and no online booking,
- * only the ticket number the shop wrote down for them (e.g. MC-W-4821).
+ * only the ticket number the shop wrote down for them (e.g. MC-W-7KQ4P9).
  */
 
 // Keeps letters, digits and dashes, and drops a typed or pasted "MC-" prefix
@@ -28,7 +28,7 @@ const STEPS = [
   {
     icon: ClipboardList,
     title: 'Check in at the counter',
-    text: 'Our staff record your motorcycle and give you a ticket number like MC-W-4821.',
+    text: 'Our staff record your motorcycle and give you a ticket number like MC-W-7KQ4P9.',
   },
   {
     icon: Gauge,
@@ -109,7 +109,7 @@ export default function WalkIn() {
                   maxLength={10}
                   value={ticketInput}
                   onChange={(e) => setTicketInput(cleanTicketInput(e.target.value))}
-                  placeholder="W-4821"
+                  placeholder="W-7KQ4P9"
                   aria-label="Ticket number"
                   className="w-full min-w-0 bg-transparent text-slate-900 placeholder-slate-300 text-sm focus:outline-none font-mono font-bold tracking-wider"
                 />
@@ -125,7 +125,7 @@ export default function WalkIn() {
             </form>
 
             <p className="text-[11px] text-slate-500">
-              Your ticket number is on the slip from the counter, for example <span className="font-mono font-bold text-slate-700">MC-W-4821</span>.
+              Your ticket number is on the slip from the counter, for example <span className="font-mono font-bold text-slate-700">MC-W-7KQ4P9</span>.
               Lost it? Ask our staff at the counter.
             </p>
           </section>

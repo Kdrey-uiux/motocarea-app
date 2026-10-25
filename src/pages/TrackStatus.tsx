@@ -15,6 +15,7 @@ import {
   Store
 } from 'lucide-react';
 import MotoCareLogo from '../components/brand/MotoCareLogo';
+import { normalizeTicketCode } from '../utils/ticketCode';
 
 interface PublicTicket {
   id: string;
@@ -105,21 +106,6 @@ function isSearchableCode(code: string): boolean {
   return Boolean(code) && code !== 'MC-' && code !== 'MC-W-';
 }
 
-function normalizeTicketCode(input: string): string {
-  let cleaned = input.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-  if (!cleaned) return '';
-  if (cleaned.startsWith('MC-')) {
-    cleaned = cleaned.slice(3);
-  }
-  if (cleaned.startsWith('W-')) {
-    return `MC-W-${cleaned.slice(2).replace(/\D/g, '')}`;
-  } else if (cleaned.startsWith('W')) {
-    return `MC-W-${cleaned.slice(1).replace(/\D/g, '')}`;
-  } else {
-    return `MC-${cleaned.replace(/\D/g, '')}`;
-  }
-}
-
 export default function TrackStatus() {
   const { ticketCode } = useParams<{ ticketCode?: string }>();
   const navigate = useNavigate();
@@ -135,7 +121,7 @@ export default function TrackStatus() {
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   // Codes the visitor already verified this visit, so live refreshes keep working
-  // A walk-in slip's QR code links to /track/MC-W-1234?d=YYYY-MM-DD: the date on the slip,
+  // A walk-in slip's QR code links to /track/MC-W-7KQ4P9?d=YYYY-MM-DD: the date on the slip,
   // so scanning it shows the status right away (a wrong date falls back to the form)
   const [verifiedDates] = useState(() => {
     const dates = new Map<string, string>();
@@ -215,7 +201,7 @@ export default function TrackStatus() {
     }
   };
 
-  // The code in the URL (/track/MC-1234) fills the search box and starts the lookup
+  // The code in the URL (/track/MC-7KQ4P9) fills the search box and starts the lookup
   const urlCode = ticketCode ? normalizeTicketCode(ticketCode) : '';
   const urlCodeIsValid = isSearchableCode(urlCode);
   const [shownUrlCode, setShownUrlCode] = useState('');
@@ -413,7 +399,7 @@ export default function TrackStatus() {
                   if (val.startsWith('MC-')) val = val.slice(3);
                   setTicketInput(val.slice(0, 10));
                 }}
-                placeholder="4821 or W-4821"
+                placeholder="7KQ4P9 or W-7KQ4P9"
                 className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-mono font-bold tracking-wider focus:outline-none"
               />
               <button

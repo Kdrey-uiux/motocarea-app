@@ -134,7 +134,7 @@ export async function authenticateInternal(
   const cleanEmail = email.trim().toLowerCase();
 
   if (!cleanEmail || !password) {
-    return { success: false, error: 'Please enter both your work email and password.' };
+    return { success: false, error: 'Enter your work email and password.' };
   }
 
   try {
@@ -150,7 +150,7 @@ export async function authenticateInternal(
     if (authError && authError.message.toLowerCase().includes('email not confirmed')) {
       return {
         success: false,
-        error: 'This account is not confirmed yet. Ask the Shop Owner to recreate it, or confirm it in Supabase.',
+        error: "This account isn't confirmed yet. Ask the shop owner.",
       };
     }
 
@@ -169,7 +169,7 @@ export async function authenticateInternal(
         await internalTabAuthClient.auth.signOut({ scope: 'local' });
         return {
           success: false,
-          error: 'Access Denied: Invalid work credentials or unauthorized personnel.',
+          error: 'Wrong email or password.',
         };
       }
 
@@ -178,7 +178,7 @@ export async function authenticateInternal(
         await internalTabAuthClient.auth.signOut({ scope: 'local' });
         return {
           success: false,
-          error: 'Account Suspended: This personnel account has been deactivated by the Shop Owner.',
+          error: 'This account is turned off. Ask the shop owner.',
         };
       }
 
@@ -205,13 +205,16 @@ export async function authenticateInternal(
 
     return {
       success: false,
-      error: 'Access Denied: Invalid work credentials or unauthorized personnel.',
+      error: 'Wrong email or password.',
     };
   } catch (err: unknown) {
-    const msg =
-      err instanceof Error
-        ? err.message
-        : 'Access Denied: Invalid work credentials or unauthorized personnel.';
+    const raw = err instanceof Error ? err.message : '';
+    // Short, plain messages instead of raw server text
+    const msg = /captcha/i.test(raw)
+      ? 'Security check failed. Please try again.'
+      : /fetch|network|timeout/i.test(raw)
+        ? "Can't reach the server. Check your internet and try again."
+        : raw || 'Wrong email or password.';
     return { success: false, error: msg };
   }
 }

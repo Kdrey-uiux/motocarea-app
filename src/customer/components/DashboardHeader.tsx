@@ -7,7 +7,7 @@ import {
   User,
   ShieldCheck,
   Key,
-  LogOut,
+  SignOutIcon,
   CheckCircle2,
   Clock,
   Stamp,
@@ -224,12 +224,12 @@ export default function DashboardHeader({
 
   return (
     <header
-      className={`z-30 bg-page/95 backdrop-blur-md transition-all duration-300 sticky top-0 md:fixed md:top-0 md:right-0 ${
+      className={`z-30 bg-gradient-to-b from-page from-75% to-page/0 dark:from-page/50 transition-all duration-300 sticky top-0 md:fixed md:top-0 md:right-0 ${
         isSidebarCollapsed ? 'md:left-0' : 'md:left-24'
       }`}
     >
       <div className="max-w-7xl mx-auto w-full pt-2.5 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8">
-        <div id="tour-header-bar" className="bg-white/95 backdrop-blur-md border border-slate-200/80 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 shadow-xs flex items-center justify-between gap-2 sm:gap-4 relative">
+        <div id="tour-header-bar" className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-[2rem] px-3.5 sm:px-6 py-2 sm:py-2.5 card-elevated flex items-center justify-between gap-2 sm:gap-4 relative">
         {/* Left: Brand Logo & Mobile Toggle */}
         <div className="flex items-center gap-3">
           <button
@@ -478,8 +478,8 @@ export default function DashboardHeader({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span>Account Profile & Garage</span>
+                  <User className="w-4 h-4 text-slate-400" />
+                  <span>Profile & Garage</span>
                 </button>
 
                 <button
@@ -494,7 +494,7 @@ export default function DashboardHeader({
                   }}
                   className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >
-                  <ShieldCheck className="w-4 h-4 text-orange-500" />
+                  <ShieldCheck className="w-4 h-4 text-slate-400" />
                   <span>Settings & Policies</span>
                 </button>
 
@@ -505,10 +505,10 @@ export default function DashboardHeader({
                       setIsUserMenuOpen(false);
                       onOpenTutorial();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-orange-700 bg-orange-50/60 hover:bg-orange-100/80 rounded-xl transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                   >
-                    <BookOpen className="w-4 h-4 text-orange-500" />
-                    <span>User Guide & Onboarding</span>
+                    <BookOpen className="w-4 h-4 text-slate-400" />
+                    <span>User Guide</span>
                   </button>
                 )}
 
@@ -533,8 +533,8 @@ export default function DashboardHeader({
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                   >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign Out</span>
+                    <SignOutIcon className="w-4 h-4" />
+                    <span>Sign out</span>
                   </button>
                 </div>
               </div>

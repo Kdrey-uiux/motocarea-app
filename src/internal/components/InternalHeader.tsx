@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { 
   LogOut, 
-  Menu, 
+  Menu,
+  PanelLeft, 
   Bell, 
   Check,
   ChevronDown,
@@ -27,6 +28,9 @@ interface InternalHeaderProps {
   onRefresh?: () => void;
   onLogout: () => void;
   onToggleMobileMenu: () => void;
+  /** Desktop: shrink the sidebar to icons, or open it again */
+  isSidebarCollapsed?: boolean;
+  onToggleSidebarCollapse?: () => void;
   currentRole: UserRole;
   currentUserName?: string;
   activeTab?: InternalTab;
@@ -45,6 +49,8 @@ interface InternalHeaderProps {
 export default function InternalHeader({
   onLogout,
   onToggleMobileMenu,
+  isSidebarCollapsed = false,
+  onToggleSidebarCollapse,
   currentRole,
   currentUserName = 'Workshop Personnel',
   activeTab = 'dashboard',
@@ -60,7 +66,6 @@ export default function InternalHeader({
 }: InternalHeaderProps) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const notifRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -87,11 +92,7 @@ export default function InternalHeader({
 
   const handleLogoutClick = () => {
     setIsUserMenuOpen(false);
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    setShowLogoutConfirm(false);
+    // The console asks "Are you sure?" before signing out
     onLogout();
   };
 
@@ -114,6 +115,18 @@ export default function InternalHeader({
             >
               <Menu className="w-5 h-5" />
             </button>
+            {onToggleSidebarCollapse && (
+              <button
+                type="button"
+                onClick={onToggleSidebarCollapse}
+                className="hidden lg:flex w-9 h-9 rounded-xl items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer shrink-0"
+                aria-label={isSidebarCollapsed ? 'Show the full sidebar' : 'Collapse the sidebar'}
+                aria-pressed={isSidebarCollapsed}
+                title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+              >
+                <PanelLeft className="w-5 h-5" />
+              </button>
+            )}
 
             <div className="min-w-0 pl-1">
               <h1 className="font-display text-base sm:text-xl font-bold text-slate-900 tracking-tight truncate leading-tight">
@@ -375,36 +388,6 @@ export default function InternalHeader({
         </div>
       </header>
 
-      {/* Logout Confirmation Modal */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-              <LogOut className="w-6 h-6" />
-            </div>
-            <div className="text-center space-y-1">
-              <h3 className="font-display text-lg font-bold text-slate-900">Sign out?</h3>
-              <p className="text-sm text-slate-500">You&apos;ll need to sign in again to use the console on this device.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2 pt-2 text-sm">
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 font-semibold text-slate-700 transition cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmLogout}
-                className="px-4 py-2.5 rounded-full bg-rose-600 hover:bg-rose-700 font-semibold text-white transition cursor-pointer"
-              >
-                Sign out
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

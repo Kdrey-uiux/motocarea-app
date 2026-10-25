@@ -16,7 +16,7 @@ import SettingsTab from './tabs/SettingsTab';
 // Modals
 import ChangePasswordModal from './modals/ChangePasswordModal';
 import MessagesModal from './modals/MessagesModal';
-import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../components/auth/ConfirmLogoutModal';
 import CancelBookingModal from './modals/CancelBookingModal';
 import SpotlightTour from '../components/tutorial/SpotlightTour';
 
@@ -170,7 +170,7 @@ export default function CustomerDashboard() {
           const loaded = await loadDashboardData(user.id);
           setIsCheckingAuth(false);
 
-          // Links like /dashboard/book?reschedule=MC-1234 (missed-booking notice) open the reschedule form
+          // Links like /dashboard/book?reschedule=MC-7KQ4P9 (missed-booking notice) open the reschedule form
           const rescheduleCode = new URLSearchParams(window.location.search).get('reschedule');
           const toReschedule =
             rescheduleCode && loaded

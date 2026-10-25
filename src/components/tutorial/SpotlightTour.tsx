@@ -127,8 +127,8 @@ const TOUR_STEPS: TourStep[] = [
       tl: 'Mensahe sa Mekaniko at Gabay',
     },
     description: {
-      en: 'Message our service advisors directly using the chat button, or track your repair anywhere at /track with your Ticket Code (#MC-XXXX).',
-      tl: 'Direktang kausapin ang service advisor gamit ang chat button, o i-track ang motor sa /track gamit ang Ticket Code (#MC-XXXX).',
+      en: 'Message our service advisors directly using the chat button, or track your repair anywhere at /track with your Ticket Code (#MC-XXXXXX).',
+      tl: 'Direktang kausapin ang service advisor gamit ang chat button, o i-track ang motor sa /track gamit ang Ticket Code (#MC-XXXXXX).',
     },
     tip: {
       en: 'Tip: You can re-open this guide anytime via the User Guide button in the top menu.',

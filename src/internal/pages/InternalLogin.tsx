@@ -11,8 +11,7 @@ import {
   Eye, 
   EyeOff, 
   Loader2, 
-  AlertCircle, 
-  CheckCircle2 
+  AlertCircle,
 } from '../../components/icons';
 import { useThemePreference } from '../../utils/theme';
 import { CAPTCHA_ENABLED } from '../../lib/captcha';
@@ -41,7 +40,7 @@ export default function InternalLogin() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const captchaRef = useRef<TurnstileHandle>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
 
   // Already logged in on this tab: go straight to the console
   useEffect(() => {
@@ -53,38 +52,42 @@ export default function InternalLogin() {
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = email.trim().toLowerCase();
+    // Quick checks before asking the server
+    if (!cleanEmail) {
+      setErrorMessage('Enter your work email.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setErrorMessage('Enter a valid email address.');
+      return;
+    }
+    if (!password) {
+      setErrorMessage('Enter your password.');
+      return;
+    }
     if (CAPTCHA_ENABLED && !captchaToken) {
       setErrorMessage('Please finish the security check above the button.');
       return;
     }
     setLoading(true);
     setErrorMessage(null);
-    setSuccessMessage(null);
-
-    const cleanEmail = email.trim().toLowerCase();
 
     try {
       const result = await authenticateInternal(cleanEmail, password, rememberMe, captchaToken ?? undefined);
 
       if (!result.success || !result.session) {
-        throw new Error(result.error || 'Access Denied: Invalid work credentials or unauthorized personnel.');
+        throw new Error(result.error || 'Wrong email or password.');
       }
 
-      setSuccessMessage(
-        `Welcome back, ${result.session.fullName}! Opening ${
-          result.session.role === 'admin' ? 'Shop Owner' : 'Floor Operations'
-        } Console...`
-      );
-
-      setTimeout(() => {
-        navigate('/internal', { replace: true });
-      }, 700);
+      // Signed in: go straight to the console (the button keeps its spinner until the page changes)
+      setOpening(true);
+      navigate('/internal', { replace: true });
     } catch (err: unknown) {
       console.error('Internal auth error:', err);
       setErrorMessage(
-        err instanceof Error ? err.message : 'Access Denied: Invalid work credentials or unauthorized personnel.'
+        err instanceof Error ? err.message : 'Wrong email or password.'
       );
-    } finally {
       setLoading(false);
       // The token was used up: get a fresh check for the next try
       captchaRef.current?.reset();
@@ -105,10 +108,10 @@ export default function InternalLogin() {
         {/* Header Titles */}
         <div className="text-center mb-6">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-            Workshop Console Login
+            Staff sign in
           </h2>
           <p className="text-slate-500 text-xs mt-1">
-            Authorized Floor Technicians & Management Access Only
+            For MotoCare owner and staff only
           </p>
         </div>
 
@@ -116,15 +119,7 @@ export default function InternalLogin() {
         {errorMessage && (
           <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2.5 animate-in fade-in">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-            <span className="flex-1 leading-relaxed">{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Success Alert */}
-        {successMessage && (
-          <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-2.5 text-emerald-700 text-xs sm:text-sm font-medium animate-in fade-in">
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-            <span className="flex-1 leading-relaxed">{successMessage}</span>
+            <span className="flex-1 leading-relaxed" role="alert">{errorMessage}</span>
           </div>
         )}
 
@@ -143,7 +138,10 @@ export default function InternalLogin() {
                 autoFocus
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrorMessage(null);
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
               />
             </div>
@@ -161,7 +159,10 @@ export default function InternalLogin() {
                 required
                 autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrorMessage(null);
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-11 py-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
               />
               <button
@@ -200,7 +201,7 @@ export default function InternalLogin() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Signing In...</span>
+                <span>{opening ? 'Opening console…' : 'Signing in…'}</span>
               </>
             ) : (
               <span>Sign In</span>
@@ -211,7 +212,7 @@ export default function InternalLogin() {
         {/* Footer Note */}
         <div className="mt-6 pt-4 border-t border-slate-100 text-center">
           <p className="text-xs text-slate-500 font-medium">
-            MotoCare Hub Santa Maria, Bulacan • Secure Enterprise Session
+            MotoCare · Santa Maria, Bulacan
           </p>
         </div>
 

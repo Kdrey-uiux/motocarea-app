@@ -63,6 +63,7 @@ import {
   ServiceCategoryKey, 
   ServiceCategoryOption 
 } from '../../utils/serviceCatalog';
+import { newTicketCode } from '../../utils/ticketCode';
 
 export { SERVICE_CATEGORIES };
 export type { ServiceCategoryKey, ServiceCategoryOption };
@@ -743,12 +744,10 @@ export default function BookServiceTab({
       const pendingTag = '[BOOKING:PENDING_CONFIRMATION]';
       const notesWithTag = combinedNotes ? `${combinedNotes}\n${pendingTag}` : pendingTag;
 
-      // ticket_code is UNIQUE: retry with a fresh code on a collision (longer codes after a few tries)
+      // ticket_code is UNIQUE: retry with a fresh random code on the rare collision
       let randomCode = '';
       for (let attempt = 1; attempt <= 5; attempt++) {
-        randomCode = attempt <= 3
-          ? `MC-${Math.floor(1000 + Math.random() * 9000)}`
-          : `MC-${Math.floor(100000 + Math.random() * 900000)}`;
+        randomCode = newTicketCode();
         const { error: ticketError } = await supabase.from('service_tickets').insert({
           user_id: userId,
           motorcycle_id: targetMotorcycleId,

@@ -3,9 +3,8 @@ import {
   LayoutGrid,
   Calendar,
   History,
-  LogOut,
+  SignOutIcon,
   X,
-  Wrench,
   Settings,
   ChevronRight,
   MapPin,
@@ -34,9 +33,9 @@ export default function DashboardSidebar({
   isSidebarCollapsed,
 }: DashboardSidebarProps) {
   const navItems = [
-    { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid, hint: 'Your bookings at a glance' },
-    { id: 'book' as TabType, label: 'Book Service', icon: Calendar, hint: 'Pick a service and a date' },
-    { id: 'history' as TabType, label: 'Service Records', icon: History, hint: 'Past repairs and receipts' },
+    { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid },
+    { id: 'book' as TabType, label: 'Book Service', icon: Calendar },
+    { id: 'history' as TabType, label: 'Service Records', icon: History },
   ];
   const initial = userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'R';
   // Google sign-ups have no phone yet ('N/A')
@@ -107,7 +106,7 @@ export default function DashboardSidebar({
                     setIsMobileMenuOpen(false);
                   }}
                   aria-current={isActive ? 'page' : undefined}
-                  className={`w-full px-2.5 py-2.5 rounded-xl flex items-center gap-3 transition cursor-pointer text-left ${
+                  className={`w-full px-2.5 py-2 rounded-xl flex items-center gap-3 transition cursor-pointer text-left ${
                     isActive ? 'bg-orange-50' : 'hover:bg-slate-50'
                   }`}
                 >
@@ -118,11 +117,8 @@ export default function DashboardSidebar({
                   >
                     <Icon className="w-[18px] h-[18px]" />
                   </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={`block text-sm font-semibold ${isActive ? 'text-orange-700' : 'text-slate-900'}`}>
-                      {item.label}
-                    </span>
-                    <span className="block text-xs text-slate-400 truncate">{item.hint}</span>
+                  <span className={`min-w-0 flex-1 truncate text-sm font-semibold ${isActive ? 'text-orange-700' : 'text-slate-900'}`}>
+                    {item.label}
                   </span>
                 </button>
               );
@@ -192,7 +188,7 @@ export default function DashboardSidebar({
               onClick={onLogout}
               className="h-11 rounded-full border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
             >
-              <LogOut className="w-4 h-4 shrink-0" />
+              <SignOutIcon className="w-4 h-4 shrink-0" />
               Sign out
             </button>
           </div>
@@ -208,19 +204,10 @@ export default function DashboardSidebar({
         }`}
       >
         <div className="bg-white border border-slate-200/80 rounded-[2rem] shadow-xs flex flex-col justify-between items-center py-6 px-3 h-full w-full">
-          {/* Top Logo */}
+          {/* The logo lives in the header, so the rail starts with the pages */}
           <div className="flex flex-col items-center gap-5 w-full">
-            <div
-              onClick={() => setActiveTab('overview')}
-              className="flex items-center justify-center cursor-pointer"
-            >
-              <div className="w-11 h-11 rounded-2xl bg-orange-500 hover:bg-orange-600 flex items-center justify-center text-white shadow-md shadow-orange-500/25 transition shrink-0">
-                <Wrench className="w-5 h-5" />
-              </div>
-            </div>
-
             {/* Desktop Navigation Items (Icon-only with Tooltip) */}
-            <nav className="flex flex-col items-center gap-2.5 w-full mt-2">
+            <nav className="flex flex-col items-center gap-2.5 w-full">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = activeTab === item.id;
@@ -295,7 +282,7 @@ export default function DashboardSidebar({
               className="w-10 h-10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer group relative"
               title="Sign Out"
             >
-              <LogOut className="w-4 h-4 shrink-0" />
+              <SignOutIcon className="w-4 h-4 shrink-0" />
               <span className="hidden group-hover:block absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-lg whitespace-nowrap shadow-md z-50 pointer-events-none">
                 Sign Out
               </span>

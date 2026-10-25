@@ -200,8 +200,8 @@ const STEPS: StepContent[] = [
       tl: 'Mabilis na mensahe sa mekaniko at pagsusuri kahit walang login',
     },
     description: {
-      en: 'Consult with service advisors anytime using our in-app chat button. Additionally, every booking generates a reference code (e.g., #MC-7514) that anyone can track at /track without logging in.',
-      tl: 'May tanong tungkol sa motor o kakaibang ingay? Gamitin ang orange chat button para makausap ang talyer. Bawat booking ay may Ticket Code (#MC-7514) na pwedeng i-track sa /track kahit walang login.',
+      en: 'Consult with service advisors anytime using our in-app chat button. Additionally, every booking generates a reference code (e.g., #MC-7KQ4P9) that anyone can track at /track without logging in.',
+      tl: 'May tanong tungkol sa motor o kakaibang ingay? Gamitin ang orange chat button para makausap ang talyer. Bawat booking ay may Ticket Code (#MC-7KQ4P9) na pwedeng i-track sa /track kahit walang login.',
     },
     points: {
       en: [
@@ -469,7 +469,7 @@ export default function RiderTutorialModal({
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-slate-800 flex items-center gap-1.5">
                     <Wrench className="w-3.5 h-3.5 text-orange-500" />
-                    Ticket #MC-7514 • NMX 8821
+                    Ticket #MC-7KQ4P9 • NMX 8821
                   </span>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
                     Stage 3 Active
@@ -566,7 +566,7 @@ export default function RiderTutorialModal({
 
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 flex items-center justify-between">
                   <div className="text-[11px] space-y-0.5">
-                    <p className="font-bold text-slate-800">Job Order #MC-7514</p>
+                    <p className="font-bold text-slate-800">Job Order #MC-7KQ4P9</p>
                     <p className="text-slate-500 text-[10px]">CVT Cleaning & Synthetic Lube • Passed QA</p>
                   </div>
                   <div className="px-2.5 py-1 rounded-lg bg-orange-500 text-white text-[10px] font-bold shadow-2xs">

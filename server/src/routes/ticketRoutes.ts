@@ -2,6 +2,10 @@ import { Router, Response } from 'express';
 import { supabaseAdmin } from '../config/supabase.js';
 import { requireAuth } from '../middlewares/auth.js';
 import { AuthenticatedRequest, TicketPayload } from '../types/index.js';
+import { randomInt } from 'crypto';
+
+// No look-alikes (0/O, 1/I/L) and no W (reserved for walk-in codes): see src/utils/ticketCode.ts
+const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVXYZ';
 
 const router = Router();
 
@@ -135,15 +139,14 @@ router.post('/book', requireAuth, async (req: AuthenticatedRequest, res: Respons
       return;
     }
 
-    // Collision-free unique Ticket Code generator (e.g. MC-84920)
+    // Hard-to-guess unique Ticket Code (e.g. MC-7KQ4P9), same format as the web app
     let ticketCode = '';
     let isUnique = false;
     let attempts = 0;
 
     while (!isUnique && attempts < 5) {
       attempts++;
-      const randNum = Math.floor(10000 + Math.random() * 90000);
-      ticketCode = `MC-${randNum}`;
+      ticketCode = `MC-${Array.from({ length: 6 }, () => CODE_ALPHABET[randomInt(CODE_ALPHABET.length)]).join('')}`;
 
       const { data: existing } = await supabaseAdmin
         .from('service_tickets')

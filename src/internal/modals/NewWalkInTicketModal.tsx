@@ -8,6 +8,7 @@ import { getSharedServiceCatalog } from '../../utils/serviceCatalog';
 import { getWorkshopCapacity, isSundayDate } from '../../utils/workshopCapacity';
 import { toast } from '../utils/toast';
 import WalkInClaimSlipModal, { WalkInSlipInfo } from './WalkInClaimSlipModal';
+import { newWalkInCode } from '../../utils/ticketCode';
 
 interface NewWalkInTicketModalProps {
   isOpen: boolean;
@@ -22,10 +23,6 @@ const MAX_CODE_ATTEMPTS = 5;
 
 function localDateString(d = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function newWalkInCode(): string {
-  return `MC-W-${Math.floor(1000 + Math.random() * 9000)}`;
 }
 
 const sectionLabel = 'font-display text-sm font-bold tracking-tight text-slate-900';

@@ -5,7 +5,7 @@ import { Search, ArrowRight, Bike, Sparkle } from 'lucide-react';
 import { EASE } from './motionVariants';
 
 export default function Hero() {
-  // The part after "MC-": 4821 for online bookings, W-4821 for walk-in tickets.
+  // The part after "MC-": 7KQ4P9 for online bookings, W-7KQ4P9 for walk-in tickets.
   // The tracking page works out which kind it is and asks walk-ins to verify.
   const [ticketDigits, setTicketDigits] = useState('');
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function Hero() {
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Letters, digits and dashes; a pasted "MC-1234" or "MC-W-1234" drops the "MC-"
+    // Letters, digits and dashes; a pasted "MC-7KQ4P9" or "MC-W-7KQ4P9" drops the "MC-"
     let val = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
     if (val.startsWith('MC-')) val = val.slice(3);
     setTicketDigits(val.slice(0, 10));
@@ -154,7 +154,7 @@ export default function Hero() {
                 maxLength={12}
                 value={ticketDigits}
                 onChange={handleInputChange}
-                placeholder="4821 or W-4821"
+                placeholder="7KQ4P9 or W-7KQ4P9"
                 className="w-full min-w-0 bg-transparent text-slate-900 placeholder:not-italic placeholder:text-slate-400 text-base sm:text-sm focus:outline-none font-mono font-bold tracking-wider"
               />
             </div>

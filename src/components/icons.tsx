@@ -14,6 +14,7 @@ import {
   ArrowUpRight as PhArrowUpRight,
   Bell as PhBell,
   BellRinging,
+  SidebarSimple,
   Motorcycle,
   BookOpen as PhBookOpen,
   CalendarBlank,
@@ -182,6 +183,9 @@ export const Zap = fill(Lightning, 'Zap');
 export const Activity = fill(Pulse, 'Activity');
 export const CalendarSync = fill(CalendarDots, 'CalendarSync');
 export const ChevronLeft = bold(CaretLeft, 'ChevronLeft');
+export const PanelLeft = bold(SidebarSimple, 'PanelLeft');
+/** Sign out buttons everywhere (door bracket + solid arrow); change it here to change it app-wide */
+export const SignOutIcon = fill(SignOut, 'SignOutIcon');
 export const ChevronUp = bold(CaretUp, 'ChevronUp');
 export const CreditCard = fill(PhCreditCard, 'CreditCard');
 export const Disc = fill(PhDisc, 'Disc');

@@ -1,7 +1,8 @@
 import { db } from './supabase';
+import { newHardcopyId } from '../utils/ticketCode';
 
 export interface HardcopyRequest {
-  id: string; // e.g. "HR-7719"
+  id: string; // e.g. "HR-7KQ4P9"
   userId: string;
   customerName: string;
   customerPhone?: string;
@@ -97,7 +98,7 @@ export async function createHardcopyRequest(params: {
   notes?: string;
 }): Promise<HardcopyRequest | null> {
   try {
-    const requestId = `HR-${Math.floor(100000 + Math.random() * 900000)}`;
+    const requestId = newHardcopyId();
     const newReq: HardcopyRequest = {
       id: requestId,
       userId: params.userId,
