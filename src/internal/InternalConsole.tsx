@@ -627,6 +627,7 @@ export default function InternalConsole() {
               onOpenStage5Billing={handleOpenStage5Billing}
               currentStaffName={currentUserName}
               onRefresh={refreshTickets}
+              isOwner={currentRole === 'admin'}
             />
           )}
 

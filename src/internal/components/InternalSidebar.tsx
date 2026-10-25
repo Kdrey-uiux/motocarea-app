@@ -14,7 +14,7 @@ import {
 } from '../../components/icons';
 import { InternalTab, UserRole } from '../types/internal';
 import { canAccessTab } from '../utils/permissions';
-import { WORKSHOP_BAY_COUNT } from '../utils/bays';
+import { useBayCount } from '../../utils/workshopBays';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 interface InternalSidebarProps {
@@ -105,6 +105,7 @@ export default function InternalSidebar({
   isMobileOpen,
   onCloseMobile,
 }: InternalSidebarProps) {
+  const bayCount = useBayCount();
   // Badges only for things that need attention (or quick capacity info)
   const allGroups: NavGroup[] = [
     {
@@ -123,7 +124,7 @@ export default function InternalSidebar({
           id: 'bays',
           label: 'Bays',
           icon: Wrench,
-          badge: `${occupiedBaysCount}/${WORKSHOP_BAY_COUNT}`,
+          badge: `${occupiedBaysCount}/${bayCount}`,
           badgeTone: 'info',
         },
         {

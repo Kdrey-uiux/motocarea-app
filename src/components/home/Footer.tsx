@@ -89,17 +89,26 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto mt-14 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-2 text-xs text-slate-500">
-        <div>© 2026 MotoCare System. All rights reserved.</div>
-        <div className="flex items-center gap-4">
-          <button type="button" onClick={() => setLegalTab('terms')} className="hover:text-orange-400 transition cursor-pointer">
+      {/* Above the big wordmark below, which reaches up behind this row */}
+      <div className="relative z-10 max-w-7xl mx-auto mt-14 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
+        <div>© 2026 MotoCare. All rights reserved.</div>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setLegalTab('terms')}
+            className="px-2 py-1.5 rounded-md hover:text-orange-400 transition cursor-pointer"
+          >
             Terms
           </button>
-          <button type="button" onClick={() => setLegalTab('privacy')} className="hover:text-orange-400 transition cursor-pointer">
+          <span aria-hidden="true">·</span>
+          <button
+            type="button"
+            onClick={() => setLegalTab('privacy')}
+            className="px-2 py-1.5 rounded-md hover:text-orange-400 transition cursor-pointer"
+          >
             Privacy Policy
           </button>
         </div>
-        <div>Engineered by Kurt Andrei Alerta & Team</div>
       </div>
 
       {/* Portal: the landing page's scroll effects would otherwise trap the fixed overlay */}
@@ -112,7 +121,7 @@ export default function Footer() {
       {/* Big wordmark */}
       <div
         aria-hidden="true"
-        className="font-display font-extrabold tracking-[-0.05em] leading-[0.8] text-center text-[15.5vw] lg:text-[15rem] text-white/[0.06] select-none mt-6 -mb-[0.12em]"
+        className="pointer-events-none font-display font-extrabold tracking-[-0.05em] leading-[0.8] text-center text-[15.5vw] lg:text-[15rem] text-white/[0.06] select-none mt-6 -mb-[0.12em]"
       >
         MOTOCARE
       </div>

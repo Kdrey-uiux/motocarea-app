@@ -24,6 +24,7 @@ import {
 } from '../../utils/workshopCapacity';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
 import { normalizeBayNumber } from '../utils/bays';
+import { useBayCount, bayList } from '../../utils/workshopBays';
 
 // ============================================================================
 // TypeScript Interfaces (Strict Mode)
@@ -41,14 +42,6 @@ export interface DashboardKPIs {
 
 const BAY_MAINTENANCE_KEY = 'motocare_bay_maintenance_flags';
 
-const OFFICIAL_BAYS = [
-  { id: 'bay-1', searchKey: 'bay 01', bayNumber: 1, name: 'Bay 01' },
-  { id: 'bay-2', searchKey: 'bay 02', bayNumber: 2, name: 'Bay 02' },
-  { id: 'bay-3', searchKey: 'bay 03', bayNumber: 3, name: 'Bay 03' },
-  { id: 'bay-4', searchKey: 'bay 04', bayNumber: 4, name: 'Bay 04' },
-  { id: 'bay-5', searchKey: 'bay 05', bayNumber: 5, name: 'Bay 05' },
-  { id: 'bay-6', searchKey: 'bay 06', bayNumber: 6, name: 'Bay 06' },
-];
 
 export interface ActiveFloorTicket {
   id: string;
@@ -130,6 +123,8 @@ export function WorkshopDashboard({
   currentRole,
   currentUserName = 'Admin',
 }: WorkshopDashboardProps) {
+  // Bays set by the owner (updates live)
+  const bayCount = useBayCount();
   const navigate = useNavigate();
   const now = useNow();
   // Team management links are for the shop owner only
@@ -235,9 +230,9 @@ export function WorkshopDashboard({
     ).length;
   }, [tickets]);
 
-  // 3. Bay Capacity Status (4 Official Workshop Hydraulic Lifts)
+  // 3. Bay status for the workshop's bays
   const bayStatusList: BayStatus[] = useMemo(() => {
-    return OFFICIAL_BAYS.map((bay) => {
+    return bayList(bayCount).map(({ id: name, num }) => ({ id: `bay-${num}`, bayNumber: num, name })).map((bay) => {
       const isMaint = !!maintenanceBays[bay.id];
       if (isMaint) {
         return {
@@ -281,7 +276,7 @@ export function WorkshopDashboard({
         mechanic: null,
       };
     });
-  }, [activeFloorTickets, maintenanceBays]);
+  }, [activeFloorTickets, maintenanceBays, bayCount]);
 
   const occupiedBaysCount = bayStatusList.filter((b) => b.status === 'OCCUPIED').length;
   const maintenanceBaysCount = bayStatusList.filter((b) => b.status === 'MAINTENANCE').length;

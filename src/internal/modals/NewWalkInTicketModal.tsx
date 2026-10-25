@@ -5,7 +5,7 @@ import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { getCompleteMotorcycleCatalog, OfficialBikeModel } from '../../utils/motorcycleCatalog';
 import { X, User, Phone, Gauge, Wrench, Loader2, CheckCircle2, Search, AlertTriangle, Bike } from '../../components/icons';
 import { getSharedServiceCatalog } from '../../utils/serviceCatalog';
-import { FIXED_WORKSHOP_CAPACITY, isSundayDate } from '../../utils/workshopCapacity';
+import { getWorkshopCapacity, isSundayDate } from '../../utils/workshopCapacity';
 import { toast } from '../utils/toast';
 import WalkInClaimSlipModal, { WalkInSlipInfo } from './WalkInClaimSlipModal';
 
@@ -152,9 +152,10 @@ export default function NewWalkInTicketModal({
         .select('id', { count: 'exact', head: true })
         .eq('dropoff_date', todayStr)
         .not('status', 'in', '("CANCELLED","CANCELLED_BY_ADMIN","MISSED","NO_SHOW")');
-      if (typeof todayCount === 'number' && todayCount >= FIXED_WORKSHOP_CAPACITY) {
+      const dailyCapacity = getWorkshopCapacity();
+      if (typeof todayCount === 'number' && todayCount >= dailyCapacity) {
         setErrorMessage(
-          `Today is fully booked (${FIXED_WORKSHOP_CAPACITY} of ${FIXED_WORKSHOP_CAPACITY} slots). No more walk-ins can be accepted today.`
+          `Today is fully booked (${dailyCapacity} of ${dailyCapacity} slots). No more walk-ins can be accepted today.`
         );
         return;
       }

@@ -1,7 +1,5 @@
-import {
-  FIXED_WORKSHOP_CAPACITY,
-  isSundayDate,
-} from './workshopCapacity';
+import { isSundayDate } from './workshopCapacity';
+import { DEFAULT_BAYS as FIXED_WORKSHOP_CAPACITY } from './workshopBays';
 
 export interface DayCapacity {
   date: string; // YYYY-MM-DD

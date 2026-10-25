@@ -38,6 +38,12 @@ export const SHARED_SETTINGS = {
     storageKey: 'motocare_workshop_mechanics',
     event: 'motocare_mechanics_updated',
   },
+  /** { count } service bays on the floor; also the daily online booking limit (owner only, migration 15) */
+  workshopBays: {
+    key: 'workshop_bays',
+    storageKey: 'motocare_workshop_bays',
+    event: 'motocare_workshop_bays_updated',
+  },
 } satisfies Record<string, SharedSettingDef>;
 
 const SETTINGS_BY_KEY: Record<string, SharedSettingDef> = Object.fromEntries(
@@ -88,6 +94,15 @@ export async function saveSharedSetting(
   } catch (err: unknown) {
     return { success: false, error: err instanceof Error ? err.message : 'Failed to save shared setting.' };
   }
+}
+
+/**
+ * Re-reads one shared setting from Supabase (e.g. after a save was refused,
+ * so this screen shows the stored value again instead of the rejected one).
+ */
+export async function reloadSharedSetting(setting: SharedSettingDef): Promise<void> {
+  const { data } = await db().from('app_settings').select('value').eq('key', setting.key).maybeSingle();
+  if (data && data.value !== undefined) applyToCache(setting, data.value);
 }
 
 let syncStarted = false;

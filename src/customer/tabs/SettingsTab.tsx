@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { MessageSquare, ChevronRight } from '../../components/icons';
 import { TabType } from '../../types/dashboard';
 import { TIME_SLOTS } from '../../utils/bookingLifecycle';
-import { FIXED_WORKSHOP_CAPACITY } from '../../utils/workshopCapacity';
+import { useBayCount } from '../../utils/workshopBays';
 import { SHOP_INFO } from '../../utils/shopInfo';
 import LegalTermsModal from '../../components/legal/LegalTermsModal';
 import type { ThemePreference } from '../../utils/theme';
@@ -72,6 +72,7 @@ export default function SettingsTab({
   themePreference = 'system',
   onChangeTheme,
 }: SettingsTabProps) {
+  const dailyCapacity = useBayCount();
   const [activeSection, setActiveSection] = useState<SettingsSection>('warranty');
   const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
 
@@ -208,8 +209,8 @@ export default function SettingsTab({
               title="Booking rules"
               subtitle="The same rules the booking calendar follows."
             >
-              <Rule title={`Monday to Saturday, up to ${FIXED_WORKSHOP_CAPACITY} bookings a day`}>
-                We&apos;re closed on Sundays. Once a day has {FIXED_WORKSHOP_CAPACITY} bookings, it shows as Full.
+              <Rule title={`Monday to Saturday, up to ${dailyCapacity} bookings a day`}>
+                We&apos;re closed on Sundays. Once a day has {dailyCapacity} bookings, it shows as Full.
               </Rule>
               <Rule title="Pick an arrival window">
                 <span className="flex flex-wrap gap-1.5 mt-1.5">

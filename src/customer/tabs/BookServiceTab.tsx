@@ -33,10 +33,8 @@ import {
   CalendarSync
 } from '../../components/icons';
 import { TabType } from '../../types/dashboard';
-import {
-  FIXED_WORKSHOP_CAPACITY,
-  isSundayDate
-} from '../../utils/workshopCapacity';
+import { isAlmostFull, isSundayDate } from '../../utils/workshopCapacity';
+import { useBayCount } from '../../utils/workshopBays';
 import {
   getCompleteMotorcycleCatalog,
   registerNewMotorcycleModel
@@ -139,6 +137,8 @@ export default function BookServiceTab({
   rescheduleTicket,
   onCancelReschedule,
 }: BookServiceTabProps) {
+  // Online bookings per day = number of bays (the owner can add or remove bays; updates live)
+  const dailyCapacity = useBayCount();
   // Rescheduling opens straight on Step 3 (Schedule & Time) with the original service kept.
   // The dashboard remounts this tab (key) whenever a different ticket is rescheduled and
   // pre-selects that ticket's motorcycle, so everything here comes from the initial state.
@@ -419,11 +419,11 @@ export default function BookServiceTab({
       const realBookingsOnDate = workshopBookings.filter(
         (t) => t.dropoff_date === dateKey && t.status !== 'CANCELLED' && t.status !== 'CANCELLED_BY_ADMIN' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
       ).length;
-      const totalSlots = FIXED_WORKSHOP_CAPACITY;
+      const totalSlots = dailyCapacity;
       const totalOccupied = Math.min(totalSlots, realBookingsOnDate);
       const remainingSlots = Math.max(0, totalSlots - totalOccupied);
       const status: 'AVAILABLE' | 'LIMITED' | 'FULL' =
-        remainingSlots === 0 ? 'FULL' : remainingSlots <= 2 ? 'LIMITED' : 'AVAILABLE';
+        remainingSlots === 0 ? 'FULL' : isAlmostFull(remainingSlots, totalSlots) ? 'LIMITED' : 'AVAILABLE';
 
       cells.push({
         empty: false,
@@ -449,7 +449,7 @@ export default function BookServiceTab({
       monthLabel: calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
       cells,
     };
-  }, [calendarMonth, workshopBookings]);
+  }, [calendarMonth, workshopBookings, dailyCapacity]);
 
   const isCurrentMonth = useMemo(() => {
     const now = new Date();
@@ -479,8 +479,8 @@ export default function BookServiceTab({
       return {
         date: '',
         occupiedCount: 0,
-        totalSlots: FIXED_WORKSHOP_CAPACITY,
-        remainingSlots: FIXED_WORKSHOP_CAPACITY,
+        totalSlots: dailyCapacity,
+        remainingSlots: dailyCapacity,
         status: 'UNSELECTED' as const,
         isSunday: false,
       };
@@ -501,10 +501,10 @@ export default function BookServiceTab({
       (t) => t.dropoff_date === dropoffDate && t.status !== 'CANCELLED' && t.status !== 'CANCELLED_BY_ADMIN' && t.status !== 'MISSED' && t.status !== 'NO_SHOW'
     ).length;
 
-    const totalSlots = FIXED_WORKSHOP_CAPACITY;
+    const totalSlots = dailyCapacity;
     const totalOccupied = Math.min(totalSlots, realBookingsOnDate);
     const remaining = Math.max(0, totalSlots - totalOccupied);
-    const status = remaining === 0 ? 'FULL' : remaining <= 2 ? 'LIMITED' : 'AVAILABLE';
+    const status = remaining === 0 ? 'FULL' : isAlmostFull(remaining, totalSlots) ? 'LIMITED' : 'AVAILABLE';
 
     return {
       date: dropoffDate,
@@ -514,7 +514,7 @@ export default function BookServiceTab({
       status,
       isSunday: false,
     };
-  }, [dropoffDate, workshopBookings]);
+  }, [dropoffDate, workshopBookings, dailyCapacity]);
 
   const isDateFullyBooked = dropoffDate
     ? isSundayDate(dropoffDate) || currentCapacity.status === 'FULL' || currentCapacity.status === 'CLOSED'
@@ -569,7 +569,7 @@ export default function BookServiceTab({
         return;
       }
       if (isDateFullyBooked) {
-        setErrorMsg(`Please select an available date. This date has reached its maximum ${FIXED_WORKSHOP_CAPACITY} booking capacity.`);
+        setErrorMsg(`Please select an available date. This date has reached its maximum ${dailyCapacity} booking capacity.`);
         return;
       }
       if (!selectedTimeWindow) {
@@ -1579,8 +1579,8 @@ export default function BookServiceTab({
                     : currentCapacity.status === 'FULL'
                     ? 'Fully Booked for Selected Date'
                     : currentCapacity.status === 'LIMITED'
-                    ? `High Demand: ${currentCapacity.remainingSlots} slots remaining`
-                    : `${currentCapacity.remainingSlots} of ${FIXED_WORKSHOP_CAPACITY} slots available`}
+                    ? `Almost full: ${currentCapacity.remainingSlots} slot${currentCapacity.remainingSlots === 1 ? '' : 's'} left`
+                    : `${currentCapacity.remainingSlots} of ${dailyCapacity} slots available`}
                 </span>
               )}
             </div>
@@ -1594,7 +1594,7 @@ export default function BookServiceTab({
                     Step 1: Choose Workshop Date
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Monday to Saturday, up to {FIXED_WORKSHOP_CAPACITY} bikes a day. Closed on Sundays.
+                    Monday to Saturday, up to {dailyCapacity} bikes a day. Closed on Sundays.
                   </p>
                 </div>
 
@@ -1767,7 +1767,7 @@ export default function BookServiceTab({
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span>1–2 left</span>
+                      <span>Almost full</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-rose-500" />

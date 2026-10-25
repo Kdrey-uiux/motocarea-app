@@ -3,11 +3,13 @@ import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { isAwaitingArrival, advanceTicketStage } from '../utils/ticketActions';
-import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power } from '../../components/icons';
+import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power, Trash2, Loader2 } from '../../components/icons';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
 import { SERVICE_STAGES } from '../../utils/serviceStages';
 import { useNow } from '../hooks/useNow';
+import { useBayCount, saveBayCount, bayLabel, MAX_BAYS, MIN_BAYS } from '../../utils/workshopBays';
+import { recordAuditLog } from '../utils/databaseAuditLogger';
 
 // Shared looks (same as the staff Dashboard and Queue)
 const CARD = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
@@ -21,43 +23,17 @@ interface InternalBaysTabProps {
   onOpenStage5Billing?: (ticket: InternalTicket) => void;
   currentStaffName?: string;
   onRefresh?: () => void;
+  /** The owner can add and remove bays */
+  isOwner?: boolean;
 }
 
 // A motorcycle this long on a bay gets an amber time badge
 const LONG_JOB_MINUTES = 180;
 
-const ALL_WORKSHOP_BAYS = [
-  {
-    id: 'bay-1',
-    bayNumber: '01',
-    name: 'Bay 01',
-  },
-  {
-    id: 'bay-2',
-    bayNumber: '02',
-    name: 'Bay 02',
-  },
-  {
-    id: 'bay-3',
-    bayNumber: '03',
-    name: 'Bay 03',
-  },
-  {
-    id: 'bay-4',
-    bayNumber: '04',
-    name: 'Bay 04',
-  },
-  {
-    id: 'bay-5',
-    bayNumber: '05',
-    name: 'Bay 05',
-  },
-  {
-    id: 'bay-6',
-    bayNumber: '06',
-    name: 'Bay 06',
-  },
-];
+const ACTIVE_STATUSES_EXCLUDED = ['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'];
+
+/** A floor bay: id "bay-4", number "04", label "Bay 04" */
+const makeBay = (num: number) => ({ id: `bay-${num}`, bayNumber: String(num).padStart(2, '0'), name: bayLabel(num) });
 
 export default function InternalBaysTab({
   tickets,
@@ -65,6 +41,7 @@ export default function InternalBaysTab({
   onOpenStage5Billing,
   currentStaffName = 'Workshop Staff',
   onRefresh,
+  isOwner = false,
 }: InternalBaysTabProps) {
   const [advancingId, setAdvancingId] = useState<string | null>(null);
 
@@ -88,6 +65,23 @@ export default function InternalBaysTab({
     }
     onRefresh?.();
   };
+  // Bays on the floor (set by the owner; updates live on every device)
+  const bayCount = useBayCount();
+  const [bayAction, setBayAction] = useState<'adding' | 'removing' | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+
+  // Bays beyond the count that still hold a motorcycle stay visible as "closing" until it leaves
+  const floorBays = useMemo(() => {
+    const closing = new Set<number>();
+    for (const t of tickets) {
+      if (ACTIVE_STATUSES_EXCLUDED.includes(t.status)) continue;
+      const num = normalizeBayNumber(t.assigned_bay);
+      if (num && num > bayCount && num <= MAX_BAYS) closing.add(num);
+    }
+    const nums = Array.from({ length: bayCount }, (_, i) => i + 1).concat([...closing].sort((a, b) => a - b));
+    return nums.map(makeBay);
+  }, [bayCount, tickets]);
+
   // Maintenance state per bay (shared across all devices via Supabase app_settings)
   const [maintenanceBays, setMaintenanceBays] = useState<Record<string, boolean>>(() =>
     readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {})
@@ -108,7 +102,7 @@ export default function InternalBaysTab({
 
   const toggleMaintenance = (bayId: string) => {
     // A bay with a motorcycle on it must be cleared first, or the unit would disappear from view
-    const bayNum = parseInt(ALL_WORKSHOP_BAYS.find((b) => b.id === bayId)?.bayNumber || '', 10);
+    const bayNum = parseInt(floorBays.find((b) => b.id === bayId)?.bayNumber || '', 10);
     const occupant = !maintenanceBays[bayId]
       ? tickets.find(
           (t) =>
@@ -129,9 +123,9 @@ export default function InternalBaysTab({
     });
   };
 
-  // Map tickets to all 6 official workshop bays using exact integer normalization
+  // Map tickets to the floor bays using exact integer normalization
   const baysData = useMemo(() => {
-    return ALL_WORKSHOP_BAYS.map((staticBay) => {
+    return floorBays.map((staticBay) => {
       const isUnderMaintenance = !!maintenanceBays[staticBay.id];
       const bayNumInt = parseInt(staticBay.bayNumber, 10);
 
@@ -168,7 +162,7 @@ export default function InternalBaysTab({
         activeTicket: undefined,
       };
     });
-  }, [tickets, maintenanceBays]);
+  }, [tickets, maintenanceBays, floorBays]);
 
 
   // Checked-in Stage 1 units waiting for a bay (bookings not yet at the shop are excluded)
@@ -181,11 +175,42 @@ export default function InternalBaysTab({
     );
   }, [tickets]);
 
-  const vacantLiftsCount = baysData.filter((b) => b.status === 'AVAILABLE').length;
+  // The last bay can be removed only while it is free
+  const lastBay = baysData[bayCount - 1];
+  const canRemoveLast = bayCount > MIN_BAYS && floorBays.length === bayCount && lastBay?.status !== 'OCCUPIED';
+
+  const changeBayCount = async (next: number) => {
+    const adding = next > bayCount;
+    setBayAction(adding ? 'adding' : 'removing');
+    const result = await saveBayCount(next, currentStaffName);
+    setBayAction(null);
+    setConfirmRemove(false);
+    if (!result.success) {
+      toast.error(result.error || 'Could not change the number of bays.');
+      return;
+    }
+    toast.success(
+      adding
+        ? `${bayLabel(next)} added. Riders can now book ${next} a day.`
+        : `${bayLabel(bayCount)} removed. Riders can now book ${next} a day.`
+    );
+    recordAuditLog({
+      ticketCode: 'WORKSHOP',
+      action: adding ? 'BAY_ADDED' : 'BAY_REMOVED',
+      actor: currentStaffName,
+      details: adding ? `Added ${bayLabel(next)} (now ${next} bays)` : `Removed ${bayLabel(bayCount)} (now ${next} bays)`,
+      previousValue: String(bayCount),
+      newValue: String(next),
+    });
+  };
+
+  // Closing bays still count as "in use" but not toward the shop's bays
+  const openBays = baysData.slice(0, bayCount);
+  const vacantLiftsCount = openBays.filter((b) => b.status === 'AVAILABLE').length;
   const occupiedLiftsCount = baysData.filter((b) => b.status === 'OCCUPIED').length;
-  const maintenanceLiftsCount = baysData.filter((b) => b.status === 'MAINTENANCE').length;
-  const workingBays = Math.max(1, baysData.length - maintenanceLiftsCount);
-  const usePct = Math.round((occupiedLiftsCount / workingBays) * 100);
+  const maintenanceLiftsCount = openBays.filter((b) => b.status === 'MAINTENANCE').length;
+  const workingBays = Math.max(1, bayCount - maintenanceLiftsCount + (baysData.length - bayCount));
+  const usePct = Math.min(100, Math.round((occupiedLiftsCount / workingBays) * 100));
 
   const minutesIn = (createdAt: string) => Math.max(1, Math.floor((now - new Date(createdAt).getTime()) / 60000));
   const formatMinutes = (mins: number) =>
@@ -218,6 +243,18 @@ export default function InternalBaysTab({
             </span>
           )}
         </div>
+        {isOwner && (
+          <button
+            type="button"
+            onClick={() => changeBayCount(bayCount + 1)}
+            disabled={bayAction !== null || bayCount >= MAX_BAYS}
+            className="shrink-0 self-start sm:self-auto px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+            title={bayCount >= MAX_BAYS ? `The workshop can have up to ${MAX_BAYS} bays` : 'Add another service bay'}
+          >
+            {bayAction === 'adding' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+            Add bay
+          </button>
+        )}
       </div>
 
       {/* 2. Waiting for a bay (only when there are some) */}
@@ -262,7 +299,7 @@ export default function InternalBaysTab({
         </section>
       )}
 
-      {/* 3. Floor plan: the six bays as equal slots, like the real shop floor */}
+      {/* 3. Floor plan: the bays as equal slots, like the real shop floor */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 auto-rows-fr">
         {baysData.map((bay) => {
           const ticket = bay.status === 'OCCUPIED' ? bay.activeTicket : undefined;
@@ -291,6 +328,11 @@ export default function InternalBaysTab({
                       {bay.bayNumber}
                     </span>
                     Bay {bay.bayNumber}
+                    {parseInt(bay.bayNumber, 10) > bayCount && (
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[11px] font-medium" title="This bay was removed; it closes when this motorcycle leaves">
+                        Closing
+                      </span>
+                    )}
                   </span>
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -395,6 +437,7 @@ export default function InternalBaysTab({
           }
 
           /* ---- Free bay: an empty spot on the floor ---- */
+          const isLastBay = bay.id === lastBay?.id;
           return (
             <div
               key={bay.id}
@@ -414,15 +457,28 @@ export default function InternalBaysTab({
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => toggleMaintenance(bay.id)}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
-                    title="Set to maintenance"
-                    aria-label={`Set Bay ${bay.bayNumber} to maintenance`}
-                  >
-                    <Power className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => toggleMaintenance(bay.id)}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition cursor-pointer"
+                      title="Set to maintenance"
+                      aria-label={`Set Bay ${bay.bayNumber} to maintenance`}
+                    >
+                      <Power className="w-4 h-4" />
+                    </button>
+                    {isOwner && isLastBay && canRemoveLast && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemove(true)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                        title="Remove this bay"
+                        aria-label={`Remove Bay ${bay.bayNumber}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setDispatchTargetBay(`Bay ${bay.bayNumber}`)}
@@ -437,6 +493,42 @@ export default function InternalBaysTab({
           );
         })}
       </div>
+
+      {/* Owner: confirm removing the last bay */}
+      {confirmRemove &&
+        createPortal(
+          <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-[1.75rem] max-w-sm w-full shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
+              <span className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <Trash2 className="w-5 h-5" />
+              </span>
+              <h3 className="mt-4 font-display text-lg font-bold tracking-tight text-slate-900">Remove {bayLabel(bayCount)}?</h3>
+              <p className="mt-1 text-sm text-slate-500">
+                The workshop will have {bayCount - 1} {bayCount - 1 === 1 ? 'bay' : 'bays'}, and riders can book up to{' '}
+                {bayCount - 1} a day. Bookings already made stay as they are.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemove(false)}
+                  className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer"
+                >
+                  Keep it
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeBayCount(bayCount - 1)}
+                  disabled={bayAction !== null}
+                  className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {bayAction === 'removing' && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Remove bay
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Pick a waiting motorcycle for a free bay */}
       {dispatchTargetBay &&

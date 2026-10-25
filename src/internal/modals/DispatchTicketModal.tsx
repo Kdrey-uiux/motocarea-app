@@ -21,6 +21,7 @@ import {
 import VehicleHistoryModal from './VehicleHistoryModal';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
+import { useBayCount, bayList } from '../../utils/workshopBays';
 
 interface DispatchTicketModalProps {
   ticket: InternalTicket | null;
@@ -33,14 +34,6 @@ interface DispatchTicketModalProps {
   currentStaffName?: string;
 }
 
-const BAYS = [
-  { id: 'Bay 01', num: 1 },
-  { id: 'Bay 02', num: 2 },
-  { id: 'Bay 03', num: 3 },
-  { id: 'Bay 04', num: 4 },
-  { id: 'Bay 05', num: 5 },
-  { id: 'Bay 06', num: 6 },
-];
 
 // Stage 1 (intake) is set by check-in; dispatch moves the unit through 2-5.
 // Labels match what the customer sees (Inspect, Service, Test, Ready).
@@ -80,6 +73,9 @@ export default function DispatchTicketModal({
   allTickets,
   currentStaffName = 'Workshop Staff',
 }: DispatchTicketModalProps) {
+  // Bays set by the owner (updates live)
+  const bayCount = useBayCount();
+  const BAYS = useMemo(() => bayList(bayCount), [bayCount]);
   const [assignedBay, setAssignedBay] = useState('Bay 01');
   const [assignedMechanic, setAssignedMechanic] = useState('');
   const [stage, setStage] = useState<number>(2);
@@ -151,7 +147,7 @@ export default function DispatchTicketModal({
       setFindings(extractFindings(ticket.notes));
       setErrorMsg(null);
     }
-  }, [isOpen, ticket, bayOccupancyMap]);
+  }, [isOpen, ticket, bayOccupancyMap, BAYS]);
 
   const customerReport = useMemo(() => parseTicketNotes(ticket?.notes), [ticket]);
 

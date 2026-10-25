@@ -1,29 +1,16 @@
 /**
- * MotoCare Workshop & Bay Capacity Engine
+ * MotoCare daily booking capacity.
  *
- * Business Rules:
- * 1. Fixed Workshop Capacity: Exactly 6 hydraulic bays / 6 slots per working day.
- * 2. Operating Schedule: Monday to Saturday (8:00 AM – 6:00 PM).
- * 3. Sunday Policy: Strictly CLOSED (Shop rest day, 0 slots, booking blocked).
- * 4. Standard Lock: Locked to 6 bays to guarantee 1:1 synchronization between
- *    customer online reservations and physical workshop floor lifts.
+ * Business rules:
+ * 1. One service bay = one online booking per day. The owner sets the number of bays
+ *    (utils/workshopBays.ts); the database enforces the same limit (migration 15).
+ * 2. Open Monday to Saturday; Sunday is closed (0 slots, booking blocked).
  */
+import { getBayCount } from './workshopBays';
 
-export const FIXED_WORKSHOP_CAPACITY = 6;
-export const BASE_MIN_CAPACITY = 6;
-export const ABSOLUTE_MAX_CAPACITY = 6;
-export const CAPACITY_OVERRIDE_KEY = 'motocare_daily_capacity_overrides';
-
-export interface DayCapacityInfo {
-  date: string;
-  totalSlots: number;
-  occupiedCount: number;
-  remainingSlots: number;
-  status: 'AVAILABLE' | 'LIMITED' | 'FULL' | 'CLOSED';
-  percentage: number;
-  isExpanded: boolean;
-  baseCapacity: number;
-  isSunday?: boolean;
+/** Online bookings allowed per open day (= number of bays) */
+export function getWorkshopCapacity(): number {
+  return getBayCount();
 }
 
 /**
@@ -45,74 +32,16 @@ export function isSundayDate(dateStr: string): boolean {
 }
 
 /**
- * Calculates the capacity limit for a specific date:
- * - Sunday: 0 slots (Closed)
- * - Monday to Saturday: Fixed 6 slots
+ * Booking capacity for a date: 0 on Sundays (closed), otherwise the number of bays.
  */
-export function getDailyCapacityLimit(dateStr: string, _activeTechCount?: number): number {
-  if (isSundayDate(dateStr)) {
-    return 0;
-  }
-  return FIXED_WORKSHOP_CAPACITY;
+export function getDailyCapacityLimit(dateStr: string): number {
+  return isSundayDate(dateStr) ? 0 : getWorkshopCapacity();
 }
 
 /**
- * Enforces the locked standard of 6 slots per workday.
- * Non-destructive fallback for existing callers.
+ * "Almost full" when about a third of the day's slots (at least 1) are left:
+ * 2 left of 6, 1 left of 3.
  */
-export function setDailyCapacityLimit(dateStr: string, _capacity: number): number {
-  const finalCap = isSundayDate(dateStr) ? 0 : FIXED_WORKSHOP_CAPACITY;
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(
-      new CustomEvent('motocare_capacity_updated', {
-        detail: { date: dateStr, capacity: finalCap },
-      })
-    );
-  }
-  return finalCap;
-}
-
-/**
- * Evaluates the full capacity status given occupied bookings and fixed capacity limit
- */
-export function evaluateCapacityStatus(
-  dateStr: string,
-  occupiedCount: number,
-  _activeTechCount?: number
-): DayCapacityInfo {
-  const isSun = isSundayDate(dateStr);
-
-  if (isSun) {
-    return {
-      date: dateStr,
-      totalSlots: 0,
-      occupiedCount: 0,
-      remainingSlots: 0,
-      status: 'CLOSED',
-      percentage: 100,
-      isExpanded: false,
-      baseCapacity: 0,
-      isSunday: true,
-    };
-  }
-
-  const totalSlots = FIXED_WORKSHOP_CAPACITY;
-  const clampedOccupied = Math.min(totalSlots, Math.max(0, occupiedCount));
-  const remainingSlots = Math.max(0, totalSlots - clampedOccupied);
-  const percentage = Math.round((clampedOccupied / totalSlots) * 100);
-
-  const status: 'AVAILABLE' | 'LIMITED' | 'FULL' =
-    remainingSlots === 0 ? 'FULL' : remainingSlots <= 2 ? 'LIMITED' : 'AVAILABLE';
-
-  return {
-    date: dateStr,
-    totalSlots,
-    occupiedCount: clampedOccupied,
-    remainingSlots,
-    status,
-    percentage,
-    isExpanded: false,
-    baseCapacity: FIXED_WORKSHOP_CAPACITY,
-    isSunday: false,
-  };
+export function isAlmostFull(remainingSlots: number, totalSlots: number): boolean {
+  return remainingSlots > 0 && remainingSlots <= Math.max(1, Math.round(totalSlots / 3));
 }

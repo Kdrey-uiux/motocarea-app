@@ -20,7 +20,7 @@ const PERKS = [
   {
     icon: Clock,
     title: 'Prompt Turnaround',
-    desc: 'Six bookings a day, so every bike gets attention.',
+    desc: 'One booking per bay each day, so every bike gets attention.',
     tone: 'bg-slate-800',
     shape: 'absolute right-0 top-0 w-24 h-full bg-gradient-to-l from-white/5 to-transparent',
   },
