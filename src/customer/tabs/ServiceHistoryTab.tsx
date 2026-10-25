@@ -22,7 +22,7 @@ import {
   CalendarSync,
   Star,
   Loader2
-} from 'lucide-react';
+} from '../../components/icons';
 import { getTicketDisplayDate } from '../../utils/ticketDates';
 import { printDocument } from '../../utils/printDocument';
 import { PrintPortal } from '../../components/print/PrintTemplate';
@@ -103,9 +103,9 @@ export default function ServiceHistoryTab({
   const latestActiveHardcopy = useMemo(() => {
     if (!hardcopyRequests || hardcopyRequests.length === 0) return null;
     return (
-      hardcopyRequests.find(
-        (r) => r.status === 'READY_FOR_PICKUP' || r.status === 'PENDING'
-      ) || null
+      hardcopyRequests.find((r) => r.status === 'READY_FOR_PICKUP') ||
+      hardcopyRequests.find((r) => r.status === 'PENDING') ||
+      null
     );
   }, [hardcopyRequests]);
 
@@ -208,7 +208,7 @@ export default function ServiceHistoryTab({
 
         {/* Live Hardcopy Request Status Banner (Matches MotoCare White & Neutral Design System) */}
         {latestActiveHardcopy && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 card-elevated space-y-2.5">
             {/* Top Header: Title & ID on Left, Status Badge Pinned on Right */}
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
@@ -307,14 +307,14 @@ export default function ServiceHistoryTab({
         {/* 2. Quick Summary Stats Bar (Compact 3-column row on mobile!) */}
         {serviceHistory.length > 0 && (
           <div className="grid grid-cols-3 gap-2 sm:gap-3">
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 card-elevated flex flex-col justify-between">
               <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">
                 Completed
               </span>
               <div className="font-display text-lg sm:text-3xl font-extrabold tracking-[-0.03em] text-slate-900 truncate my-0.5 sm:my-1">
                 {filteredHistory.length} {filteredHistory.length === 1 ? 'Job' : 'Jobs'}
               </div>
-              <span className="text-[10px] sm:text-[11px] text-emerald-600 font-semibold flex items-center gap-1 truncate">
+              <span className="hidden sm:flex text-[11px] text-emerald-600 font-semibold items-center gap-1 truncate">
                 <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
                 <span className="truncate">
                   {selectedBikePlate === 'all'
@@ -324,7 +324,7 @@ export default function ServiceHistoryTab({
               </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 card-elevated flex flex-col justify-between">
               <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">
                 Garage Fleet
               </span>
@@ -333,14 +333,14 @@ export default function ServiceHistoryTab({
                   ? `${uniqueBikes.length} ${uniqueBikes.length === 1 ? 'Bike' : 'Bikes'}`
                   : activeSelectedBike?.model?.split(' ')[0] || 'Unit'}
               </div>
-              <span className="text-[10px] sm:text-[11px] font-mono text-slate-500 block truncate">
+              <span className="hidden sm:block text-[11px] font-mono text-slate-500 truncate">
                 {selectedBikePlate === 'all'
                   ? uniqueBikes.map((b) => b.plate_number).join(' • ') || 'Fleet Units'
                   : activeSelectedBike?.plate_number || 'Selected Vehicle'}
               </span>
             </div>
 
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs flex flex-col justify-between">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 card-elevated flex flex-col justify-between">
               <span className="text-[11px] sm:text-xs font-medium text-slate-500 block truncate">
                 Latest Done
               </span>
@@ -352,7 +352,7 @@ export default function ServiceHistoryTab({
                     })
                   : 'None Yet'}
               </div>
-              <span className="text-[10px] sm:text-[11px] text-slate-500 truncate block">
+              <span className="hidden sm:block text-[11px] text-slate-500 truncate">
                 {filteredHistory[0]?.service_type || 'Preventive'}
               </span>
             </div>
@@ -361,14 +361,14 @@ export default function ServiceHistoryTab({
 
         {/* 3. Vehicle Filter Selector (Allows filtering & printing a specific bike like Yamaha Mio i 125!) */}
         {uniqueBikes.length > 1 && (
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 shadow-2xs space-y-2.5">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-5 card-elevated space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                 <Bike className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500" />
                 <span>Select Motorcycle to View or Print:</span>
               </span>
               {activeSelectedBike && (
-                <span className="text-[10px] sm:text-[11px] text-slate-500 font-medium">
+                <span className="hidden sm:inline text-[11px] text-slate-500 font-medium">
                   Showing {filteredHistory.length} logs for {activeSelectedBike.plate_number}
                 </span>
               )}
@@ -378,9 +378,9 @@ export default function ServiceHistoryTab({
               <button
                 type="button"
                 onClick={() => setSelectedBikePlate('all')}
-                className={`px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
+                className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                   selectedBikePlate === 'all'
-                    ? 'bg-orange-500 text-white shadow-xs'
+                    ? 'bg-orange-50 text-orange-700 border border-orange-200'
                     : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
                 }`}
               >
@@ -398,16 +398,16 @@ export default function ServiceHistoryTab({
                     key={bike.plate_number}
                     type="button"
                     onClick={() => setSelectedBikePlate(bike.plate_number)}
-                    className={`flex items-center gap-1.5 sm:gap-2 px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
+                    className={`flex items-center gap-1.5 sm:gap-2 px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 ${
                       isSelected
-                        ? 'bg-orange-500 text-white shadow-xs'
+                        ? 'bg-orange-50 text-orange-700 border border-orange-200'
                         : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/80'
                     }`}
                   >
                     <span>{bike.model}</span>
                     <span
                       className={`text-[10px] font-mono px-1.5 sm:px-2 py-0.5 rounded-md ${
-                        isSelected ? 'bg-orange-600 text-white' : 'bg-slate-200/70 text-slate-600'
+                        isSelected ? 'bg-orange-100 text-orange-700' : 'bg-slate-200/70 text-slate-600'
                       }`}
                     >
                       {bike.plate_number} ({bikeCount})
@@ -426,7 +426,7 @@ export default function ServiceHistoryTab({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by ticket code (e.g. MC-9113), plate, or service..."
+              placeholder="Search ticket, plate, or service"
               className="w-full bg-white border border-slate-200/80 rounded-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 shadow-2xs transition"
             />
             <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -436,7 +436,7 @@ export default function ServiceHistoryTab({
         {/* 5. Data Records View (Empty State or Records Table) */}
         {serviceHistory.length === 0 ? (
           <div className="space-y-3 sm:space-y-4">
-            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-5 sm:p-10 text-center space-y-3.5 sm:space-y-4 shadow-xs">
+            <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-5 sm:p-10 text-center space-y-3.5 sm:space-y-4 card-elevated">
               <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-orange-50 border border-orange-200/60 flex items-center justify-center mx-auto text-orange-600 shadow-2xs">
                 <Inbox className="w-6 h-6 sm:w-7 sm:h-7" />
               </div>
@@ -462,7 +462,7 @@ export default function ServiceHistoryTab({
             </div>
 
             {/* Mobile View (<sm): Consolidated Single Card with 3 Clean Rows */}
-            <div className="sm:hidden bg-white border border-slate-200/80 rounded-2xl p-3.5 shadow-2xs divide-y divide-slate-100">
+            <div className="sm:hidden bg-white border border-slate-200/80 rounded-2xl p-3.5 card-elevated divide-y divide-slate-100">
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-0.5 pb-2.5 flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-orange-500" />
                 <span>MotoCare Records Guarantee</span>
@@ -507,7 +507,7 @@ export default function ServiceHistoryTab({
 
             {/* Desktop View (>=sm): 3-Column Bento Grid */}
             <div className="hidden sm:grid sm:grid-cols-3 gap-3">
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 card-elevated">
                 <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
@@ -517,7 +517,7 @@ export default function ServiceHistoryTab({
                 </p>
               </div>
 
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 card-elevated">
                 <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center">
                   <FileText className="w-4 h-4" />
                 </div>
@@ -527,7 +527,7 @@ export default function ServiceHistoryTab({
                 </p>
               </div>
 
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 shadow-2xs">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-4 space-y-1.5 card-elevated">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                   <Wrench className="w-4 h-4" />
                 </div>
@@ -539,7 +539,7 @@ export default function ServiceHistoryTab({
             </div>
           </div>
         ) : filteredHistory.length === 0 ? (
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 text-center text-xs text-slate-500 shadow-xs">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 text-center text-xs text-slate-500 card-elevated">
             No service records matching your search or vehicle filter.
           </div>
         ) : (
@@ -648,7 +648,7 @@ export default function ServiceHistoryTab({
             </div>
 
             {/* Desktop Table (>= sm screens) */}
-            <div className="hidden sm:block bg-white border border-slate-200/80 rounded-[2rem] overflow-hidden shadow-xs">
+            <div className="hidden sm:block bg-white border border-slate-200/80 rounded-[2rem] overflow-hidden card-elevated">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 uppercase text-[10px] font-bold tracking-wider">
@@ -860,11 +860,11 @@ export default function ServiceHistoryTab({
               <div className="grid grid-cols-2 gap-3 text-[11px]">
                 <div>
                   <span className="text-slate-400 block text-[10px]">SERVICE BAY</span>
-                  <span className="font-semibold text-slate-800">{selectedTicket.assigned_bay}</span>
+                  <span className="font-semibold text-slate-800">{selectedTicket.assigned_bay || '—'}</span>
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">LEAD MECHANIC</span>
-                  <span className="font-semibold text-orange-600">{selectedTicket.assigned_mechanic}</span>
+                  <span className="font-semibold text-orange-600">{selectedTicket.assigned_mechanic || '—'}</span>
                 </div>
               </div>
 
@@ -940,14 +940,14 @@ export default function ServiceHistoryTab({
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
                       placeholder="Share your experience with our mechanic..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-orange-500"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500"
                     />
                     <div className="flex justify-end">
                       <button
                         type="button"
                         disabled={isSubmittingReview || reviewRating === 0}
                         onClick={() => handleSubmitReview(selectedTicket)}
-                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs rounded-lg transition cursor-pointer flex items-center gap-1"
+                        className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-full shadow-md shadow-orange-500/25 transition cursor-pointer flex items-center gap-1.5"
                       >
                         {isSubmittingReview && <Loader2 className="w-3 h-3 animate-spin" />}
                         <span>Submit Review</span>
@@ -1059,7 +1059,7 @@ export default function ServiceHistoryTab({
                   value={reviewComment}
                   onChange={(e) => setReviewComment(e.target.value)}
                   placeholder="Share feedback on repair quality, turnaround time, or technician professionalism..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-orange-500 transition resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 transition resize-none"
                 />
               </div>
             </div>

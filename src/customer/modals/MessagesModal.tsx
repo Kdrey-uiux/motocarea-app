@@ -14,7 +14,7 @@ import {
   AlertTriangle,
   Calendar,
   CalendarSync
-} from 'lucide-react';
+} from '../../components/icons';
 
 interface MessagesModalProps {
   isOpen: boolean;
@@ -346,7 +346,7 @@ export default function MessagesModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-emerald-100/70 transition cursor-pointer"
+            className="p-2.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-emerald-100/70 transition cursor-pointer"
             title="Close Helpdesk Chat"
           >
             <X className="w-4 h-4" />
@@ -354,7 +354,7 @@ export default function MessagesModal({
         </div>
 
         {/* Message Feed Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-[#f8fafc]">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50">
           {loading ? (
             <div className="h-full flex items-center justify-center text-slate-400 text-xs gap-2">
               <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
@@ -400,14 +400,14 @@ export default function MessagesModal({
                   )}
 
                   <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                    <div className="text-[10px] text-slate-400 mb-0.5 px-1.5 font-medium">
+                    <div className="text-[11px] text-slate-400 mb-0.5 px-1.5 font-medium">
                       {isMe ? 'You' : 'Advisor'} • {timeFormatted}
                     </div>
                     <div
                       className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
                         isMe
-                          ? 'bg-orange-500 text-white rounded-br-xs shadow-xs font-medium'
-                          : 'bg-white border border-slate-200/80 text-slate-800 rounded-bl-xs shadow-2xs font-normal'
+                          ? 'bg-orange-500 text-white rounded-br-xs card-elevated font-medium'
+                          : 'bg-white border border-slate-200/80 text-slate-800 rounded-bl-xs card-elevated font-normal'
                       }`}
                     >
                       {renderMessageContent(msg.message)}
@@ -430,7 +430,7 @@ export default function MessagesModal({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             placeholder="Type your message to workshop..."
-            className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition"
+            className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-base sm:text-xs text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition"
             disabled={sending || loading}
           />
           <button

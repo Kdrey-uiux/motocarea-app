@@ -9,9 +9,8 @@ import {
   MapPin, 
   Clock, 
   Stamp,
-  AlertCircle,
-  ChevronDown
-} from 'lucide-react';
+  AlertCircle
+} from '../../components/icons';
 import { UserProfile } from '../../types/dashboard';
 import { createHardcopyRequest, HardcopyRequest } from '../../lib/hardcopyService';
 
@@ -28,7 +27,7 @@ interface RequestHardcopyModalProps {
 const PURPOSES = [
   {
     id: 'resale',
-    title: 'Motorcycle Resale / Transfer of Ownership',
+    title: 'Resale / Transfer of Ownership',
     desc: 'Official proof of maintenance history for prospective buyer.',
   },
   {
@@ -38,7 +37,7 @@ const PURPOSES = [
   },
   {
     id: 'financing',
-    title: 'Bank / Financing / Loan Documentation',
+    title: 'Bank / Financing / Loan',
     desc: 'Formal vehicle valuation and maintenance verification.',
   },
   {
@@ -119,12 +118,12 @@ export default function RequestHardcopyModal({
         
         {/* Sticky Header */}
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 border border-orange-200/80 flex items-center justify-center shrink-0 shadow-2xs">
               <Stamp className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                 <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                   Request Certified Hardcopy
                 </h3>
@@ -141,8 +140,8 @@ export default function RequestHardcopyModal({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-            title="Close"
+            className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </button>
@@ -215,38 +214,41 @@ export default function RequestHardcopyModal({
               <span>Purpose / Documentation Need:</span>
             </label>
 
-            <div className="relative">
-              <select
-                value={selectedPurpose}
-                onChange={(e) => setSelectedPurpose(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium appearance-none focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/10 cursor-pointer pr-10"
-              >
-                {PURPOSES.map((p) => (
-                  <option key={p.id} value={p.title}>
-                    {p.title}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup">
+              {PURPOSES.map((p) => {
+                const isSelected = selectedPurpose === p.title;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => setSelectedPurpose(p.title)}
+                    className={`p-3 rounded-xl text-left border transition cursor-pointer ${
+                      isSelected
+                        ? 'border-orange-500 bg-orange-50/60 ring-1 ring-orange-500'
+                        : 'border-slate-200 hover:border-slate-300 bg-slate-50/60'
+                    }`}
+                  >
+                    <span className="block text-[13px] font-semibold text-slate-900 leading-snug">{p.title}</span>
+                    <span className="block text-[11px] text-slate-500 mt-0.5 leading-snug">{p.desc}</span>
+                  </button>
+                );
+              })}
             </div>
-
-            <p className="text-[11px] text-slate-500 pl-1 leading-normal">
-              {PURPOSES.find((p) => p.title === selectedPurpose)?.desc}
-            </p>
           </div>
 
           {/* 3. Special Instructions / Notes */}
           <div className="space-y-1.5">
-            <label className="font-bold text-slate-800 flex items-center justify-between">
-              <span>Special Instructions / Notes (Optional):</span>
-              <span className="text-[10px] text-slate-400 font-normal">e.g. Dry seal needed</span>
+            <label className="font-bold text-slate-800 block">
+              Notes <span className="font-normal text-slate-400">(optional)</span>
             </label>
             <input
               type="text"
               value={customNotes}
               onChange={(e) => setCustomNotes(e.target.value)}
-              placeholder="e.g. Stamped with official dry seal for LTO transfer..."
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/10 transition"
+              placeholder="e.g. Dry seal needed for LTO transfer"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-2 focus:ring-orange-500/10 transition"
             />
           </div>
 
@@ -283,7 +285,7 @@ export default function RequestHardcopyModal({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-full border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-100 transition cursor-pointer"
+            className="flex-1 py-2.5 rounded-full border border-slate-200 bg-white text-slate-700 font-semibold text-sm hover:bg-slate-100 transition cursor-pointer"
           >
             Cancel
           </button>
@@ -292,7 +294,7 @@ export default function RequestHardcopyModal({
             type="button"
             onClick={handleSubmit}
             disabled={loading}
-            className="flex-1 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20 transition cursor-pointer"
+            className="flex-1 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm whitespace-nowrap flex items-center justify-center gap-1.5 shadow-md shadow-orange-500/25 transition cursor-pointer"
           >
             {loading ? (
               <>
@@ -301,8 +303,9 @@ export default function RequestHardcopyModal({
               </>
             ) : (
               <>
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Submit Hardcopy Request</span>
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                <span className="sm:hidden">Submit request</span>
+                <span className="hidden sm:inline">Submit Hardcopy Request</span>
               </>
             )}
           </button>

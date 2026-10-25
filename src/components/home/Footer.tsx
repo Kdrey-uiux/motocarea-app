@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Wrench, Phone, Mail, MapPin, Navigation } from 'lucide-react';
+import { Phone, Mail, MapPin, Navigation } from 'lucide-react';
 import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL } from '../../utils/shopInfo';
 import LegalTermsModal from '../legal/LegalTermsModal';
+import MotoCareLogo from '../brand/MotoCareLogo';
 
 const LINKS = [
   { href: '#services', label: 'Services' },
@@ -20,14 +21,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-10 text-sm">
         {/* Brand */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center text-white">
-              <Wrench className="w-4 h-4" />
-            </div>
-            <span className="font-display text-xl font-extrabold tracking-tight text-white">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
-          </div>
+          <MotoCareLogo className="h-16 w-auto text-white" />
           <p className="leading-relaxed">
             Motorcycle workshop service, preventive maintenance, and live repair tracking.
           </p>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Wrench } from 'lucide-react';
+import MotoCareLogo from '../brand/MotoCareLogo';
 
 const SEEN_KEY = 'motocare_intro_seen';
 
@@ -12,7 +12,7 @@ function alreadySeen(): boolean {
   }
 }
 
-/** Short brand intro (about 1 second) shown once per browser session on the landing page */
+/** Short brand intro (the animated logo, under 2 seconds) shown once per browser session on the landing page */
 export default function IntroSplash() {
   const [visible, setVisible] = useState(() => !alreadySeen());
 
@@ -23,7 +23,7 @@ export default function IntroSplash() {
     } catch {
       // Storage blocked: the intro may show again next time, which is fine
     }
-    const timer = window.setTimeout(() => setVisible(false), 1200);
+    const timer = window.setTimeout(() => setVisible(false), 1800);
     return () => window.clearTimeout(timer);
   }, [visible]);
 
@@ -37,19 +37,8 @@ export default function IntroSplash() {
           exit={{ opacity: 0, transition: { duration: 0.45, ease: 'easeOut' } }}
           aria-hidden="true"
         >
-          <motion.div
-            className="flex items-center gap-3"
-            initial={{ scale: 0.92, opacity: 0 }}
-            animate={{ scale: [0.92, 1.04, 1], opacity: 1 }}
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
-              <Wrench className="w-6 h-6 sm:w-7 sm:h-7" />
-            </div>
-            <span className="font-display text-4xl sm:text-5xl font-extrabold tracking-tight text-slate-900">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
-          </motion.div>
+          {/* Same animated logo as the loading screen */}
+          <MotoCareLogo animated className="h-24 sm:h-36 w-auto text-slate-900" />
         </motion.div>
       )}
     </AnimatePresence>

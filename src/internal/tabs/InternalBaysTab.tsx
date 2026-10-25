@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { isAwaitingArrival, advanceTicketStage } from '../utils/ticketActions';
-import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power } from 'lucide-react';
+import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power } from '../../components/icons';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
 import { SERVICE_STAGES } from '../../utils/serviceStages';
@@ -222,9 +222,9 @@ export default function InternalBaysTab({
 
       {/* 2. Waiting for a bay (only when there are some) */}
       {queueTickets.length > 0 && (
-        <section className="rounded-2xl sm:rounded-[1.75rem] border border-orange-200/80 bg-gradient-to-r from-orange-50 via-orange-50/40 to-white px-4 sm:px-5 py-4 shadow-[0_12px_32px_-16px_rgba(249,115,22,0.35)] flex flex-col lg:flex-row lg:items-center gap-3">
+        <section className="rounded-2xl sm:rounded-[1.75rem] border border-slate-200/70 bg-white card-elevated px-4 sm:px-5 py-4 flex flex-col lg:flex-row lg:items-center gap-3">
           <div className="flex items-center gap-3 shrink-0">
-            <span className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/25">
+            <span className="w-10 h-10 rounded-[12px] bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
               <Clock className="w-5 h-5" />
             </span>
             <div>

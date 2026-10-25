@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Star, Search, Eye, EyeOff, CheckCircle2, Reply, AlertCircle, Loader2, MessageSquare } from 'lucide-react';
+import { Star, Search, Eye, EyeOff, CheckCircle2, Reply, AlertCircle, Loader2, MessageSquare } from '../../components/icons';
 import { InternalTicket } from '../types/internal';
 import {
   fetchAllReviews,
@@ -240,7 +240,7 @@ export default function InternalReviewsTab({ tickets, currentStaffName = 'Worksh
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search name, ticket, comment"
-            className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+            className="w-full bg-white border border-slate-200 rounded-full pl-10 pr-3 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
           />
         </div>
       </div>

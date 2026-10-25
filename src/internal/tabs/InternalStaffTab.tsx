@@ -19,7 +19,7 @@ import {
   Edit3,
   KeyRound,
   X
-} from 'lucide-react';
+} from '../../components/icons';
 import { toast } from '../utils/toast';
 
 // Random 12-character starting password (no look-alike characters), shown once to the admin
@@ -304,7 +304,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
               placeholder="Search by name, email, phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:outline-hidden focus:border-orange-500 transition font-medium"
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:outline-none focus:border-orange-500 transition font-medium"
             />
           </div>
 

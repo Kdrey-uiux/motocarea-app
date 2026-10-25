@@ -1,16 +1,17 @@
 import { InternalTab } from '../types/internal';
 
-/** Page title + one-line description shown in the console header (and the browser tab) */
-export const INTERNAL_TAB_INFO: Record<InternalTab, { title: string; subtitle: string }> = {
-  queue: { title: 'Workshop Queue', subtitle: 'Motorcycles in the shop, upcoming appointments, and finished jobs.' },
-  bays: { title: 'Service Bays', subtitle: 'Which bays are free, in use, or under maintenance.' },
-  messages: { title: 'Customer Messages', subtitle: 'Chat with customers about their bookings and repairs.' },
-  reviews: { title: 'Customer Reviews', subtitle: 'Choose which reviews show on the website, and reply as MotoCare.' },
+/** Page title + one-line description shown in the console header (and the browser tab).
+    shortTitle replaces a long title on phones, where the header has little room */
+export const INTERNAL_TAB_INFO: Record<InternalTab, { title: string; subtitle: string; shortTitle?: string }> = {
+  queue: { title: 'Workshop Queue', shortTitle: 'Queue', subtitle: 'Motorcycles in the shop, upcoming appointments, and finished jobs.' },
+  bays: { title: 'Service Bays', shortTitle: 'Bays', subtitle: 'Which bays are free, in use, or under maintenance.' },
+  messages: { title: 'Customer Messages', shortTitle: 'Messages', subtitle: 'Chat with customers about their bookings and repairs.' },
+  reviews: { title: 'Customer Reviews', shortTitle: 'Reviews', subtitle: 'Choose which reviews show on the website, and reply as MotoCare.' },
   fleet: { title: 'Vehicles', subtitle: 'Customer motorcycles and the motorcycle model catalog.' },
   services: { title: 'Services', subtitle: 'Service packages customers can book.' },
   dashboard: { title: 'Dashboard', subtitle: 'Overview of today’s workshop activity.' },
   staff: { title: 'Team', subtitle: 'Owner and staff accounts.' },
-  audit: { title: 'Activity Logs', subtitle: 'Who did what, and when.' },
+  audit: { title: 'Activity Logs', shortTitle: 'Logs', subtitle: 'Who did what, and when.' },
 };
 
 export const INTERNAL_TAB_TITLES: Record<InternalTab, string> = Object.fromEntries(

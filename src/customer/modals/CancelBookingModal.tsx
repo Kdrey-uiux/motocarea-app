@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X, Loader2, AlertTriangle, Calendar, Bike, Wrench } from 'lucide-react';
+import { X, Loader2, AlertTriangle, Calendar, Bike, Wrench } from '../../components/icons';
 import { ServiceTicket } from '../../types/dashboard';
 
 interface CancelBookingModalProps {
@@ -71,7 +71,7 @@ export default function CancelBookingModal({
               <span>{ticket.service_type}</span>
             </div>
             {ticket.dropoff_date && (
-              <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+              <div className="flex items-center gap-1.5 text-slate-500 font-medium whitespace-nowrap">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
                 <span>{ticket.dropoff_date}</span>
               </div>
@@ -92,7 +92,7 @@ export default function CancelBookingModal({
             type="button"
             disabled={loading}
             onClick={onClose}
-            className="py-2.5 px-5 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
+            className="flex-1 sm:flex-none whitespace-nowrap py-2.5 px-5 rounded-full border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer disabled:opacity-50"
           >
             Keep Booking
           </button>
@@ -101,7 +101,7 @@ export default function CancelBookingModal({
             type="button"
             disabled={loading}
             onClick={onConfirm}
-            className="py-2.5 px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="flex-1 sm:flex-none whitespace-nowrap py-2.5 px-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {loading ? (
               <>

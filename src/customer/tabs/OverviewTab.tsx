@@ -18,7 +18,7 @@ import {
   MapPin,
   Navigation,
   Phone,
-} from 'lucide-react';
+} from '../../components/icons';
 import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL, SHOP_MAP_EMBED_URL } from '../../utils/shopInfo';
 import { getTicketDisplayDate } from '../../utils/ticketDates';
 import {
@@ -203,19 +203,12 @@ export default function OverviewTab({
   return (
     <div className="space-y-6 pb-8">
       {/* 1. Header Greeting & Action Row */}
-      <div className="flex flex-row items-end justify-between gap-3 px-1.5 sm:px-1">
+      <div className="flex flex-row items-center sm:items-end justify-between gap-3 px-1 pt-1 sm:pt-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-orange-100/70 text-orange-700">
-              Rider Portal
-            </span>
-            <span className="text-[11px] sm:text-xs text-slate-400">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-            </span>
-          </div>
-          <h2 className="mt-2 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-[-0.035em] leading-[1.05] truncate">
+          {/* Phones: the name drops to its own line, so nothing gets cut off beside the button */}
+          <h2 className="text-[1.6rem] sm:text-4xl lg:text-5xl font-extrabold text-slate-900 tracking-[-0.035em] leading-[1.05] break-words">
             Welcome back,{' '}
-            <span className="text-orange-500">{userProfile?.full_name?.split(' ')[0] || 'Rider'}</span>
+            <span className="block sm:inline text-orange-500 truncate">{userProfile?.full_name?.split(' ')[0] || 'Rider'}</span>
           </h2>
         </div>
 
@@ -224,17 +217,18 @@ export default function OverviewTab({
           <button
             type="button"
             onClick={() => onBookClick()}
-            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-3.5 py-1.5 sm:px-5 sm:py-2 text-xs sm:text-sm font-semibold shadow-sm shadow-orange-500/20 flex items-center gap-1.5 transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-4 py-2.5 sm:px-5 sm:py-2.5 text-sm font-semibold shadow-md shadow-orange-500/25 flex items-center gap-1.5 transition-transform duration-150 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
           >
             <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span>Book Service</span>
+            <span className="sm:hidden">Book</span>
+            <span className="hidden sm:inline">Book Service</span>
           </button>
         </div>
       </div>
 
       {/* 1.5 Active Service Units Quick-Switcher (When customer has multiple concurrent bookings) */}
       {activeTickets.length > 1 && (
-        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-4 shadow-xs space-y-2.5">
+        <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3 sm:p-4 card-elevated space-y-2.5">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
@@ -275,7 +269,7 @@ export default function OverviewTab({
                   key={t.id}
                   type="button"
                   onClick={() => setSelectedTicketId(t.id)}
-                  className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-colors duration-150 cursor-pointer text-left min-w-[210px] sm:min-w-0 snap-start shrink-0 sm:shrink bg-white border-2 shadow-xs ${
+                  className={`flex items-center gap-3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl transition-colors duration-150 cursor-pointer text-left w-[80%] max-w-[280px] sm:w-auto sm:max-w-none min-w-0 snap-start shrink-0 sm:shrink bg-white border-2 card-elevated ${
                     isSelected
                       ? 'border-orange-500'
                       : 'border-slate-200/90 hover:border-slate-300 hover:bg-slate-50/50 text-slate-700'
@@ -291,16 +285,16 @@ export default function OverviewTab({
                     <Bike className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1.5">
+                    <span
+                      className={`text-xs sm:text-sm font-bold line-clamp-2 leading-snug ${
+                        isSelected ? 'text-slate-900' : 'text-slate-700'
+                      }`}
+                    >
+                      {bikeLabel}
+                    </span>
+                    <div className="flex items-center gap-1.5 mt-1 min-w-0">
                       <span
-                        className={`text-xs sm:text-sm font-bold truncate block ${
-                          isSelected ? 'text-slate-900' : 'text-slate-700'
-                        }`}
-                      >
-                        {bikeLabel}
-                      </span>
-                      <span
-                        className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors duration-150 ${
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 transition-colors duration-150 ${
                           isTicketReady
                             ? 'bg-emerald-500 text-white shadow-xs'
                             : isSelected
@@ -310,13 +304,13 @@ export default function OverviewTab({
                       >
                         {isTicketReady ? 'Ready' : `Stage ${t.stage}`}
                       </span>
-                    </div>
-                    <div
-                      className={`text-[10px] sm:text-[11px] font-mono truncate mt-0.5 ${
-                        isSelected ? 'text-slate-500 font-medium' : 'text-slate-400'
-                      }`}
-                    >
-                      {plateLabel} • #{t.ticket_code}
+                      <span
+                        className={`text-[11px] font-mono truncate ${
+                          isSelected ? 'text-slate-500 font-medium' : 'text-slate-400'
+                        }`}
+                      >
+                        {plateLabel} • #{t.ticket_code}
+                      </span>
                     </div>
                   </div>
                 </button>
@@ -328,22 +322,20 @@ export default function OverviewTab({
 
       {/* 1.8 Missed Drop-off Notice Banner */}
       {missedBookings.length > 0 && (
-        <div className="bg-gradient-to-r from-rose-50 via-amber-50/40 to-white border border-rose-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 card-elevated flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
           <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="hidden sm:flex w-10 h-10 rounded-[12px] bg-rose-500 text-white items-center justify-center shrink-0 shadow-sm shadow-rose-500/30">
               <AlertTriangle className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-rose-950 uppercase tracking-wider">
-                  Missed Drop-off Window
-                </span>
+                <span className="text-sm font-bold text-slate-900">Missed drop-off window</span>
                 <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200/60">
                   #{missedBookings[0].ticket_code}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 mt-0.5 leading-snug">
-                It appears your vehicle ({missedBookings[0].motorcycles?.model || 'Motorcycle'}) was not checked in during your scheduled drop-off window. Your booking details are saved — you can reschedule anytime.
+              <p className="text-[13px] text-slate-600 mt-1 leading-relaxed">
+                Your {missedBookings[0].motorcycles?.model || 'motorcycle'} wasn&apos;t checked in during its drop-off window. Your booking is saved, so you can pick a new date anytime.
               </p>
             </div>
           </div>
@@ -361,22 +353,20 @@ export default function OverviewTab({
 
       {/* 1.9 Pending Workshop Confirmation Banner */}
       {isPending && activeTicket && (
-        <div className="bg-gradient-to-r from-amber-50 via-orange-50/40 to-white border border-amber-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 card-elevated flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
           <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="hidden sm:flex w-10 h-10 rounded-[12px] bg-orange-500 text-white items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
               <Clock className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-amber-950 uppercase tracking-wider">
-                  Awaiting Workshop Confirmation
-                </span>
+                <span className="text-sm font-bold text-slate-900">Waiting for the shop to confirm</span>
                 <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200">
                   #{activeTicket.ticket_code}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 mt-0.5 leading-snug">
-                Your online service appointment request has been submitted to the workshop queue. The front desk is verifying bay availability and will confirm shortly.
+              <p className="text-[13px] text-slate-600 mt-1 leading-relaxed">
+                We got your booking request. The shop is checking the schedule and will confirm it soon.
               </p>
             </div>
           </div>
@@ -396,10 +386,10 @@ export default function OverviewTab({
 
       {/* 1.96 Post-Service Star Rating & Customer Review Card */}
       {recentUnreviewedCompleted && (
-        <div className="bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white border border-amber-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs space-y-3 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 card-elevated space-y-3 animate-in fade-in duration-200">
           <div className="flex items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="hidden sm:flex w-10 h-10 rounded-[12px] bg-orange-500 text-white items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
                 <Star className="w-5 h-5 fill-current" />
               </div>
               <div>
@@ -407,14 +397,14 @@ export default function OverviewTab({
                   How was your service?
                 </h3>
                 <p className="text-xs text-slate-600 mt-0.5">
-                  Your recent service for <strong className="text-slate-800">{recentUnreviewedCompleted.motorcycles?.model || 'Motorcycle'}</strong> (#{recentUnreviewedCompleted.ticket_code}) has been completed. How was the quality of service?
+                  Rate your recent service for <strong className="text-slate-800">{recentUnreviewedCompleted.motorcycles?.model || 'your motorcycle'}</strong> ({recentUnreviewedCompleted.ticket_code}).
                 </p>
               </div>
             </div>
           </div>
 
           <div className="bg-white border border-slate-200/80 rounded-xl p-3.5 space-y-3 shadow-2xs">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="text-xs font-semibold text-slate-700">Rating:</span>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -437,17 +427,17 @@ export default function OverviewTab({
                 ))}
               </div>
               <span className="text-xs font-bold text-slate-700 ml-1">
-                {reviewRating > 0 ? `${reviewRating} / 5 Stars` : 'Select rating'}
+                {reviewRating > 0 ? `${reviewRating}/5` : 'Tap a star'}
               </span>
             </div>
 
             <div className="space-y-1">
               <textarea
-                rows={2}
+                rows={3}
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
-                placeholder="Optional: share feedback about repair quality, turnaround time, or technician professionalism..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:border-orange-500 transition resize-none"
+                placeholder="Optional: tell us about the repair, the wait, or the staff"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 transition resize-none"
               />
             </div>
 
@@ -456,10 +446,10 @@ export default function OverviewTab({
                 type="button"
                 disabled={isSubmittingReview || reviewRating === 0}
                 onClick={() => handleSubmitReview(recentUnreviewedCompleted)}
-                className="px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-bold text-xs rounded-full shadow-xs transition cursor-pointer flex items-center gap-1.5"
+                className="w-full sm:w-auto justify-center px-4 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold text-sm rounded-full shadow-md shadow-orange-500/25 transition cursor-pointer flex items-center gap-1.5"
               >
                 {isSubmittingReview && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>Submit Workshop Review</span>
+                <span>Submit review</span>
               </button>
             </div>
           </div>
@@ -475,7 +465,7 @@ export default function OverviewTab({
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       >
         {/* Card 1: Active Service Unit / Motorcycle Bay Pass */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 shadow-xs flex flex-col justify-between space-y-3.5">
+        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 card-elevated flex flex-col justify-between space-y-3.5">
           <div>
             <h3 className="text-sm font-bold text-slate-900">
               {activeTicket ? 'Active Service Unit' : 'Primary Motorcycle'}
@@ -489,19 +479,19 @@ export default function OverviewTab({
           <div
             className={`rounded-2xl p-5 text-white shadow-md relative overflow-hidden space-y-3.5 ${
               activeTicket
-                ? 'bg-gradient-to-br from-orange-600 via-amber-700 to-slate-900'
-                : 'bg-gradient-to-br from-emerald-800 via-teal-900 to-slate-950'
+                ? 'bg-gradient-to-br from-[#ea580c] via-[#b45309] to-[#111827]'
+                : 'bg-gradient-to-br from-[#065f46] via-[#134e4a] to-[#020617]'
             }`}
           >
             <div className="flex items-center justify-between relative z-10">
-              <span className="text-xs font-bold tracking-wider uppercase text-white/90 flex items-center gap-1.5">
+              <span className="text-xs font-bold tracking-wider uppercase text-white/90 flex items-center gap-1.5 whitespace-nowrap">
                 <Bike className="w-4 h-4" />
                 {activeTicket ? 'Service Bay Pass' : 'Garage Vehicle Pass'}
               </span>
               {activeTicket ? (
                 <Radio className="w-4 h-4 text-white/80 rotate-90" />
               ) : (
-                <span className="text-[10px] bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-emerald-100 border border-white/20">
+                <span className="text-[10px] bg-white/20 backdrop-blur-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider text-emerald-100 border border-white/20 whitespace-nowrap">
                   {primaryBike?.year_model ? `${primaryBike.year_model} Model` : 'Garage Unit'}
                 </span>
               )}
@@ -583,14 +573,14 @@ export default function OverviewTab({
         </div>
 
         {/* Card 2: Interactive Workshop Progress (Clickable Stages & Booked Motorcycle Display) */}
-        <div id="tour-active-tracker" className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs flex flex-col justify-between space-y-4">
+        <div id="tour-active-tracker" className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated flex flex-col justify-between space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
               <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
                 <Wrench className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-sm font-bold text-slate-900 leading-tight">
+                <h3 className="text-sm font-bold text-slate-900 leading-tight whitespace-nowrap">
                   Workshop Progress
                 </h3>
                 <p className="text-xs text-slate-400 truncate">
@@ -601,7 +591,7 @@ export default function OverviewTab({
 
             <div className="flex items-center gap-1.5 shrink-0">
               <div className="flex items-center bg-slate-100 p-0.5 rounded-full text-[11px] font-medium text-slate-600">
-                <span className="px-2.5 py-0.5 rounded-full">Stages</span>
+                <span className="hidden sm:inline px-2.5 py-0.5 rounded-full">Stages</span>
                 <span className="px-2.5 py-0.5 rounded-full bg-orange-500 text-white font-semibold shadow-xs">
                   {activeTicket ? (isPending ? 'Pending Review' : isReady ? 'Ready for Pickup' : `Stage ${currentStage}`) : 'Guide'}
                 </span>
@@ -611,7 +601,7 @@ export default function OverviewTab({
 
           {/* Interactive Milestone Pillars (Clickable!) */}
           <div className="pt-2 sm:pt-3">
-            <div className="flex items-end justify-between gap-1.5 sm:gap-2.5 h-36 sm:h-40 px-0.5 sm:px-2 pb-2">
+            <div className="flex items-end justify-between gap-1.5 sm:gap-2.5 h-28 sm:h-40 px-0.5 sm:px-2 pb-2">
               {stages.map((st) => {
                 // Only a real job gets the orange "current stage" pillar
                 const isActivePillar = Boolean(activeTicket) && st.step === currentStage;
@@ -629,8 +619,8 @@ export default function OverviewTab({
                     {/* Active Floating Badge (Centered perfectly via Flexbox wrapper) */}
                     {isActivePillar && (
                       <div className="absolute -top-4 left-0 right-0 flex justify-center pointer-events-none z-10">
-                        <div className="px-2 py-0.5 rounded-full bg-slate-900 text-white text-[8px] sm:text-[10px] font-bold shadow-md flex items-center gap-1 whitespace-nowrap animate-bounce">
-                          <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                        <div className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 text-[10px] font-bold flex items-center gap-1 whitespace-nowrap">
+                          <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
                           <span>{isReady && st.step === 5 ? 'Ready' : 'Current'}</span>
                         </div>
                       </div>
@@ -640,14 +630,14 @@ export default function OverviewTab({
                     <div
                       className={`w-full rounded-2xl transition-all duration-300 relative flex flex-col justify-between items-center py-2 ${
                         isActivePillar
-                          ? 'bg-gradient-to-b from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 h-28 sm:h-32 ring-2 ring-orange-500 ring-offset-2'
+                          ? 'bg-gradient-to-b from-orange-500 to-amber-500 text-white shadow-md shadow-orange-500/25 h-20 sm:h-32 ring-2 ring-orange-500 ring-offset-2'
                           : isPassedPillar
                           ? isInspected
-                            ? 'bg-orange-500 text-white shadow-xs h-24 sm:h-28 ring-2 ring-orange-400 ring-offset-1'
-                            : 'bg-orange-500 text-white shadow-xs h-24 sm:h-28'
+                            ? 'bg-orange-500 text-white shadow-xs h-16 sm:h-28 ring-2 ring-orange-400 ring-offset-1'
+                            : 'bg-orange-500 text-white shadow-xs h-16 sm:h-28'
                           : isInspected
-                          ? 'bg-slate-200 text-slate-700 h-24 sm:h-28 ring-2 ring-slate-400 ring-offset-1'
-                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-400 border border-slate-200/70 h-24 sm:h-28'
+                          ? 'bg-orange-50 text-orange-700 h-16 sm:h-28 ring-2 ring-orange-300 ring-offset-1'
+                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-400 border border-slate-200/70 h-16 sm:h-28'
                       }`}
                     >
                       {/* Top Stage Step Indicator */}
@@ -664,7 +654,7 @@ export default function OverviewTab({
                     </div>
 
                     {/* Stage Label Below Pillar (No Truncate, Guaranteed to show READY) */}
-                    <span className={`text-[8px] sm:text-[10px] md:text-xs font-bold uppercase mt-2 tracking-tight text-center leading-none transition ${
+                    <span className={`text-[10px] sm:text-xs font-bold uppercase mt-2 tracking-tight text-center leading-none transition ${
                       isInspected ? 'text-orange-600' : 'text-slate-500'
                     }`}>
                       {st.name}
@@ -678,9 +668,9 @@ export default function OverviewTab({
           {/* Interactive Inspection Detail Box (Explains What is Done at this Stage) */}
           <div className="p-3 sm:p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2 text-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 sm:gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <Info className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                <strong className="text-slate-900 font-bold text-xs truncate">
+              <div className="flex items-start gap-1.5 min-w-0">
+                <Info className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-px" />
+                <strong className="text-slate-900 font-bold text-xs leading-snug">
                   Stage {inspectedStage.step}: {inspectedStage.summary}
                 </strong>
               </div>
@@ -695,10 +685,10 @@ export default function OverviewTab({
               }`}>
                 {activeTicket
                   ? inspectedStage.step < currentStage
-                    ? 'Completed ✓'
+                    ? 'Completed'
                     : inspectedStage.step === currentStage
-                    ? 'In Progress ⚙'
-                    : 'Upcoming ⏱'
+                    ? 'In progress'
+                    : 'Upcoming'
                   : 'Stage Overview'}
               </span>
             </div>
@@ -782,20 +772,20 @@ export default function OverviewTab({
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       >
         {/* Bottom Left: Genuine Service History Table (NO HARDCODED ROWS) */}
-        <div className="lg:col-span-8 bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div>
+        <div className="lg:col-span-8 lg:self-start bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-6 card-elevated space-y-4">
+          <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-100">
+            <div className="min-w-0">
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
                 Service History
               </h3>
-              <p className="text-xs text-slate-400">Official verified workshop records from database</p>
+              <p className="text-xs text-slate-400">Your recent services</p>
             </div>
             <button
               type="button"
               onClick={onViewHistoryClick}
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer whitespace-nowrap shrink-0 py-2 -my-2"
             >
-              View Full History →
+              View all →
             </button>
           </div>
 
@@ -819,7 +809,7 @@ export default function OverviewTab({
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                        {item.status}
+                        {item.status === 'COMPLETED' ? 'Completed' : item.status.replace(/_/g, ' ').toLowerCase()}
                       </span>
                     )}
                   </div>
@@ -873,7 +863,7 @@ export default function OverviewTab({
                         ) : (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                            {item.status}
+                            {item.status === 'COMPLETED' ? 'Completed' : item.status.replace(/_/g, ' ').toLowerCase()}
                           </span>
                         )}
                       </td>
@@ -900,7 +890,7 @@ export default function OverviewTab({
         {/* Bottom Right: Real Fleet Status & Next Service Milestone (NO FAKE SPECIALISTS) */}
         <div className="lg:col-span-4 flex flex-col justify-between gap-5">
           {/* Sub-Card 1: Next Service Milestone */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs space-y-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
                 <Clock className="w-4 h-4" />
@@ -922,7 +912,7 @@ export default function OverviewTab({
                 <button
                   type="button"
                   onClick={() => onBookClick()}
-                  className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3.5 py-2 rounded-full transition cursor-pointer"
                 >
                   Book a Service
                 </button>
@@ -965,21 +955,33 @@ export default function OverviewTab({
           </div>
 
           {/* Sub-Card 2: Registered Garage Fleet Summary */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-3.5 sm:p-5 shadow-xs space-y-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated space-y-3">
             <div>
               <h4 className="text-xs font-bold text-slate-900">My Garage Fleet</h4>
               <p className="text-[11px] text-slate-400">Registered motorcycles ({motorcycles.length})</p>
             </div>
 
-            <div className="space-y-2 pt-1 max-h-36 overflow-y-auto pr-1">
+            {motorcycles.length === 0 && (
+              <div className="pt-1 flex items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">Your motorcycle is saved when you book your first service.</p>
+                <button
+                  type="button"
+                  onClick={() => onBookClick()}
+                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3.5 py-2 rounded-full transition cursor-pointer shrink-0"
+                >
+                  Book
+                </button>
+              </div>
+            )}
+            <div className="space-y-2 pt-1 lg:max-h-36 lg:overflow-y-auto lg:pr-1">
               {motorcycles.map((bike) => (
                 <div
                   key={bike.id}
-                  className="p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 flex items-center justify-between text-xs"
+                  className="p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 bg-slate-50/50 flex items-center justify-between gap-2 text-xs"
                 >
-                  <div className="flex items-center gap-2">
-                    <Bike className="w-3.5 h-3.5 text-slate-400" />
-                    <div>
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Bike className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="min-w-0">
                       <span className="font-bold text-slate-800 block text-xs">{bike.model}</span>
                       <span className="text-[10px] text-slate-400 font-mono">{bike.plate_number}</span>
                       <span className="text-[10px] text-slate-500 block">
@@ -990,7 +992,7 @@ export default function OverviewTab({
                   <button
                     type="button"
                     onClick={() => onBookClick(bike.id)}
-                    className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2.5 py-1 rounded-lg transition cursor-pointer"
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-3.5 py-2 rounded-full transition cursor-pointer shrink-0"
                   >
                     Book
                   </button>
@@ -1003,7 +1005,7 @@ export default function OverviewTab({
 
       {/* 4. Shop location: open the map or get directions in Google Maps */}
       <motion.div
-        className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] shadow-xs overflow-hidden grid grid-cols-1 lg:grid-cols-12"
+        className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] card-elevated overflow-hidden grid grid-cols-1 lg:grid-cols-12"
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '0px 0px -10% 0px' }}

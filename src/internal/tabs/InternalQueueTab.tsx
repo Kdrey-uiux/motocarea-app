@@ -45,7 +45,7 @@ import {
   CalendarClock,
   BellRing,
   type LucideIcon,
-} from 'lucide-react';
+} from '../../components/icons';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
 import WalkInClaimSlipModal from '../modals/WalkInClaimSlipModal';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
@@ -1331,7 +1331,7 @@ export function InternalQueueTab({
               placeholder="Search ticket, customer, phone or plate"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-9 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-9 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
             />
             {searchQuery && (
               <button
@@ -1393,10 +1393,10 @@ export function InternalQueueTab({
       {sections.needsAction.length > 0 && (
         <section
           id="q-needs"
-          className="scroll-mt-28 rounded-2xl sm:rounded-[1.75rem] border border-orange-200/80 bg-gradient-to-b from-orange-50/90 to-white/80 p-4 sm:p-5 space-y-4 shadow-[0_12px_32px_-16px_rgba(249,115,22,0.35)]"
+          className="scroll-mt-28 rounded-2xl sm:rounded-[1.75rem] border border-slate-200/70 bg-white card-elevated p-4 sm:p-5 space-y-4"
         >
           <div className="flex items-start gap-3 px-1">
-            <span className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-orange-500/25">
+            <span className="w-10 h-10 rounded-[12px] bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
               <BellRing className="w-5 h-5" />
             </span>
             <div className="min-w-0">
@@ -1631,7 +1631,7 @@ export function InternalQueueTab({
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
                 placeholder="e.g. Customer cancelled via call, no available parts in stock, customer duplicate booking..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition resize-none"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition resize-none"
               />
             </div>
 
@@ -1678,7 +1678,7 @@ export function InternalQueueTab({
                   value={rescheduleDate}
                   onChange={(e) => setRescheduleDate(e.target.value)}
                   min={todayDateStr}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition"
                 />
               </div>
 
@@ -1687,7 +1687,7 @@ export function InternalQueueTab({
                 <select
                   value={rescheduleSlot}
                   onChange={(e) => setRescheduleSlot(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition"
                 >
                   {TIME_SLOTS.map((s) => (
                     <option key={s.id} value={s.id}>
@@ -1763,7 +1763,7 @@ export function InternalQueueTab({
                   value={selectedMechanicName}
                   onChange={(e) => setSelectedMechanicName(e.target.value)}
                   placeholder="e.g. Juan Dela Cruz"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
                 />
               </div>
               <p className="text-[11px] text-slate-400">Leave empty and save to remove the mechanic from this job.</p>

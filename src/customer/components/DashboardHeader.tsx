@@ -13,10 +13,14 @@ import {
   Stamp,
   FileText,
   BookOpen,
-  CheckCheck
-} from 'lucide-react';
+  CheckCheck,
+  Moon,
+  Sun
+} from '../../components/icons';
+import type { ThemePreference } from '../../utils/theme';
 import { TabType, ServiceTicket, UserProfile } from '../../types/dashboard';
 import { HardcopyRequest } from '../../lib/hardcopyService';
+import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 interface DashboardHeaderProps {
   userId?: string | null;
@@ -33,6 +37,10 @@ interface DashboardHeaderProps {
   onOpenPasswordModal: () => void;
   onLogout: () => void;
   onOpenTutorial?: () => void;
+  themePreference?: ThemePreference;
+  /** Whether dark is showing right now (for the quick moon/sun toggle) */
+  isDarkTheme?: boolean;
+  onChangeTheme?: (preference: ThemePreference) => void;
 }
 
 export default function DashboardHeader({
@@ -50,6 +58,8 @@ export default function DashboardHeader({
   onOpenPasswordModal,
   onLogout,
   onOpenTutorial,
+  isDarkTheme = false,
+  onChangeTheme,
 }: DashboardHeaderProps) {
   // Only 3 Core Navigation Tabs (Eliminates redundant "Account Profile" in nav)
   const navTabs = [
@@ -214,7 +224,7 @@ export default function DashboardHeader({
 
   return (
     <header
-      className={`z-30 bg-[#f2f4f7]/95 backdrop-blur-md transition-all duration-300 sticky top-0 md:fixed md:top-0 md:right-0 ${
+      className={`z-30 bg-page/95 backdrop-blur-md transition-all duration-300 sticky top-0 md:fixed md:top-0 md:right-0 ${
         isSidebarCollapsed ? 'md:left-0' : 'md:left-24'
       }`}
     >
@@ -235,12 +245,7 @@ export default function DashboardHeader({
             onClick={() => setActiveTab && setActiveTab('overview')}
             className="flex items-center gap-2.5 cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center text-white shadow-xs">
-              <Wrench className="w-4 h-4" />
-            </div>
-            <span className="text-lg font-bold text-slate-900 tracking-tight block">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
+            <MotoCareLogo className="h-10 sm:h-12 w-auto text-slate-900" />
           </div>
         </div>
 
@@ -255,7 +260,7 @@ export default function DashboardHeader({
                 onClick={() => setActiveTab && setActiveTab(tab.id)}
                 className={`px-5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-xs scale-100'
+                    ? 'bg-orange-50 text-orange-700 shadow-xs scale-100'
                     : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
                 }`}
               >
@@ -266,18 +271,57 @@ export default function DashboardHeader({
         </nav>
 
         {/* Right: Functional Notification Bell & Interactive "K" Avatar Menu */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          {/* Phones: one round button that flips light / dark */}
+          {onChangeTheme && (
+            <button
+              type="button"
+              onClick={() => onChangeTheme(isDarkTheme ? 'light' : 'dark')}
+              className="sm:hidden w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center transition cursor-pointer"
+              aria-label={isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={isDarkTheme ? 'Light mode' : 'Dark mode'}
+            >
+              {isDarkTheme ? <Sun className="w-4 h-4 text-orange-500" /> : <Moon className="w-4 h-4" />}
+            </button>
+          )}
+
+          {/* Quick light / dark toggle (System lives in Settings) */}
+          {onChangeTheme && (
+            <div className="hidden sm:flex items-center h-9 p-0.5 rounded-full bg-slate-100 border border-slate-200" role="radiogroup" aria-label="Appearance">
+              {([
+                { id: 'dark', label: 'Dark', icon: Moon, active: isDarkTheme },
+                { id: 'light', label: 'Light', icon: Sun, active: !isDarkTheme },
+              ] as const).map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={option.active}
+                  aria-label={option.label}
+                  title={`${option.label} mode`}
+                  onClick={() => onChangeTheme(option.id)}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer ${
+                    option.active ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                  }`}
+                >
+                  <option.icon className="w-4 h-4" />
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Quick Tutorial Launch Button */}
           {onOpenTutorial && (
             <button
               id="tour-user-guide"
               type="button"
               onClick={onOpenTutorial}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200/80 text-xs font-bold transition shadow-2xs cursor-pointer group active:scale-95"
-              title="User Guide & System Walkthrough"
+              className="h-9 w-9 sm:w-auto sm:px-3.5 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-700 hover:text-slate-900 text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
+              title="User guide"
+              aria-label="User guide"
             >
-              <BookOpen className="w-3.5 h-3.5 text-orange-500 group-hover:scale-105 transition-transform" />
-              <span className="hidden sm:inline">User Guide</span>
+              <BookOpen className="w-4 h-4 text-orange-500 shrink-0" />
+              <span className="hidden sm:inline">Guide</span>
             </button>
           )}
 
@@ -324,7 +368,7 @@ export default function DashboardHeader({
                       <button
                         type="button"
                         onClick={handleMarkAllAsRead}
-                        className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 cursor-pointer transition active:scale-95"
+                        className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer transition active:scale-95 py-1.5"
                       >
                         Mark all as read
                       </button>
@@ -360,10 +404,10 @@ export default function DashboardHeader({
                                   <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0" title="Unread" />
                                 )}
                               </div>
-                              <p className="text-[11px] text-slate-600 leading-snug mt-0.5">
+                              <p className="text-xs text-slate-600 leading-snug mt-0.5">
                                 {notif.desc}
                               </p>
-                              <span className="text-[10px] text-slate-400 block mt-1">
+                              <span className="text-[11px] text-slate-400 block mt-1">
                                 {notif.time}
                               </span>
                             </div>
@@ -385,7 +429,7 @@ export default function DashboardHeader({
               setIsUserMenuOpen((prev) => !prev);
               setIsNotificationsOpen(false);
             }}
-            className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full hover:bg-slate-50 border border-slate-200/60 hover:border-slate-300 transition cursor-pointer"
+            className="flex items-center gap-2 p-1 sm:pr-2.5 rounded-full hover:bg-slate-50 border border-slate-200/60 hover:border-slate-300 transition cursor-pointer"
             title="User Account Menu"
           >
             <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
@@ -395,7 +439,7 @@ export default function DashboardHeader({
               {userProfile?.full_name?.split(' ')[0] || 'Account'}
             </span>
             <ChevronDown
-              className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+              className={`hidden sm:block w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
                 isUserMenuOpen ? 'rotate-180 text-orange-500' : ''
               }`}
             />
@@ -432,7 +476,7 @@ export default function DashboardHeader({
                     setIsUserMenuOpen(false);
                     setActiveTab?.('profile');
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >
                   <User className="w-4 h-4 text-orange-500" />
                   <span>Account Profile & Garage</span>
@@ -448,7 +492,7 @@ export default function DashboardHeader({
                       onOpenSettings();
                     }
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4 text-orange-500" />
                   <span>Settings & Policies</span>
@@ -461,7 +505,7 @@ export default function DashboardHeader({
                       setIsUserMenuOpen(false);
                       onOpenTutorial();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-orange-700 bg-orange-50/60 hover:bg-orange-100/80 rounded-xl transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-orange-700 bg-orange-50/60 hover:bg-orange-100/80 rounded-xl transition cursor-pointer"
                   >
                     <BookOpen className="w-4 h-4 text-orange-500" />
                     <span>User Guide & Onboarding</span>
@@ -474,7 +518,7 @@ export default function DashboardHeader({
                     setIsUserMenuOpen(false);
                     onOpenPasswordModal();
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-medium text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
                 >
                   <Key className="w-4 h-4 text-slate-400" />
                   <span>Change Password</span>
@@ -487,7 +531,7 @@ export default function DashboardHeader({
                       setIsUserMenuOpen(false);
                       onLogout();
                     }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Sign Out</span>

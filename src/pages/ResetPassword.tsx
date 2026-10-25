@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Wrench, ShieldCheck, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import MotoCareLogo from '../components/brand/MotoCareLogo';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -71,13 +72,8 @@ export default function ResetPassword() {
       <div className="max-w-md w-full bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-xs space-y-6">
         
         <div className="flex justify-center">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-500/20 text-white group-hover:scale-105 transition-transform">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
+          <Link to="/" className="group" aria-label="MotoCare home">
+            <MotoCareLogo className="h-16 sm:h-20 w-auto text-slate-900 transition-transform group-hover:scale-[1.03]" />
           </Link>
         </div>
 

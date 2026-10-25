@@ -123,7 +123,7 @@ const STEPS: StepContent[] = [
     },
     subtitle: {
       en: 'Guaranteed daily service slots with a strict 10-bike shop limit',
-      tl: 'May garantisadong slot at 10-motor limit para sa pulidong gawa',
+      tl: 'May garantisadong slot at 6-motor limit para sa pulidong gawa',
     },
     description: {
       en: 'Reserve your preferred arrival window and choose from our preventive maintenance packages: Synthetic Oil Change, Scooter CVT Cleaning, Brake & Chain Overhaul, or FI Diagnostics.',
@@ -131,12 +131,12 @@ const STEPS: StepContent[] = [
     },
     points: {
       en: [
-        'Strict 10-motorcycle daily cap prevents shop congestion and technician rush.',
+        'Strict 6-motorcycle daily cap prevents shop congestion and technician rush.',
         'Upfront labor and parts price estimates provided before you drop off your ride.',
         'Pre-intake symptom notes allow mechanics to prepare diagnostic tools in advance.',
       ],
       tl: [
-        'May 10-motor limit kada araw para hindi magka-ipon-ipon at pulido ang asikaso sa motor.',
+        'May 6-motor limit kada araw para hindi magka-ipon-ipon at pulido ang asikaso sa motor.',
         'Malinaw ang presyo ng piyesa at labor bago pa man dalhin sa talyer para walang gulat.',
         'Pwede maglagay ng reklamo o kakaibang tunog para handa agad ang gamit ng mekaniko.',
       ],

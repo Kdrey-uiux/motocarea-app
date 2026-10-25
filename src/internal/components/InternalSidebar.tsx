@@ -11,10 +11,11 @@ import {
   X,
   LogOut,
   LucideIcon,
-} from 'lucide-react';
+} from '../../components/icons';
 import { InternalTab, UserRole } from '../types/internal';
 import { canAccessTab } from '../utils/permissions';
 import { WORKSHOP_BAY_COUNT } from '../utils/bays';
+import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 interface InternalSidebarProps {
   activeTab: InternalTab;
@@ -61,14 +62,21 @@ function NavButton({
       type="button"
       onClick={() => onSelect(item.id)}
       aria-current={isActive ? 'page' : undefined}
-      className={`relative w-full h-10 px-3 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
-        isActive ? 'bg-orange-50 text-orange-700' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+      className={`relative w-full h-11 pl-1.5 pr-2.5 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
+        isActive
+          ? 'bg-slate-500/[0.12] text-slate-900'
+          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-500/[0.07]'
       }`}
     >
-      {/* Active marker on the left edge */}
-      {isActive && <span aria-hidden="true" className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-orange-500" />}
+      {/* iOS Settings style: the filled icon sits in a small rounded tile (orange when active) */}
       <span className="flex items-center gap-3 min-w-0">
-        <Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? 'text-orange-500' : 'text-slate-400'}`} />
+        <span
+          className={`w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 transition-colors ${
+            isActive ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30' : 'bg-slate-100 text-slate-500'
+          }`}
+        >
+          <Icon className="w-[18px] h-[18px]" />
+        </span>
         <span className={`text-sm truncate ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
       </span>
       {item.badge !== undefined && (
@@ -173,14 +181,9 @@ export default function InternalSidebar({
 
   const brand = (onClick: () => void) => (
     <button type="button" onClick={onClick} className="flex items-center gap-3 cursor-pointer text-left">
-      <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25 shrink-0">
-        <Wrench className="w-5 h-5" />
-      </div>
       <div>
-        <span className="font-display text-lg font-extrabold tracking-tight text-slate-900 leading-tight block">
-          Moto<span className="text-orange-500">Care</span>
-        </span>
-        <span className="text-xs text-slate-400 block">
+        <MotoCareLogo className="h-12 w-auto text-slate-900" />
+        <span className="text-xs text-slate-400 block mt-0.5">
           {currentRole === 'admin' ? 'Owner console' : 'Staff console'}
         </span>
       </div>

@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
-  Wrench,
   Search,
   Store,
   ClipboardList,
@@ -11,6 +10,7 @@ import {
   Banknote,
   UserPlus,
 } from 'lucide-react';
+import MotoCareLogo from '../components/brand/MotoCareLogo';
 
 /**
  * Landing page for walk-in customers: no account and no online booking,
@@ -59,24 +59,17 @@ export default function WalkIn() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-orange-600 transition"
+            className="inline-flex items-center gap-1.5 py-2 text-xs font-semibold text-slate-600 hover:text-orange-600 transition whitespace-nowrap"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Home</span>
+            <span><span className="hidden sm:inline">Back to </span>Home</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-sm shadow-orange-500/20">
-              <Wrench className="w-4 h-4" />
-            </div>
-            <span className="font-extrabold text-sm text-slate-900 tracking-tight">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
-          </div>
+          <MotoCareLogo className="h-10 sm:h-11 w-auto text-slate-900" />
           <Link
             to="/login"
-            className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-1.5 rounded-full border border-orange-200/80 transition"
+            className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-2 rounded-full border border-orange-200/80 transition whitespace-nowrap"
           >
-            Portal Login
+            Log In
           </Link>
         </div>
       </header>

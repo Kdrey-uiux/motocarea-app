@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
-import { X, Printer, Copy, Check, Wrench } from 'lucide-react';
+import { X, Printer, Copy, Check } from '../../components/icons';
 import { PrintPortal } from '../../components/print/PrintTemplate';
 import { WalkInTicketDocument } from '../../components/print/MotoCareDocuments';
 import { printDocument } from '../../utils/printDocument';
+import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 export interface WalkInSlipInfo {
   ticketCode: string;
@@ -89,14 +90,7 @@ export default function WalkInClaimSlipModal({ slip, onClose }: WalkInClaimSlipM
         <div className="overflow-y-auto px-5 pb-5">
           <div className="rounded-2xl border-2 border-dashed border-slate-300 p-5 space-y-4 text-slate-900">
             <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-orange-500 text-white flex items-center justify-center">
-                  <Wrench className="w-3.5 h-3.5" />
-                </div>
-                <span className="font-display text-lg font-extrabold tracking-tight">
-                  Moto<span className="text-orange-500">Care</span>
-                </span>
-              </div>
+              <MotoCareLogo className="h-11 w-auto text-slate-900" />
               <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Walk-in ticket slip</span>
             </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, X } from '../../components/icons';
 import { TOAST_EVENT, ToastMessage } from '../utils/toast';
 
 const AUTO_DISMISS_MS = { success: 3500, info: 4500, error: 7000 };

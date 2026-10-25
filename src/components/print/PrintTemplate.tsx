@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Wrench, Printer, X } from 'lucide-react';
+import { Printer, X } from 'lucide-react';
+import MotoCareLogo from '../brand/MotoCareLogo';
 import { SHOP_INFO } from '../../utils/shopInfo';
 import { formatPrintDate, printDocument } from '../../utils/printDocument';
 
@@ -29,7 +30,7 @@ export function PrintPortal({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return createPortal(<div className="print-doc-root">{children}</div>, document.body);
+  return createPortal(<div className="print-doc-root force-light">{children}</div>, document.body);
 }
 
 interface PrintDocumentProps {
@@ -64,13 +65,9 @@ export function PrintDocument({
       {/* Letterhead */}
       <div className="print-doc__letterhead">
         <div className="print-doc__brand">
-          <div className="print-doc__logo">
-            <Wrench className="w-5 h-5" />
-          </div>
           <div>
-            <div className="print-doc__shop">
-              Moto<span>Care</span> Motorcycle Workshop
-            </div>
+            <MotoCareLogo className="print-doc__wordmark" />
+            <div className="print-doc__shop">Motorcycle Workshop</div>
             <div className="print-doc__contact">{SHOP_INFO.address}</div>
             <div className="print-doc__contact">
               {SHOP_INFO.phone} · {SHOP_EMAIL}
@@ -248,7 +245,8 @@ export function PrintPreviewModal({
               </div>
             </div>
             <div className="bg-slate-100 p-2 sm:p-6 overflow-auto flex-1">
-              <div className="mx-auto bg-white shadow-md ring-1 ring-slate-200 rounded-sm p-4 sm:p-10 max-w-[820px] min-w-[560px]">
+              {/* The paper stays white in dark mode, like the printed copy */}
+              <div className="force-light mx-auto bg-white text-slate-900 shadow-md ring-1 ring-slate-200 rounded-sm p-4 sm:p-10 max-w-[820px] min-w-[560px]">
                 {children}
               </div>
             </div>

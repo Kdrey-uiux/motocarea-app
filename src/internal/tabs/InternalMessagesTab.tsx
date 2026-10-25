@@ -15,7 +15,7 @@ import {
   Bell,
   Zap,
   Phone,
-} from 'lucide-react';
+} from '../../components/icons';
 import { toast } from '../utils/toast';
 import { isSystemMessage, summarizeMessage } from '../../utils/systemMessages';
 
@@ -335,7 +335,7 @@ export default function InternalMessagesTab({
               value={listSearch}
               onChange={(e) => setListSearch(e.target.value)}
               placeholder="Search name, motorcycle, phone"
-              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
             />
           </div>
         </div>
@@ -542,7 +542,7 @@ export default function InternalMessagesTab({
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-full px-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+                  className="flex-1 bg-slate-50 focus:bg-white border border-slate-200 rounded-full px-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
                 />
                 <button
                   type="button"

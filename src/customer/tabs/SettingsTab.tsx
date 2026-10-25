@@ -1,523 +1,365 @@
 import { useState } from 'react';
-import {
-  ShieldCheck,
-  Wrench,
-  Lock,
-  FileText,
-  Key,
-  MessageSquare,
-  User,
-  CheckCircle2,
-  ChevronRight,
-  Clock,
-  Scale
-} from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { MessageSquare, ChevronRight } from '../../components/icons';
 import { TabType } from '../../types/dashboard';
+import { TIME_SLOTS } from '../../utils/bookingLifecycle';
+import { FIXED_WORKSHOP_CAPACITY } from '../../utils/workshopCapacity';
+import { SHOP_INFO } from '../../utils/shopInfo';
+import LegalTermsModal from '../../components/legal/LegalTermsModal';
+import type { ThemePreference } from '../../utils/theme';
 
 interface SettingsTabProps {
   onOpenPasswordModal: () => void;
   onOpenHelpdesk: () => void;
   onNavigateTab: (tab: TabType) => void;
+  themePreference?: ThemePreference;
+  onChangeTheme?: (preference: ThemePreference) => void;
 }
 
-type SettingsSection = 'warranty' | 'standards' | 'privacy' | 'terms';
+const APPEARANCE_OPTIONS: { id: ThemePreference; label: string }[] = [
+  { id: 'light', label: 'Light' },
+  { id: 'dark', label: 'Dark' },
+  { id: 'system', label: 'System' },
+];
+
+type SettingsSection = 'warranty' | 'booking' | 'privacy' | 'account';
+
+const SECTIONS = [
+  { id: 'warranty' as SettingsSection, label: 'Warranty & payment', hint: '7-day workmanship warranty' },
+  { id: 'booking' as SettingsSection, label: 'Booking rules', hint: 'Windows, grace period, cancelling' },
+  { id: 'privacy' as SettingsSection, label: 'Privacy & your data', hint: 'What we keep and who sees it' },
+  { id: 'account' as SettingsSection, label: 'Account & security', hint: 'Password and sign-in' },
+];
+
+// "08:00 AM - 10:00 AM" -> "8:00 AM – 10:00 AM"
+const formatWindow = (id: string) => id.replace(/^0/, '').replace(' - 0', ' – ').replace(' - ', ' – ');
+
+const card = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
+
+/** One rule: a check icon, a bold title, and a plain explanation */
+function Rule({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <li className="py-3.5 first:pt-0 last:pb-0">
+      <p className="text-sm font-semibold text-slate-900">{title}</p>
+      <div className="mt-0.5 text-sm text-slate-500 leading-relaxed">{children}</div>
+    </li>
+  );
+}
+
+/** A content card with an icon header and a list of rules */
+function SectionCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`${card} p-5 sm:p-6`}>
+      <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">{title}</h3>
+      <p className="text-sm text-slate-500">{subtitle}</p>
+      <ul className="mt-4 pt-4 border-t border-slate-100 divide-y divide-slate-100">{children}</ul>
+    </div>
+  );
+}
 
 export default function SettingsTab({
   onOpenPasswordModal,
   onOpenHelpdesk,
   onNavigateTab,
+  themePreference = 'system',
+  onChangeTheme,
 }: SettingsTabProps) {
   const [activeSection, setActiveSection] = useState<SettingsSection>('warranty');
+  const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
 
-  const navCategories = [
-    {
-      id: 'warranty' as SettingsSection,
-      label: 'Service Warranty & Guarantees',
-      shortLabel: 'Warranty & Coverage',
-      badge: 'Protected',
-      icon: ShieldCheck,
-      description: '7-day labor coverage, parts assurance, and zero-deposit terms',
-    },
-    {
-      id: 'standards' as SettingsSection,
-      label: 'Workshop Community Standards',
-      shortLabel: 'Bay Standards',
-      badge: 'Code of Conduct',
-      icon: Wrench,
-      description: 'Bay etiquette, 10-slot capacity rules, and arrival window',
-    },
-    {
-      id: 'privacy' as SettingsSection,
-      label: 'Privacy & Data Protection',
-      shortLabel: 'Privacy & Data',
-      badge: 'Encrypted',
-      icon: Lock,
-      description: 'Account security, garage records, and Supabase protection',
-    },
-    {
-      id: 'terms' as SettingsSection,
-      label: 'System & Legal Terms',
-      shortLabel: 'Legal Terms',
-      badge: 'v2.4.0',
-      icon: FileText,
-      description: 'Digital ticket validity, liability limits, and platform policies',
-    },
+  const quickLinks = [
+    { label: 'My profile & motorcycles', onClick: () => onNavigateTab('profile') },
+    { label: 'Change password', onClick: onOpenPasswordModal },
+    { label: 'Message the shop', onClick: onOpenHelpdesk },
+    { label: 'Full terms & privacy policy', onClick: () => setLegalTab('terms') },
   ];
 
   return (
-    <div className="space-y-3.5 sm:space-y-6 pb-24 sm:pb-12">
-      {/* 1. Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-semibold bg-orange-50 text-orange-600 border border-orange-200">
-              Official Policies
-            </span>
-            <span className="text-[11px] sm:text-xs text-slate-400">• Updated for 2026</span>
-          </div>
+    <div className="space-y-4 sm:space-y-5 pb-24 sm:pb-12">
+      {/* Header */}
+      <div className={`${card} p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+        <div>
           <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-[-0.03em] leading-tight">
             Settings & <span className="text-orange-500">policies</span>
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 max-w-2xl leading-relaxed">
-            Review your MotoCare customer rights, 7-day labor warranty, bay etiquette, and account security controls.
+          <p className="mt-1 text-sm text-slate-500 max-w-xl leading-relaxed">
+            How bookings, the warranty, and your data work at MotoCare.
           </p>
         </div>
-
-        {/* Quick Action Pills */}
-        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 shrink-0 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-slate-100 w-full sm:w-auto">
+        <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={onOpenPasswordModal}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition cursor-pointer shadow-2xs active:scale-95"
+            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold text-slate-700 transition cursor-pointer active:scale-95"
           >
-            <Key className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-            <span>Change Password</span>
+            <span className="sm:hidden">Password</span>
+            <span className="hidden sm:inline">Change password</span>
           </button>
           <button
             type="button"
             onClick={onOpenHelpdesk}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition cursor-pointer shadow-sm shadow-orange-500/20 active:scale-95"
+            className="inline-flex items-center justify-center gap-1.5 whitespace-nowrap px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 transition cursor-pointer active:scale-95"
           >
-            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-            <span>Ask Staff</span>
+            <MessageSquare className="w-4 h-4 shrink-0" />
+            Ask the shop
           </button>
         </div>
       </div>
 
-      {/* 2. Mobile Category Switcher Pills (< lg screens) */}
-      <div className="lg:hidden flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {navCategories.map((cat) => {
-          const Icon = cat.icon;
-          const isActive = activeSection === cat.id;
-
+      {/* Phones and tablets: all four sections visible, two per row on phones */}
+      <div className="lg:hidden grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+        {SECTIONS.map((section) => {
+          const isActive = activeSection === section.id;
           return (
             <button
-              key={cat.id}
+              key={section.id}
               type="button"
-              onClick={() => setActiveSection(cat.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer shrink-0 active:scale-95 ${
+              onClick={() => setActiveSection(section.id)}
+              aria-pressed={isActive}
+              className={`px-3 py-2.5 rounded-full text-xs font-semibold text-center truncate border transition cursor-pointer ${
                 isActive
-                  ? 'bg-orange-500 text-white shadow-xs'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/80 shadow-2xs'
+                  ? 'bg-orange-50 text-orange-700 border-orange-200'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-orange-500'}`} />
-              <span>{cat.shortLabel || cat.label}</span>
+              {section.label}
             </button>
           );
         })}
       </div>
 
-      {/* 3. Main Layout: Desktop Sidebar / Content Pane */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
-        {/* Desktop Left Sidebar (hidden on mobile, replaced by horizontal pill bar above) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-5 items-start">
+        {/* Desktop: section list + quick links */}
         <div className="hidden lg:block lg:col-span-4 space-y-4">
-          <div className="bg-white border border-slate-200/80 rounded-[2rem] p-4 shadow-xs space-y-2">
-            <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-              Policy Categories
-            </div>
+          <nav className={`${card} p-2`}>
+            {SECTIONS.map((section) => {
+              const isActive = activeSection === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActiveSection(section.id)}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`relative w-full px-4 py-3 rounded-2xl flex items-center gap-3 text-left transition cursor-pointer ${
+                    isActive ? 'bg-orange-50' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  {isActive && <span aria-hidden="true" className="absolute left-0 top-3 bottom-3 w-1 rounded-full bg-orange-500" />}
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-semibold ${isActive ? 'text-orange-700' : 'text-slate-900'}`}>
+                      {section.label}
+                    </span>
+                    <span className="block text-xs text-slate-400 truncate">{section.hint}</span>
+                  </span>
+                  <ChevronRight className={`w-4 h-4 shrink-0 ${isActive ? 'text-orange-400' : 'text-slate-300'}`} />
+                </button>
+              );
+            })}
+          </nav>
 
-            <div className="space-y-1.5">
-              {navCategories.map((cat) => {
-                const Icon = cat.icon;
-                const isActive = activeSection === cat.id;
-
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => setActiveSection(cat.id)}
-                    className={`w-full text-left p-3.5 rounded-2xl transition-all duration-200 cursor-pointer flex items-center justify-between group ${
-                      isActive
-                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
-                        : 'hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                          isActive
-                            ? 'bg-white/20 text-white'
-                            : 'bg-orange-50 text-orange-600 group-hover:bg-orange-100'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                      </div>
-                      <div className="truncate">
-                        <div className={`text-xs font-bold truncate ${isActive ? 'text-white' : 'text-slate-900'}`}>
-                          {cat.label}
-                        </div>
-                        <div className={`text-[11px] truncate ${isActive ? 'text-orange-100' : 'text-slate-400'}`}>
-                          {cat.badge}
-                        </div>
-                      </div>
-                    </div>
-
-                    <ChevronRight
-                      className={`w-4 h-4 shrink-0 transition-transform ${
-                        isActive ? 'text-white translate-x-0.5' : 'text-slate-400 group-hover:text-slate-600'
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Desktop Account Quick Links */}
-          <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 shadow-xs space-y-3">
-            <h4 className="text-xs font-bold text-slate-900">Account Quick Links</h4>
-            <div className="space-y-2 text-xs">
-              <button
-                type="button"
-                onClick={() => onNavigateTab('profile')}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-slate-700 transition cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold">My Garage & Profile</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenPasswordModal}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-slate-700 transition cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Key className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold">Security & Password</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenHelpdesk}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-slate-700 transition cursor-pointer"
-              >
-                <div className="flex items-center gap-2.5">
-                  <MessageSquare className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold">Workshop Support Chat</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            </div>
-          </div>
+          <QuickLinks links={quickLinks} />
         </div>
 
-        {/* Right Side: Detailed Content Pane (Immediately visible on mobile!) */}
-        <div className="lg:col-span-8 space-y-4 sm:space-y-5">
-          {/* SECTION 1: Service Warranty & Guarantees */}
+        {/* Content */}
+        <div className="lg:col-span-8 space-y-4">
           {activeSection === 'warranty' && (
-            <div className="space-y-3 sm:space-y-4">
-              {/* Highlight Hero Card - Premium White Certificate Card (Eliminates orange clash) */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs space-y-2.5 sm:space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 border border-orange-200/80 flex items-center justify-center shrink-0">
-                      <ShieldCheck className="w-4 h-4" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-900">
-                      Official MotoCare Guarantee
+            <>
+              <SectionCard title="Warranty" subtitle="Covers the work we did on your motorcycle.">
+                <Rule title="7-day workmanship warranty">
+                  If a problem from the work we did comes back within 7 calendar days of release, bring the motorcycle
+                  back and we&apos;ll re-check and fix it with no labor charge.
+                </Rule>
+                <Rule title="Replaced parts">Parts we install carry their manufacturer&apos;s warranty.</Rule>
+                <Rule title="How to claim">
+                  Message the shop first, then bring the motorcycle with your ticket number or gate pass.
+                </Rule>
+                <Rule title="Not covered">
+                  Problems from work done elsewhere after release, accidents, misuse, and normal wear of consumables
+                  like brake pads, tires, and bulbs.
+                </Rule>
+              </SectionCard>
+
+              <SectionCard title="Payment" subtitle="Nothing is paid online.">
+                <Rule title="Pay at the counter on pickup">
+                  You pay in cash at the shop when you collect your motorcycle. There is no deposit and no online
+                  payment.
+                </Rule>
+                <Rule title="Prices are estimates">
+                  Service prices shown in the app are estimates. The final amount is confirmed at the shop after the
+                  inspection.
+                </Rule>
+                <Rule title="Extra parts need your OK">
+                  If the mechanic finds something else that needs replacing, we ask you first before doing it.
+                </Rule>
+              </SectionCard>
+            </>
+          )}
+
+          {activeSection === 'booking' && (
+            <SectionCard
+              title="Booking rules"
+              subtitle="The same rules the booking calendar follows."
+            >
+              <Rule title={`Monday to Saturday, up to ${FIXED_WORKSHOP_CAPACITY} bookings a day`}>
+                We&apos;re closed on Sundays. Once a day has {FIXED_WORKSHOP_CAPACITY} bookings, it shows as Full.
+              </Rule>
+              <Rule title="Pick an arrival window">
+                <span className="flex flex-wrap gap-1.5 mt-1.5">
+                  {TIME_SLOTS.map((slot) => (
+                    <span
+                      key={slot.id}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium"
+                    >
+                      {formatWindow(slot.id)}
                     </span>
-                  </div>
-                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    <span>100% Free Labor Re-check</span>
-                  </span>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="text-base sm:text-xl font-bold text-slate-900 tracking-tight">
-                    7-Day Labor & Workmanship Warranty
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xl">
-                    Every maintenance procedure performed by our certified technicians is backed by an unconditional 7-day labor warranty. If any symptom recurs within 7 days of counter release, return your unit for immediate prioritized recalibration with zero labor fees.
-                  </p>
-                </div>
-              </div>
-
-              {/* Policy Points Grid (Compact 2-column layout on mobile!) */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-4">
-                <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs space-y-1 sm:space-y-2 flex flex-col justify-between">
-                  <div>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-1.5 sm:mb-2">
-                      <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">Zero Advance Deposit</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug mt-0.5">
-                      ₱0.00 upfront payment. Settle only after repair is road-tested.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs space-y-1 sm:space-y-2 flex flex-col justify-between">
-                  <div>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center mb-1.5 sm:mb-2">
-                      <Wrench className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">OEM Parts Transparency</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug mt-0.5">
-                      All replaced worn parts are boxed and returned upon pickup.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs space-y-1 sm:space-y-2 flex flex-col justify-between">
-                  <div>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-1.5 sm:mb-2">
-                      <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">48-Hour Re-Inspection</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug mt-0.5">
-                      Warranty claims are prioritized and inspected within 48 hours.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-slate-200/80 rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-2xs space-y-1 sm:space-y-2 flex flex-col justify-between">
-                  <div>
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-slate-50 text-slate-700 flex items-center justify-center mb-1.5 sm:mb-2">
-                      <Scale className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    </div>
-                    <h4 className="text-xs sm:text-sm font-bold text-slate-900">Fair Price Match</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug mt-0.5">
-                      Follows distributor SRP. Zero hidden fees or extra charges.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+                  ))}
+                </span>
+              </Rule>
+              <Rule title={`${TIME_SLOTS[0].graceMinutes}-minute grace period`}>
+                You can still check in up to {TIME_SLOTS[0].graceMinutes} minutes after your window ends. After that the
+                booking is marked as missed and the slot opens for other riders. Running late? Message the shop before
+                your window ends.
+              </Rule>
+              <Rule title="Cancelling or changing">
+                You can cancel or move your booking online until work starts. After that, message the shop.
+              </Rule>
+              <Rule title="Walk-ins are welcome">
+                No booking? Come during shop hours and get a ticket at the counter, as long as there&apos;s room.
+              </Rule>
+              <Rule title="Before you hand over the keys">
+                Please take valuables out of the top box and remove phone holders and cameras.
+              </Rule>
+              <li className="pt-3.5">
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  <span className="font-semibold text-slate-700">Shop hours:</span> {SHOP_INFO.hours}
+                  <br />
+                  {SHOP_INFO.address} · {SHOP_INFO.phone}
+                </p>
+              </li>
+            </SectionCard>
           )}
 
-          {/* SECTION 2: Workshop Community Standards */}
-          {activeSection === 'standards' && (
-            <div className="space-y-4 sm:space-y-5">
-              <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs space-y-3.5 sm:space-y-4">
-                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5 sm:pb-4">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold shrink-0">
-                    <Wrench className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                      Workshop Community Standards & Bay Etiquette
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-slate-500">
-                      Help us maintain an efficient, safe, and respectful environment for all riders.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 sm:space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <div className="font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-orange-500 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">1</span>
-                      <span>10-Slot Active Bay Capacity</span>
-                    </div>
-                    <p className="text-slate-500 text-[11px] sm:text-xs pl-7 sm:pl-8 leading-snug">
-                      Our Santa Maria workshop operates 10 fully equipped hydraulic service bays. Booking reservations ensure an allocated slot and a scheduled mechanic. Unscheduled walk-ins are placed on standby.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <div className="font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-orange-500 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">2</span>
-                      <span>15-Minute Drop-off Arrival Window</span>
-                    </div>
-                    <p className="text-slate-500 text-[11px] sm:text-xs pl-7 sm:pl-8 leading-snug">
-                      Please arrive within 15 minutes of your confirmed drop-off time. If you expect a delay, notify our service advisor through the in-app Workshop Chat so we can hold your bay allocation.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <div className="font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-orange-500 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">3</span>
-                      <span>Active Bay Safety Zone</span>
-                    </div>
-                    <p className="text-slate-500 text-[11px] sm:text-xs pl-7 sm:pl-8 leading-snug">
-                      For customer safety, the hydraulic lift zone is restricted to certified technicians wearing protective gear. Riders are invited to relax in the air-conditioned customer lounge with live bay monitors.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <div className="font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-orange-500 text-white flex items-center justify-center text-[10px] sm:text-xs font-bold shrink-0">4</span>
-                      <span>Personal Belongings & Valuables</span>
-                    </div>
-                    <p className="text-slate-500 text-[11px] sm:text-xs pl-7 sm:pl-8 leading-snug">
-                      Please remove top-box valuables, mobile holders, cameras, and personal effects before handing over the keys. MotoCare provides a secure key lockbox for unit keys during intake.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* SECTION 3: Privacy & Data Protection */}
           {activeSection === 'privacy' && (
-            <div className="space-y-4 sm:space-y-5">
-              <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs space-y-3.5 sm:space-y-4">
-                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5 sm:pb-4">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold shrink-0">
-                    <Lock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                      Privacy Policy & Rider Data Protection
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-slate-500">
-                      How we protect your account information, vehicle history, and contact details.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 sm:space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  <div className="border border-slate-100 rounded-xl sm:rounded-2xl p-3.5 sm:p-4.5 bg-slate-50/70 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">1. Cloud Infrastructure & Encryption</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      All rider credentials and motorcycle diagnostic logs are securely stored on Supabase enterprise infrastructure with AES-256 encryption at rest and strict TLS 1.3 in transit.
-                    </p>
-                  </div>
-
-                  <div className="border border-slate-100 rounded-xl sm:rounded-2xl p-3.5 sm:p-4.5 bg-slate-50/70 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">2. Row Level Security (RLS)</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      Our database implements cryptographic Row Level Security policies. Only you and authorized workshop staff assigned to your service ticket can access your motorcycle records.
-                    </p>
-                  </div>
-
-                  <div className="border border-slate-100 rounded-xl sm:rounded-2xl p-3.5 sm:p-4.5 bg-slate-50/70 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">3. Zero Third-Party Monetization</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      We never sell, rent, or lease your phone number, email address, or riding logs to external advertising networks or data brokers. Communications are strictly operational.
-                    </p>
-                  </div>
-
-                  <div className="border border-slate-100 rounded-xl sm:rounded-2xl p-3.5 sm:p-4.5 bg-slate-50/70 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">4. Right to Data Portability</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      You maintain full ownership of your vehicle service history. You can view, download, and export digital service slips and invoices at any time from the Service Records tab.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <SectionCard title="Privacy & your data" subtitle="Following the Data Privacy Act (RA 10173).">
+              <Rule title="What we keep">
+                Your name, email, and phone number; your motorcycles; your bookings and service history; your chats
+                with the shop; and any reviews you write.
+              </Rule>
+              <Rule title="Who can see it">
+                Only you and MotoCare staff. Other riders can never see your profile, motorcycles, or tickets.
+              </Rule>
+              <Rule title="The public tracking page">
+                Anyone with your ticket number sees only the service, the repair stage, and a partly hidden plate
+                number. Keep your ticket number to yourself.
+              </Rule>
+              <Rule title="Emails we send">
+                A confirmation when your booking is accepted, a reminder the day before drop-off, and a notice when
+                your motorcycle is ready. They&apos;re sent through our email provider (Resend).
+              </Rule>
+              <Rule title="We never sell your data">Your details are used only to run your service, never for ads.</Rule>
+              <Rule title="Fix or delete your data">
+                Edit your details anytime in My Profile. To delete your account, message the shop.
+              </Rule>
+              <li>
+                <button
+                  type="button"
+                  onClick={() => setLegalTab('privacy')}
+                  className="text-sm font-semibold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1 cursor-pointer"
+                >
+                  Read the full privacy policy
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </li>
+            </SectionCard>
           )}
 
-          {/* SECTION 4: System & Legal Terms */}
-          {activeSection === 'terms' && (
-            <div className="space-y-4 sm:space-y-5">
-              <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 shadow-xs space-y-3.5 sm:space-y-4">
-                <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3.5 sm:pb-4">
-                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold shrink-0">
-                    <FileText className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-slate-900">
-                      System Terms & Legal Service Agreement
-                    </h3>
-                    <p className="text-[11px] sm:text-xs text-slate-500">
-                      Legal validity of digital service records, release authorizations, and terms of service.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-2.5 sm:space-y-4 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">Digital Ticket Legal Validity</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      Electronic service ticket numbers generated on this portal serve as legally binding work authorization slips pursuant to the Electronic Commerce Act of 2000 (R.A. 8792).
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">Pre-Existing Conditions & Disclaimer</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      Pre-existing structural hairline fractures, deep chassis corrosion, or previous unauthorized electrical splicing documented during the initial Stage 2 Diagnostic Check are exempt from warranty liability.
-                    </p>
-                  </div>
-
-                  <div className="p-3.5 sm:p-4 rounded-xl sm:rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
-                    <h4 className="font-bold text-slate-900 text-xs sm:text-sm">Unclaimed Vehicle Policy</h4>
-                    <p className="text-[11px] sm:text-xs text-slate-500 leading-snug">
-                      Motorcycles cleared for pickup in Stage 5 that remain unclaimed for more than fourteen (14) calendar days following digital notification are subject to a nominal safekeeping bay storage charge of ₱100/day.
-                    </p>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between text-[11px] sm:text-xs text-slate-400 border-t border-slate-100">
-                    <span>MotoCare Professional Workshop System</span>
-                    <span className="font-mono font-medium text-slate-600">v2.4.0 Production</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+          {activeSection === 'account' && (
+            <SectionCard title="Account & security" subtitle="Keep your account safe.">
+              {onChangeTheme && (
+                <Rule title="Appearance">
+                  <span className="block">Light, dark, or follow your phone&apos;s setting. Saved on this device.</span>
+                  <span className="mt-2 inline-grid grid-cols-3 gap-1 p-1 rounded-full bg-slate-100" role="radiogroup" aria-label="Appearance">
+                    {APPEARANCE_OPTIONS.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={themePreference === option.id}
+                        onClick={() => onChangeTheme(option.id)}
+                        className={`px-4 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
+                          themePreference === option.id ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </span>
+                </Rule>
+              )}
+              <Rule title="Your password stays private">
+                Passwords are handled by our sign-in service (Supabase Auth). Not even the shop staff can see it.
+              </Rule>
+              <Rule title="Use a strong password">
+                At least 8 characters with upper and lower case letters, a number, and a symbol.{' '}
+                <button
+                  type="button"
+                  onClick={onOpenPasswordModal}
+                  className="font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                >
+                  Change password
+                </button>
+              </Rule>
+              <Rule title="Signed up with Google?">
+                You can keep using &quot;Continue with Google&quot;. Google handles that sign-in.
+              </Rule>
+              <Rule title="Secure connection">Everything between your phone and our servers is encrypted (HTTPS).</Rule>
+              <Rule title="On a shared phone or computer">Sign out when you&apos;re done.</Rule>
+            </SectionCard>
           )}
 
-          {/* Mobile Account Quick Links (< lg screens, cleanly positioned at bottom) */}
-          <div className="lg:hidden bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-2.5">
-            <h4 className="text-xs font-bold text-slate-900">Account Quick Links</h4>
-            <div className="space-y-2 text-xs">
-              <button
-                type="button"
-                onClick={() => onNavigateTab('profile')}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-slate-700 transition cursor-pointer active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <User className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold">My Garage & Profile</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenPasswordModal}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-slate-700 transition cursor-pointer active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Key className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold">Security & Password</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-
-              <button
-                type="button"
-                onClick={onOpenHelpdesk}
-                className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100/80 text-slate-700 transition cursor-pointer active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-2.5">
-                  <MessageSquare className="w-4 h-4 text-orange-500" />
-                  <span className="font-semibold">Workshop Support Chat</span>
-                </div>
-                <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-              </button>
-            </div>
+          {/* Phones: quick links under the content */}
+          <div className="lg:hidden">
+            <QuickLinks links={quickLinks} />
           </div>
         </div>
       </div>
+
+      {legalTab &&
+        createPortal(
+          <LegalTermsModal key={legalTab} isOpen initialTab={legalTab} onClose={() => setLegalTab(null)} />,
+          document.body
+        )}
+    </div>
+  );
+}
+
+function QuickLinks({
+  links,
+}: {
+  links: { label: string; onClick: () => void }[];
+}) {
+  return (
+    <div className={`${card} p-2`}>
+      <p className="px-3 pt-2 pb-1 text-xs font-medium text-slate-400">Quick links</p>
+      {links.map((link) => (
+        <button
+          key={link.label}
+          type="button"
+          onClick={link.onClick}
+          className="w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-left hover:bg-slate-50 transition cursor-pointer"
+        >
+          <span className="flex-1 text-sm font-medium text-slate-700">{link.label}</span>
+          <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+        </button>
+      ))}
     </div>
   );
 }

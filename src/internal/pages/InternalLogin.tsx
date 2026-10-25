@@ -6,7 +6,6 @@ import {
   getInternalSession
 } from '../utils/internalAuth';
 import { 
-  Wrench, 
   Lock, 
   Mail, 
   Eye, 
@@ -14,10 +13,20 @@ import {
   Loader2, 
   AlertCircle, 
   CheckCircle2 
-} from 'lucide-react';
+} from '../../components/icons';
+import { useThemePreference } from '../../utils/theme';
+import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 export default function InternalLogin() {
   const navigate = useNavigate();
+
+  // Same look as the console: saved light/dark choice and the iOS system font
+  useThemePreference();
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('ios-ui');
+    return () => root.classList.remove('ios-ui');
+  }, []);
 
   // Prefill the remembered workstation email
   const [email, setEmail] = useState(getRememberedEmail);
@@ -72,18 +81,13 @@ export default function InternalLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100/60 text-slate-900 flex items-center justify-center p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
-      <div className="max-w-md w-full bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-xs">
+    <div className="theme-page min-h-screen bg-page text-slate-900 flex items-center justify-center p-4 sm:p-6 selection:bg-orange-500 selection:text-white">
+      <div className="max-w-md w-full bg-white border border-slate-200/70 rounded-[1.75rem] p-6 sm:p-8 card-elevated">
         
         {/* Brand Logo */}
         <div className="flex justify-center mb-6">
-          <Link to="/" className="flex items-center gap-2.5 group">
-            <div className="w-10 h-10 rounded-xl bg-orange-500 flex items-center justify-center shadow-sm shadow-orange-500/20 text-white group-hover:scale-105 transition-transform">
-              <Wrench className="w-5 h-5" />
-            </div>
-            <span className="text-2xl font-bold tracking-tight text-slate-900">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
+          <Link to="/" className="group" aria-label="MotoCare home">
+            <MotoCareLogo className="h-16 sm:h-20 w-auto text-slate-900 transition-transform group-hover:scale-[1.03]" />
           </Link>
         </div>
 
@@ -117,7 +121,7 @@ export default function InternalLogin() {
         <form onSubmit={handleSignIn} className="space-y-4 text-xs" noValidate>
           {/* Work Email */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Work Email
             </label>
             <div className="relative">
@@ -129,14 +133,14 @@ export default function InternalLogin() {
                 autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-3.5 py-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
               />
             </div>
           </div>
 
           {/* Password */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Password
             </label>
             <div className="relative">
@@ -147,7 +151,7 @@ export default function InternalLogin() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-10 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition font-medium"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-11 py-3 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
               />
               <button
                 type="button"
@@ -177,7 +181,7 @@ export default function InternalLogin() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-semibold py-2.5 rounded-full text-xs sm:text-sm transition cursor-pointer shadow-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+            className="w-full bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-semibold py-3 rounded-full text-sm transition cursor-pointer shadow-md shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
           >
             {loading ? (
               <>

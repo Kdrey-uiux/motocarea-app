@@ -13,7 +13,7 @@ import {
   Clock,
   ShieldCheck,
   Check
-} from 'lucide-react';
+} from '../../components/icons';
 
 interface HardcopyRequestsModalProps {
   isOpen: boolean;
@@ -190,7 +190,7 @@ export default function HardcopyRequestsModal({
               placeholder="Search customer, plate, request ID or purpose"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
             />
           </div>
         </div>

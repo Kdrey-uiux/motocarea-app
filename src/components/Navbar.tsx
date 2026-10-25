@@ -1,15 +1,31 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { useLenis } from 'lenis/react';
-import { Wrench, Menu, X, ArrowRight } from 'lucide-react';
+import {
+  Wrench,
+  Menu,
+  X,
+  ArrowRight,
+  ChevronRight,
+  ListChecks,
+  ShieldCheck,
+  Star,
+  Users,
+  MapPin,
+  Navigation,
+} from 'lucide-react';
+import { SHOP_INFO, SHOP_DIRECTIONS_URL } from '../utils/shopInfo';
+import MotoCareLogo from './brand/MotoCareLogo';
 
+// Landing page sections (icons show in the mobile menu)
 const NAV_LINKS = [
-  { id: 'services', label: 'Services' },
-  { id: 'how-it-works', label: 'How It Works' },
-  { id: 'why-us', label: 'Why Us' },
-  { id: 'reviews', label: 'Reviews' },
-  { id: 'team', label: 'Team' },
+  { id: 'services', label: 'Services', icon: Wrench },
+  { id: 'how-it-works', label: 'How It Works', icon: ListChecks },
+  { id: 'why-us', label: 'Why Us', icon: ShieldCheck },
+  { id: 'reviews', label: 'Reviews', icon: Star },
+  { id: 'team', label: 'Team', icon: Users },
 ];
 
 export default function Navbar() {
@@ -60,12 +76,7 @@ export default function Navbar() {
         {/* Brand + links */}
         <div className="flex items-center gap-8 min-w-0">
           <Link to="/" className="flex items-center gap-2 shrink-0" onClick={() => setMobileMenuOpen(false)}>
-            <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white shrink-0">
-              <Wrench className="w-4 h-4" />
-            </div>
-            <span className="font-display text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
+            <MotoCareLogo className="h-11 sm:h-14 w-auto text-slate-900" />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-7 text-[15px] font-medium text-slate-700">
@@ -103,44 +114,68 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile / tablet menu */}
+      {/* Mobile / tablet menu: rendered at the end of <body>, because the header's backdrop blur
+          would otherwise make it the menu's frame and squash the full-screen panel to the header height */}
+      {createPortal(
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
             key="mobile-menu"
-            className="lg:hidden fixed inset-x-0 top-16 sm:top-20 bottom-0 bg-white px-5 pt-4 pb-8 overflow-y-auto"
+            className="lg:hidden fixed inset-x-0 top-16 sm:top-20 bottom-0 z-40 bg-[#f7f8fa] overflow-y-auto overflow-x-hidden"
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.22, ease: 'easeOut' }}
           >
-            <nav className="flex flex-col">
-              {NAV_LINKS.map((link, i) => (
-                <motion.button
-                  key={link.id}
-                  type="button"
-                  onClick={() => scrollToSection(link.id)}
-                  className="font-display text-3xl font-bold tracking-tight text-slate-900 text-left py-3 border-b border-slate-100 cursor-pointer"
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.04 * i, duration: 0.25 }}
-                >
-                  {link.label}
-                </motion.button>
-              ))}
-            </nav>
-            <div className="mt-6 flex flex-col gap-2.5">
-              <button
-                type="button"
-                onClick={() => scrollToSection('tracking-hero')}
-                className="w-full py-3 rounded-full border border-slate-200 text-sm font-semibold text-slate-800 cursor-pointer"
+            {/* Soft orange fade, same as the staff console background */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-32 -right-24 w-[28rem] h-[28rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.14)_0%,rgba(249,115,22,0)_65%)]"
+            />
+
+            <div className="relative flex flex-col gap-4 px-4 pt-4 pb-8 max-w-md mx-auto">
+              {/* Page sections */}
+              <nav className="bg-white rounded-3xl border border-slate-200/70 p-1.5">
+                {NAV_LINKS.map((link, i) => {
+                  const Icon = link.icon;
+                  return (
+                    <motion.button
+                      key={link.id}
+                      type="button"
+                      onClick={() => scrollToSection(link.id)}
+                      className="w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-left hover:bg-orange-50 active:bg-orange-50 transition cursor-pointer group"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.03 * i, duration: 0.2 }}
+                    >
+                      <Icon className="w-5 h-5 text-orange-500 shrink-0" />
+                      <span className="flex-1 font-semibold text-slate-900">{link.label}</span>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-orange-500 transition shrink-0" />
+                    </motion.button>
+                  );
+                })}
+              </nav>
+
+              {/* Shop location */}
+              <a
+                href={SHOP_DIRECTIONS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-3 bg-white rounded-3xl border border-slate-200/70 px-4 py-3.5 hover:border-orange-200 transition group"
               >
-                Track My Repair
-              </button>
+                <MapPin className="w-5 h-5 text-orange-500 shrink-0" />
+                <span className="flex-1 min-w-0 text-sm text-slate-600 leading-snug">{SHOP_INFO.address}</span>
+                <span className="text-sm font-semibold text-orange-600 flex items-center gap-1 shrink-0">
+                  Directions
+                  <Navigation className="w-3.5 h-3.5" />
+                </span>
+              </a>
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </header>
   );
 }

@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { RefreshCw, Wrench } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
+import MotoCareLogo from './brand/MotoCareLogo';
 
 interface AppErrorBoundaryProps {
   children: ReactNode;
@@ -36,9 +37,7 @@ export default class AppErrorBoundary extends Component<AppErrorBoundaryProps, A
     return (
       <main className="min-h-screen bg-white flex items-center justify-center px-4 py-16">
         <div className="max-w-md w-full text-center space-y-5">
-          <span className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 inline-flex items-center justify-center">
-            <Wrench className="w-5 h-5" />
-          </span>
+          <MotoCareLogo className="h-14 w-auto text-slate-900 mx-auto" />
           <div className="space-y-2">
             <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
               {isOffline ? "You're offline" : 'Something went wrong'}

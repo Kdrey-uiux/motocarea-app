@@ -18,7 +18,7 @@ import {
   X, 
   Save,
   Search
-} from 'lucide-react';
+} from '../../components/icons';
 import { toast } from '../utils/toast';
 
 interface InternalServicesTabProps {

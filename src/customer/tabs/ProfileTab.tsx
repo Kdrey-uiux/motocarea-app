@@ -1,5 +1,5 @@
 import { UserProfile } from '../../types/dashboard';
-import { Key, Shield, User, Mail, Phone, MessageSquare } from 'lucide-react';
+import { Key, Shield, User, Mail, Phone, MessageSquare } from '../../components/icons';
 
 interface ProfileTabProps {
   userProfile: UserProfile | null;
@@ -22,18 +22,18 @@ export default function ProfileTab({
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       {/* 1. Personal & Account Information Card (Bento Style) */}
-      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-7 shadow-xs space-y-6">
+      <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[2rem] p-4 sm:p-7 card-elevated space-y-6">
         {/* Header with Integrated Identity */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-5 border-b border-slate-100 gap-4">
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-md shadow-orange-500/20">
               {initials}
             </div>
-            <div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-[-0.02em] leading-snug">
+            <div className="min-w-0">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-[-0.02em] leading-snug break-words">
                 {userProfile?.full_name || 'Rider Customer'}
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
+              <p className="text-xs text-slate-500 font-medium truncate">
                 {userProfile?.email || 'N/A'}
               </p>
             </div>
@@ -95,7 +95,7 @@ export default function ProfileTab({
       </div>
 
       {/* 2. Security & Password Settings Card */}
-      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 card-elevated flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 mt-0.5">
             <Shield className="w-5 h-5" />
@@ -121,7 +121,7 @@ export default function ProfileTab({
       </div>
 
       {/* 3. Workshop Helpdesk Card */}
-      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-5 sm:p-6 card-elevated flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3.5">
           <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
             <MessageSquare className="w-5 h-5" />

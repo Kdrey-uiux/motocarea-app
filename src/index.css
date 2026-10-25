@@ -17,11 +17,24 @@
     color: #1e293b;
     background-color: #ffffff;
     -webkit-font-smoothing: antialiased;
+    /* Rethink Sans has a ligature that turns "(2)" into a circled digit; keep plain numbers.
+       font-feature-settings (not font-variant-ligatures) so buttons and inputs inherit it too */
+    font-feature-settings: 'liga' 0;
   }
 
   h1,
   h2 {
     font-family: 'Bricolage Grotesque', 'Rethink Sans', system-ui, sans-serif;
+  }
+
+  /* Phones zoom the page in when you tap a field with text under 16px (the chat box, forms).
+     On touch screens every field uses 16px so typing never zooms; desktop sizes stay as designed. */
+  @media (hover: none) and (pointer: coarse) {
+    input:not([type='checkbox']):not([type='radio']):not([type='range']),
+    textarea,
+    select {
+      font-size: 16px !important;
+    }
   }
 
   /* Customer dashboard: card titles use the heading font as well (landing page style) */
@@ -34,7 +47,7 @@
   /* Placeholders must never look like real values: lighter + italic */
   input::placeholder,
   textarea::placeholder {
-    color: #cbd5e1;
+    color: rgb(var(--c-slate-400));
     font-style: italic;
     opacity: 1;
   }
@@ -82,6 +95,94 @@
   }
 }
 
+/* While the (always white) loading screen is up, the page scrollbar stays light too */
+html:has(.loading-screen),
+html.dark:has(.loading-screen) {
+  color-scheme: light;
+  background-color: #fff;
+}
+html.dark:has(.loading-screen) body {
+  background-color: #fff;
+}
+
+/* Loading screen bar (components/brand/LoadingScreen.tsx): slides back and forth */
+@keyframes loading-bar-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+.loading-bar {
+  animation: loading-bar-slide 1.1s ease-in-out infinite;
+}
+/* Animated logo (MotoCareLogo animated): letters rise in one by one, the bike is drawn
+   like a pen stroke, the seat and grip pop in, then the whole bike idles like a running engine */
+.mc-anim .mc-letter {
+  opacity: 0;
+  transform: translateY(14px);
+  transform-box: fill-box;
+  animation: mc-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.mc-anim .mc-draw {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: mc-draw 0.6s ease-out forwards;
+}
+.mc-anim .mc-seat {
+  opacity: 0;
+  transform: translateY(-8px);
+  transform-box: fill-box;
+  animation: mc-rise 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.42s forwards;
+}
+.mc-anim .mc-part {
+  opacity: 0;
+  animation: mc-fade 0.3s ease-out 1.15s forwards;
+}
+.mc-anim {
+  transform-origin: 50% 80%;
+  animation: mc-idle 0.9s ease-in-out 1.6s infinite alternate;
+}
+@keyframes mc-rise {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes mc-fade {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes mc-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes mc-idle {
+  from {
+    transform: translateY(0) rotate(0deg);
+  }
+  to {
+    transform: translateY(-2px) rotate(-0.6deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-bar {
+    animation: none;
+    width: 100%;
+    opacity: 0.6;
+  }
+  .mc-anim,
+  .mc-anim * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+}
+
 /* =========================================================================
    PRINTED DOCUMENTS (components/print/PrintTemplate.tsx)
    Every printout is a .print-doc mounted in .print-doc-root at the end of <body>.
@@ -110,21 +211,17 @@
   gap: 10px;
   align-items: flex-start;
 }
-.print-doc__logo {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: #f97316;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+.print-doc__wordmark {
+  display: block;
+  height: 40px;
+  width: auto;
+  color: #0f172a;
+  margin-bottom: 3px;
 }
 .print-doc__shop {
   font-family: 'Bricolage Grotesque', Arial, sans-serif;
-  font-size: 13pt;
-  font-weight: 800;
+  font-size: 10pt;
+  font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.15;
 }

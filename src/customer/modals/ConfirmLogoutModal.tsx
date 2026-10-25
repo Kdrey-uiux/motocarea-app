@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X, Loader2 } from 'lucide-react';
+import { X, Loader2 } from '../../components/icons';
 
 interface ConfirmLogoutModalProps {
   isOpen: boolean;

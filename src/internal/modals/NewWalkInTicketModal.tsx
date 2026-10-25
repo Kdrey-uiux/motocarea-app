@@ -3,7 +3,7 @@ import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { getCompleteMotorcycleCatalog, OfficialBikeModel } from '../../utils/motorcycleCatalog';
-import { X, User, Phone, Gauge, Wrench, Loader2, CheckCircle2, Search, AlertTriangle, Bike } from 'lucide-react';
+import { X, User, Phone, Gauge, Wrench, Loader2, CheckCircle2, Search, AlertTriangle, Bike } from '../../components/icons';
 import { getSharedServiceCatalog } from '../../utils/serviceCatalog';
 import { FIXED_WORKSHOP_CAPACITY, isSundayDate } from '../../utils/workshopCapacity';
 import { toast } from '../utils/toast';
@@ -31,7 +31,7 @@ function newWalkInCode(): string {
 const sectionLabel = 'font-display text-sm font-bold tracking-tight text-slate-900';
 const fieldLabel = 'text-xs font-medium text-slate-600 block mb-1.5';
 const inputClass =
-  'w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
+  'w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
 export default function NewWalkInTicketModal({
   isOpen,

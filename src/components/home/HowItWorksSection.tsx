@@ -48,7 +48,7 @@ export default function HowItWorksSection() {
 
         <motion.ol
           ref={listRef}
-          className="mt-12 sm:mt-16 grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8"
+          className="mt-10 sm:mt-16 grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-7 sm:gap-8"
           variants={staggerParent}
           initial="hidden"
           whileInView="show"
@@ -56,9 +56,9 @@ export default function HowItWorksSection() {
         >
           {STEPS.map((step, i) => (
             <motion.li key={step.title} variants={staggerChild} className="relative">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-                  <step.icon className="w-5 h-5" />
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0">
+                  <step.icon className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
                 </div>
                 <span className="font-display text-sm font-bold text-orange-500">0{i + 1}</span>
                 {/* Connector to the next step (desktop) */}
@@ -68,8 +68,10 @@ export default function HowItWorksSection() {
                   </span>
                 )}
               </div>
-              <h3 className="mt-5 font-display text-xl font-bold tracking-tight text-slate-900">{step.title}</h3>
-              <p className="mt-2 text-sm text-slate-500 leading-relaxed">{step.desc}</p>
+              <h3 className="mt-3.5 sm:mt-5 font-display text-base sm:text-xl font-bold tracking-tight text-slate-900 leading-snug">
+                {step.title}
+              </h3>
+              <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-slate-500 leading-relaxed">{step.desc}</p>
             </motion.li>
           ))}
         </motion.ol>

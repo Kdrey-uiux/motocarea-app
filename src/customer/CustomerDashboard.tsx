@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
-import DecorShapes from '../components/DecorShapes';
 import { supabase } from '../lib/supabase';
 import { TabType, Motorcycle, ServiceTicket, UserProfile, customerTabFromSlug, customerTabPath } from '../types/dashboard';
 
@@ -21,13 +20,23 @@ import ConfirmLogoutModal from './modals/ConfirmLogoutModal';
 import CancelBookingModal from './modals/CancelBookingModal';
 import SpotlightTour from '../components/tutorial/SpotlightTour';
 
-import { Wrench, MessageSquare, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, CheckCircle2 } from '../components/icons';
 import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
 import { runMissedBookingScanInBackground, checkAndSendBookingReminders } from '../utils/bookingLifecycle';
 import { TICKET_SYNC_CHANNEL, TICKET_SYNC_EVENT, broadcastTicketSync, debounce } from '../lib/realtimeSync';
+import { useThemePreference } from '../utils/theme';
+import LoadingScreen from '../components/brand/LoadingScreen';
 
 export default function CustomerDashboard() {
   const navigate = useNavigate();
+
+  // Light / dark appearance (saved on this device) and the iOS look, same as the staff console
+  const [themePreference, setThemePreference, isDarkTheme] = useThemePreference();
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('ios-ui');
+    return () => root.classList.remove('ios-ui');
+  }, []);
   // The page comes from the URL (/dashboard, /dashboard/book, ...) so refresh and Back work
   const location = useLocation();
   const urlTab = customerTabFromSlug(location.pathname.replace(/^\/dashboard\/?/, '').split('/')[0]);
@@ -346,23 +355,22 @@ export default function CustomerDashboard() {
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-150">
-        <div className="relative flex items-center justify-center">
-          {/* Active Spinning Ring */}
-          <div className="w-16 h-16 rounded-full border-3 border-orange-200 border-t-orange-500 animate-spin" />
-          {/* Centered MotoCare Icon */}
-          <div className="absolute w-9 h-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25">
-            <Wrench className="w-4 h-4 animate-pulse" />
-          </div>
-        </div>
-      </div>
+      <LoadingScreen />
     );
   }
 
   return (
-    <div className="rider-ui isolate min-h-screen bg-[#f2f4f7] print:bg-white text-slate-800 flex font-sans antialiased selection:bg-orange-500 selection:text-white relative">
-      {/* Landing page shapes in the background, behind the cards (isolate keeps them above the page color) */}
-      <DecorShapes />
+    <div className="rider-ui theme-page isolate min-h-screen bg-page print:bg-white text-slate-800 flex font-sans antialiased selection:bg-orange-500 selection:text-white relative">
+      {/* Soft color fades, same as the staff console (isolate keeps them above the page color).
+          Dark mode uses its own background instead (theme.css .theme-page) */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -z-10 -top-40 -right-40 w-[42rem] h-[42rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.10)_0%,rgba(249,115,22,0)_65%)] print:hidden dark:hidden"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed -z-10 -bottom-48 left-0 md:left-24 w-[40rem] h-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.10)_0%,rgba(251,191,36,0)_65%)] print:hidden dark:hidden"
+      />
       <DashboardSidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -393,6 +401,9 @@ export default function CustomerDashboard() {
           onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
           onLogout={handleLogout}
           onOpenTutorial={() => setIsTourOpen(true)}
+          themePreference={themePreference}
+          isDarkTheme={isDarkTheme}
+          onChangeTheme={setThemePreference}
         />
 
         <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto space-y-6 pb-36 sm:pb-32 md:pt-32 lg:pt-36 print:!p-0 print:max-w-none">
@@ -478,6 +489,8 @@ export default function CustomerDashboard() {
               onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
               onOpenHelpdesk={() => setIsMessagesModalOpen(true)}
               onNavigateTab={(tab) => setActiveTab(tab)}
+              themePreference={themePreference}
+              onChangeTheme={setThemePreference}
             />
           )}
           </motion.div>

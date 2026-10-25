@@ -59,7 +59,7 @@ export default function ServicesSection() {
       <motion.div
         ref={sheetRef}
         style={{ scale: sheetScale, y: sheetY }}
-        className="bg-slate-50 rounded-[1.75rem] sm:rounded-[2.5rem] px-4 sm:px-8 lg:px-12 py-14 sm:py-20 origin-top"
+        className="bg-slate-50 rounded-[1.75rem] sm:rounded-[2.5rem] px-4 sm:px-8 lg:px-12 py-12 sm:py-20 origin-top"
       >
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
@@ -80,8 +80,9 @@ export default function ServicesSection() {
             </Reveal>
           </div>
 
+          {/* Two small cards per row on phones, four on desktop */}
           <motion.div
-            className="mt-10 sm:mt-14 grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
+            className="mt-8 sm:mt-14 grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4"
             variants={staggerParent}
             initial="hidden"
             whileInView="show"
@@ -91,15 +92,17 @@ export default function ServicesSection() {
               <motion.div
                 key={item.title}
                 variants={staggerChild}
-                className="group bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-slate-200/70 hover:border-orange-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-orange-500/5 transition-[transform,box-shadow,border-color] duration-300"
+                className="group bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/70 hover:border-orange-300 sm:hover:-translate-y-1 hover:shadow-lg hover:shadow-orange-500/5 transition-[transform,box-shadow,border-color] duration-300"
               >
-                <div className="w-11 h-11 rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-500 transition-colors duration-300">
-                  <item.icon className="w-5 h-5 text-orange-500 group-hover:text-white transition-colors duration-300" />
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-500 transition-colors duration-300">
+                  <item.icon className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-orange-500 group-hover:text-white transition-colors duration-300" />
                 </div>
-                <h3 className="mt-5 font-display text-lg font-bold tracking-tight text-slate-900 leading-snug">
+                <h3 className="mt-3 sm:mt-5 font-display text-sm sm:text-lg font-bold tracking-tight text-slate-900 leading-snug">
                   {item.title}
                 </h3>
-                <p className="mt-1.5 text-sm text-slate-500 leading-relaxed">{item.desc}</p>
+                <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed line-clamp-3 sm:line-clamp-none">
+                  {item.desc}
+                </p>
               </motion.div>
             ))}
           </motion.div>

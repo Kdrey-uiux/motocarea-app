@@ -13,18 +13,20 @@ export type ServiceCategoryKey =
 export interface ServiceCategoryOption {
   id: ServiceCategoryKey;
   label: string;
+  /** Shorter label for the booking filter pills, so they fit on one line */
+  shortLabel: string;
   badge?: string;
 }
 
 export const SERVICE_CATEGORIES: ServiceCategoryOption[] = [
-  { id: 'all', label: 'All Services' },
-  { id: 'diagnostic', label: "I'm Not Sure / Diagnostic" },
-  { id: 'maintenance', label: 'PMS & Fluids' },
-  { id: 'transmission', label: 'CVT & Transmission' },
-  { id: 'engine', label: 'Engine & Fuel' },
-  { id: 'brakes', label: 'Brakes & Wheels' },
-  { id: 'electrical', label: 'Electrical & Battery' },
-  { id: 'custom', label: 'Custom & Upgrades' },
+  { id: 'all', label: 'All Services', shortLabel: 'All' },
+  { id: 'diagnostic', label: "I'm Not Sure / Diagnostic", shortLabel: 'Not sure? Diagnose' },
+  { id: 'maintenance', label: 'PMS & Fluids', shortLabel: 'PMS & Fluids' },
+  { id: 'transmission', label: 'CVT & Transmission', shortLabel: 'CVT' },
+  { id: 'engine', label: 'Engine & Fuel', shortLabel: 'Engine & Fuel' },
+  { id: 'brakes', label: 'Brakes & Wheels', shortLabel: 'Brakes & Wheels' },
+  { id: 'electrical', label: 'Electrical & Battery', shortLabel: 'Electrical' },
+  { id: 'custom', label: 'Custom & Upgrades', shortLabel: 'Custom' },
 ];
 
 export interface UnifiedServicePackage {

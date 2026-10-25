@@ -16,7 +16,8 @@ import { fetchDatabaseStaffMembers } from './utils/databaseStaffManager';
 import { runMissedBookingScanInBackground } from '../utils/bookingLifecycle';
 import { parseTicketNotes } from '../utils/ticketNotesParser';
 import { TICKET_SYNC_CHANNEL, TICKET_SYNC_EVENT, debounce } from '../lib/realtimeSync';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle } from '../components/icons';
+import { useThemePreference } from '../utils/theme';
 
 // Components
 import InternalHeader from './components/InternalHeader';
@@ -146,6 +147,16 @@ export default function InternalConsole() {
   // Auth Session
   const session = getInternalSession();
   const currentRole: UserRole = session?.role || 'staff';
+
+  // Light / dark appearance (saved on this device; dark only applies inside the console)
+  const [themePreference, setThemePreference, isDarkTheme] = useThemePreference();
+
+  // iOS look (system font, softer cards) for the console and its pop-ups, which render outside it
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add('ios-ui');
+    return () => root.classList.remove('ios-ui');
+  }, []);
 
   const displayName = (rawName?: string | null) =>
     rawName?.trim() || (currentRole === 'admin' ? 'Shop Owner' : 'Staff Member');
@@ -500,15 +511,16 @@ export default function InternalConsole() {
   }
 
   return (
-    <div className="isolate min-h-screen bg-[#f2f4f7] text-slate-800 font-sans antialiased selection:bg-orange-500 selection:text-white relative">
-      {/* Soft color fades so the gray background isn't flat (no shapes in the work console) */}
+    <div className="theme-page isolate min-h-screen bg-page text-slate-800 font-sans antialiased selection:bg-orange-500 selection:text-white relative">
+      {/* Soft color fades so the gray background isn't flat (no shapes in the work console).
+          Dark mode uses its own violet haze instead (theme.css .theme-page) */}
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -z-10 -top-40 -right-40 w-[42rem] h-[42rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.10)_0%,rgba(249,115,22,0)_65%)] print:hidden"
+        className="pointer-events-none fixed -z-10 -top-40 -right-40 w-[42rem] h-[42rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.10)_0%,rgba(249,115,22,0)_65%)] print:hidden dark:hidden"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none fixed -z-10 -bottom-48 left-24 lg:left-[16rem] w-[40rem] h-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.10)_0%,rgba(251,191,36,0)_65%)] print:hidden"
+        className="pointer-events-none fixed -z-10 -bottom-48 left-24 lg:left-[16rem] w-[40rem] h-[40rem] rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.10)_0%,rgba(251,191,36,0)_65%)] print:hidden dark:hidden"
       />
 
       {/* Slim Floating Left Dock (Fixed on Desktop) */}
@@ -543,6 +555,9 @@ export default function InternalConsole() {
           onClearNotifications={handleClearNotifs}
           pendingHardcopyCount={pendingHardcopyCount}
           onOpenHardcopyModal={openHardcopyCount > 0 ? () => setIsHardcopyOpen(true) : undefined}
+          themePreference={themePreference}
+          isDarkTheme={isDarkTheme}
+          onChangeTheme={setThemePreference}
         />
 
         {/* Content View */}

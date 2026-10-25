@@ -1,18 +1,14 @@
 import { Link } from 'react-router-dom';
-import { Wrench, Home as HomeIcon, Search } from 'lucide-react';
+import { Home as HomeIcon, Search } from 'lucide-react';
+import MotoCareLogo from '../components/brand/MotoCareLogo';
 
 /** Shown for any link that doesn't match a page */
 export default function NotFound() {
   return (
     <main className="min-h-screen bg-white flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-6">
-        <Link to="/" className="inline-flex items-center gap-2">
-          <span className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center text-white">
-            <Wrench className="w-4 h-4" />
-          </span>
-          <span className="font-display text-xl font-extrabold tracking-tight text-slate-900">
-            Moto<span className="text-orange-500">Care</span>
-          </span>
+        <Link to="/" className="inline-flex" aria-label="MotoCare home">
+          <MotoCareLogo className="h-16 w-auto text-slate-900" />
         </Link>
 
         <div className="space-y-2">

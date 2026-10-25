@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
-import { X, Bike, Calendar, UserCheck, Phone } from 'lucide-react';
+import { X, Bike, Calendar, UserCheck, Phone } from '../../components/icons';
 import { stageName } from '../../utils/serviceStages';
 
 interface VehicleHistoryModalProps {

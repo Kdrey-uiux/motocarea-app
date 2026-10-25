@@ -18,7 +18,7 @@ import {
   KeyRound,
   Users,
   Star
-} from 'lucide-react';
+} from '../../components/icons';
 import {
   getDailyCapacityLimit
 } from '../../utils/workshopCapacity';
@@ -607,9 +607,10 @@ export function WorkshopDashboard({
 
       {/* Pending online bookings */}
       {pendingRequestsCount > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 via-orange-50/40 to-white border border-amber-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-[0_12px_32px_-14px_rgba(245,158,11,0.45)] flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+        <div className={`${card} p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in fade-in duration-200`}>
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-11 h-11 rounded-2xl bg-white border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0">
+            {/* Same orange icon tile as the sidebar */}
+            <div className="w-11 h-11 rounded-[12px] bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
               <Clock className="w-5 h-5" />
             </div>
             <div className="min-w-0">
@@ -617,7 +618,9 @@ export function WorkshopDashboard({
                 {pendingRequestsCount} new booking request{pendingRequestsCount > 1 ? 's' : ''}
               </h3>
               <p className="text-xs sm:text-sm text-slate-500">
-                A rider is waiting for you to accept or decline their online booking.
+                {pendingRequestsCount > 1
+                  ? 'Riders are waiting for you to accept or decline their online bookings.'
+                  : 'A rider is waiting for you to accept or decline their online booking.'}
               </p>
             </div>
           </div>

@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Loader2,
   Mail,
-  Wrench,
   Eye,
   EyeOff,
   ArrowLeft,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import LegalTermsModal from '../components/legal/LegalTermsModal';
+import MotoCareLogo from '../components/brand/MotoCareLogo';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
 
@@ -653,14 +653,14 @@ export default function Login() {
       {/* Decorative shapes (same family as the landing page) */}
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute -left-8 sm:left-[6%] bottom-6 sm:bottom-12 w-24 h-12 sm:w-32 sm:h-16 rounded-t-full border-[16px] sm:border-[22px] border-b-0 border-orange-500"
+        className="hidden sm:block pointer-events-none absolute -left-8 sm:left-[6%] bottom-6 sm:bottom-12 w-24 h-12 sm:w-32 sm:h-16 rounded-t-full border-[16px] sm:border-[22px] border-b-0 border-orange-500"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0, rotate: [0, -8, 0] }}
         transition={{ opacity: { duration: 0.8, delay: 0.3 }, y: { duration: 0.8, delay: 0.3 }, rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' } }}
       />
       <motion.div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-4 sm:right-[7%] top-24 sm:top-32 flex flex-col gap-2"
+        className="hidden sm:flex pointer-events-none absolute -right-4 sm:right-[7%] top-24 sm:top-32 flex-col gap-2"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0, x: [0, -8, 0] }}
         transition={{ opacity: { duration: 0.8, delay: 0.4 }, y: { duration: 0.8, delay: 0.4 }, x: { duration: 7, repeat: Infinity, ease: 'easeInOut' } }}
@@ -671,13 +671,8 @@ export default function Login() {
 
       {/* Top bar */}
       <header className="relative z-10 max-w-6xl w-full mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-xl bg-orange-500 flex items-center justify-center text-white group-hover:scale-105 transition-transform">
-            <Wrench className="w-4 h-4" />
-          </div>
-          <span className="font-display text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
-            Moto<span className="text-orange-500">Care</span>
-          </span>
+        <Link to="/" className="group" aria-label="MotoCare home">
+          <MotoCareLogo className="h-11 sm:h-14 w-auto text-slate-900 transition-transform group-hover:scale-[1.03]" />
         </Link>
         <Link
           to="/"
@@ -875,7 +870,6 @@ export default function Login() {
                     >
                       {/* Integrated +63 Badge */}
                       <div className="flex items-center gap-1 px-3 py-2.5 bg-slate-100/90 border-r border-slate-200 text-slate-700 font-semibold text-xs sm:text-sm select-none shrink-0">
-                        <span className="text-xs">🇵🇭</span>
                         <span>+63</span>
                       </div>
                       <input
@@ -892,7 +886,7 @@ export default function Login() {
                         }}
                         placeholder=""
                         maxLength={10}
-                        className="w-full bg-transparent px-3 py-2.5 text-slate-900 focus:outline-none text-xs sm:text-sm font-mono tracking-wider"
+                        className="w-full bg-transparent px-3 py-3 text-slate-900 focus:outline-none text-xs sm:text-sm font-mono tracking-wider"
                       />
                     </div>
                     {touched.phone && !phoneValidation.isValid ? (
@@ -900,7 +894,7 @@ export default function Login() {
                         <AlertCircle className="w-3 h-3 shrink-0" /> {phoneValidation.error}
                       </p>
                     ) : (
-                      <p className="text-[10px] text-slate-400 mt-0.5">
+                      <p className="text-[11px] text-slate-400 mt-1">
                         10 digits starting with 9 (e.g. 9171234567)
                       </p>
                     )}
@@ -1257,7 +1251,7 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => switchMode('signin')}
-                      className="text-orange-600 font-bold hover:underline ml-1 cursor-pointer"
+                      className="text-orange-600 font-bold hover:underline ml-1 cursor-pointer inline-block py-2"
                     >
                       Sign In
                     </button>
@@ -1268,7 +1262,7 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => switchMode('register')}
-                      className="text-orange-600 font-bold hover:underline ml-1 cursor-pointer"
+                      className="text-orange-600 font-bold hover:underline ml-1 cursor-pointer inline-block py-2"
                     >
                       Create Account
                     </button>
@@ -1284,7 +1278,7 @@ export default function Login() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
-        className="mt-6 text-xs sm:text-sm text-slate-500 text-center"
+        className="mt-6 px-4 text-xs sm:text-sm text-slate-500 text-center text-balance"
       >
         Book online · Track every repair stage · Pay cash at the counter
       </motion.p>

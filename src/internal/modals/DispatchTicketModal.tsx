@@ -17,7 +17,7 @@ import {
   CheckCircle,
   Check,
   MessageSquareText,
-} from 'lucide-react';
+} from '../../components/icons';
 import VehicleHistoryModal from './VehicleHistoryModal';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
@@ -70,7 +70,7 @@ function withFindings(notes: string | null | undefined, findings: string): strin
 
 const sectionLabel = 'text-xs font-bold text-slate-800';
 const inputClass =
-  'w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition';
+  'w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition';
 
 export default function DispatchTicketModal({
   ticket,

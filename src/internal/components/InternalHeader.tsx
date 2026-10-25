@@ -7,9 +7,19 @@ import {
   ChevronDown,
   User,
   CheckCheck,
-  Stamp
-} from 'lucide-react';
+  Stamp,
+  Sun,
+  Moon,
+  Monitor
+} from '../../components/icons';
 import { UserRole, NotificationAlert, InternalTab } from '../types/internal';
+import type { ThemePreference } from '../../utils/theme';
+
+const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] = [
+  { id: 'light', label: 'Light', icon: Sun },
+  { id: 'dark', label: 'Dark', icon: Moon },
+  { id: 'system', label: 'System', icon: Monitor },
+];
 import { INTERNAL_TAB_INFO } from '../utils/tabTitles';
 
 interface InternalHeaderProps {
@@ -26,6 +36,10 @@ interface InternalHeaderProps {
   onClearNotifications?: () => void;
   pendingHardcopyCount?: number;
   onOpenHardcopyModal?: () => void;
+  themePreference?: ThemePreference;
+  /** Whether dark is showing right now (for the quick moon/sun toggle) */
+  isDarkTheme?: boolean;
+  onChangeTheme?: (preference: ThemePreference) => void;
 }
 
 export default function InternalHeader({
@@ -40,6 +54,9 @@ export default function InternalHeader({
   onClearNotifications,
   pendingHardcopyCount = 0,
   onOpenHardcopyModal,
+  themePreference = 'system',
+  isDarkTheme = false,
+  onChangeTheme,
 }: InternalHeaderProps) {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -84,7 +101,7 @@ export default function InternalHeader({
     <>
       {/* The strip around the floating header is filled with the page color (fading out at the bottom),
           so content scrolling underneath never peeks through above or beside it */}
-      <header className="sticky top-0 z-30 pt-3 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto bg-gradient-to-b from-[#f2f4f7] from-75% to-[#f2f4f7]/0">
+      <header className="sticky top-0 z-30 pt-3 pb-2 px-3 sm:pt-4 sm:pb-3 sm:px-6 lg:px-8 w-full max-w-7xl mx-auto bg-gradient-to-b from-page from-75% to-page/0 dark:from-page/50">
         <div className="bg-white/90 backdrop-blur-md border border-slate-200/70 rounded-[1.75rem] px-3.5 sm:px-5 py-2.5 card-elevated flex items-center justify-between gap-2 sm:gap-4 relative">
           
           {/* Left: mobile menu toggle + current page title (brand lives in the sidebar) */}
@@ -99,8 +116,9 @@ export default function InternalHeader({
             </button>
 
             <div className="min-w-0 pl-1">
-              <h1 className="font-display text-lg sm:text-xl font-bold text-slate-900 tracking-tight truncate leading-tight">
-                {INTERNAL_TAB_INFO[activeTab].title}
+              <h1 className="font-display text-base sm:text-xl font-bold text-slate-900 tracking-tight truncate leading-tight">
+                <span className="sm:hidden">{INTERNAL_TAB_INFO[activeTab].shortTitle ?? INTERNAL_TAB_INFO[activeTab].title}</span>
+                <span className="hidden sm:inline">{INTERNAL_TAB_INFO[activeTab].title}</span>
               </h1>
               <p className="hidden sm:block text-xs text-slate-500 truncate">
                 {INTERNAL_TAB_INFO[activeTab].subtitle}
@@ -109,14 +127,14 @@ export default function InternalHeader({
           </div>
 
           {/* Right: Notifications, User Profile Pill & Logout */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
 
             {/* Hardcopy Certified Requests Quick Pill */}
             {typeof onOpenHardcopyModal === 'function' && (
               <button
                 type="button"
                 onClick={onOpenHardcopyModal}
-                className={`relative h-9 px-3 rounded-full border text-sm font-medium transition flex items-center gap-1.5 cursor-pointer ${
+                className={`relative h-9 w-9 sm:w-auto sm:px-3 rounded-full border text-sm font-medium transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   pendingHardcopyCount > 0
                     ? 'bg-orange-50 hover:bg-orange-100 border-orange-200 text-orange-800'
                     : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
@@ -125,12 +143,51 @@ export default function InternalHeader({
               >
                 <Stamp className="w-4 h-4 text-orange-500" />
                 <span className="hidden sm:inline">Hardcopies</span>
+                {/* Count: a corner badge on phones, inline from tablet up */}
                 {pendingHardcopyCount > 0 && (
-                  <span className="min-w-[20px] px-1.5 rounded-full bg-orange-500 text-white text-[11px] font-semibold leading-5 text-center">
+                  <span className="absolute -top-1 -right-1 sm:static min-w-[18px] sm:min-w-[20px] h-[18px] sm:h-5 px-1 sm:px-1.5 rounded-full bg-orange-500 border-2 border-white sm:border-0 text-white text-[10px] sm:text-[11px] font-semibold leading-[14px] sm:leading-5 text-center">
                     {pendingHardcopyCount}
                   </span>
                 )}
               </button>
+            )}
+
+            {/* Phones: one round button that flips light / dark */}
+            {onChangeTheme && (
+              <button
+                type="button"
+                onClick={() => onChangeTheme(isDarkTheme ? 'light' : 'dark')}
+                className="sm:hidden w-9 h-9 rounded-full bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center transition cursor-pointer"
+                aria-label={isDarkTheme ? 'Switch to light mode' : 'Switch to dark mode'}
+                title={isDarkTheme ? 'Light mode' : 'Dark mode'}
+              >
+                {isDarkTheme ? <Sun className="w-4 h-4 text-orange-500" /> : <Moon className="w-4 h-4" />}
+              </button>
+            )}
+
+            {/* Quick light / dark toggle (owner and staff); System lives in the account menu */}
+            {onChangeTheme && (
+              <div className="hidden sm:flex items-center h-9 p-0.5 rounded-full bg-slate-100 border border-slate-200" role="radiogroup" aria-label="Appearance">
+                {([
+                  { id: 'dark', label: 'Dark', icon: Moon, active: isDarkTheme },
+                  { id: 'light', label: 'Light', icon: Sun, active: !isDarkTheme },
+                ] as const).map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={option.active}
+                    aria-label={option.label}
+                    title={`${option.label} mode`}
+                    onClick={() => onChangeTheme(option.id)}
+                    className={`w-8 h-8 rounded-full flex items-center justify-center transition cursor-pointer ${
+                      option.active ? 'bg-white text-orange-500 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                    }`}
+                  >
+                    <option.icon className="w-4 h-4" />
+                  </button>
+                ))}
+              </div>
             )}
 
             {/* Notification Bell */}
@@ -227,7 +284,7 @@ export default function InternalHeader({
                   setIsUserMenuOpen((prev) => !prev);
                   setIsNotifOpen(false);
                 }}
-                className="flex items-center gap-2 pl-1 pr-2.5 h-9 rounded-full bg-white hover:bg-slate-50 border border-slate-200 transition cursor-pointer"
+                className="flex items-center gap-2 p-1 sm:pr-2.5 h-9 rounded-full bg-white hover:bg-slate-50 border border-slate-200 transition cursor-pointer"
                 title="Account menu"
               >
                 <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white flex items-center justify-center text-xs font-bold">
@@ -242,7 +299,7 @@ export default function InternalHeader({
                   </span>
                 </div>
                 <ChevronDown
-                  className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                  className={`hidden sm:block w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
                     isUserMenuOpen ? 'rotate-180 text-orange-500' : ''
                   }`}
                 />
@@ -274,6 +331,33 @@ export default function InternalHeader({
                       <User className="w-4 h-4 text-slate-400" />
                       <span>Team</span>
                     </button>
+                  )}
+
+                  {onChangeTheme && (
+                    <div className="px-3 pt-1.5 pb-2">
+                      <p className="text-xs font-medium text-slate-500 mb-1.5">Appearance</p>
+                      <div className="grid grid-cols-3 gap-1 p-1 rounded-full bg-slate-100" role="radiogroup" aria-label="Appearance">
+                        {THEME_OPTIONS.map((option) => {
+                          const Icon = option.icon;
+                          const isActive = themePreference === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={isActive}
+                              onClick={() => onChangeTheme(option.id)}
+                              className={`flex items-center justify-center gap-1 py-1.5 rounded-full text-xs font-medium transition cursor-pointer ${
+                                isActive ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                              }`}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                              {option.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   )}
 
                   <button

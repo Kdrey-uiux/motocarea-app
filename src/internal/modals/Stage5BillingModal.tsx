@@ -14,7 +14,7 @@ import {
   Wrench, 
   ShieldCheck, 
   Loader2 
-} from 'lucide-react';
+} from '../../components/icons';
 
 interface Stage5BillingModalProps {
   ticket: InternalTicket | null;

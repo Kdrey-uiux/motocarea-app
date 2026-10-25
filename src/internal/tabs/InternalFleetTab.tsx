@@ -23,7 +23,7 @@ import {
   BookOpen,
   Check,
   AlertCircle
-} from 'lucide-react';
+} from '../../components/icons';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
 import { toast } from '../utils/toast';
 
@@ -334,7 +334,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
   const iconBtn =
     'w-10 h-10 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer shrink-0';
   const searchInput =
-    'w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
+    'w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
   return (
     <div className="space-y-4">

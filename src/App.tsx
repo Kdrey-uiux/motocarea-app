@@ -5,6 +5,7 @@ import InternalProtectedRoute from './internal/components/InternalProtectedRoute
 import AppErrorBoundary from './components/AppErrorBoundary';
 import OfflineBanner from './components/OfflineBanner';
 import { startSharedSettingsSync } from './lib/sharedSettings';
+import LoadingScreen, { LoadingOverlayHost } from './components/brand/LoadingScreen';
 
 // Code-split route components for fast initial page load & low bundle size
 const Home = lazy(() => import('./pages/Home'));
@@ -20,7 +21,7 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 // Shown for a moment while a page's code downloads: a plain white screen, so it
 // blends into the (white) page instead of flashing a dark loading screen
 function PageFallback() {
-  return <div className="min-h-screen bg-white" aria-busy="true" />;
+  return <LoadingScreen />;
 }
 
 function AuthHashRedirectHandler() {
@@ -55,6 +56,8 @@ export default function App() {
       <AuthHashRedirectHandler />
       <div className="min-h-screen bg-slate-100/60 text-slate-900 font-sans">
         <OfflineBanner />
+        {/* One loading overlay for every loading step (page download, login check, data load) */}
+        <LoadingOverlayHost />
         <AppErrorBoundary>
         <Suspense fallback={<PageFallback />}>
           <Routes>

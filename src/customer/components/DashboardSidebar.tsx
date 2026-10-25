@@ -7,7 +7,12 @@ import {
   X,
   Wrench,
   Settings,
-} from 'lucide-react';
+  ChevronRight,
+  MapPin,
+  Navigation,
+} from '../../components/icons';
+import { SHOP_INFO, SHOP_DIRECTIONS_URL } from '../../utils/shopInfo';
+import MotoCareLogo from '../../components/brand/MotoCareLogo';
 
 interface DashboardSidebarProps {
   activeTab: TabType;
@@ -29,10 +34,14 @@ export default function DashboardSidebar({
   isSidebarCollapsed,
 }: DashboardSidebarProps) {
   const navItems = [
-    { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid },
-    { id: 'book' as TabType, label: 'Book Service', icon: Calendar },
-    { id: 'history' as TabType, label: 'Service Records', icon: History },
+    { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid, hint: 'Your bookings at a glance' },
+    { id: 'book' as TabType, label: 'Book Service', icon: Calendar, hint: 'Pick a service and a date' },
+    { id: 'history' as TabType, label: 'Service Records', icon: History, hint: 'Past repairs and receipts' },
   ];
+  const initial = userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'R';
+  // Google sign-ups have no phone yet ('N/A')
+  const contactLine =
+    (userProfile?.phone_number !== 'N/A' && userProfile?.phone_number) || userProfile?.email || 'View profile';
 
   return (
     <>
@@ -47,45 +56,45 @@ export default function DashboardSidebar({
 
       {/* Drawer Panel */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] h-[100dvh] bg-white shadow-2xl flex flex-col justify-between p-4 sm:p-5 border-r border-slate-100 transition-transform duration-300 ease-in-out md:hidden overscroll-contain ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 sm:w-80 max-w-[85vw] h-[100dvh] bg-page rounded-r-[1.75rem] shadow-2xl flex flex-col overflow-hidden transition-transform duration-300 ease-in-out md:hidden overscroll-contain ${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Top Header of Mobile Drawer */}
-        <div className="flex flex-col gap-4 sm:gap-6 w-full overflow-y-auto no-scrollbar">
-          <div className="flex items-center justify-between w-full shrink-0">
-            <div
+        {/* Soft orange fade, same as the landing page menu */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-32 -right-32 w-[24rem] h-[24rem] rounded-full bg-[radial-gradient(circle,rgba(249,115,22,0.13)_0%,rgba(249,115,22,0)_65%)]"
+        />
+
+        <div className="relative flex-1 flex flex-col gap-4 p-4 overflow-y-auto no-scrollbar">
+          {/* Brand + close */}
+          <div className="flex items-center justify-between shrink-0">
+            <button
+              type="button"
               onClick={() => {
                 setActiveTab('overview');
                 setIsMobileMenuOpen(false);
               }}
-              className="flex items-center gap-3 cursor-pointer"
+              className="flex items-center gap-2.5 cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-2xl bg-orange-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25 shrink-0">
-                <Wrench className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-base font-bold text-slate-900 leading-tight block">
-                  Moto<span className="text-orange-500">Care</span>
-                </span>
-                <span className="text-[10px] text-slate-400 font-medium block">
-                  Rider Portal
-                </span>
-              </div>
-            </div>
+              <span className="text-left">
+                <MotoCareLogo className="h-12 w-auto text-slate-900" />
+                <span className="text-[11px] text-slate-400 block leading-tight mt-0.5">Rider portal</span>
+              </span>
+            </button>
 
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-              title="Close navigation"
+              className="w-9 h-9 rounded-full bg-white border border-slate-200/70 text-slate-500 hover:text-slate-800 flex items-center justify-center transition cursor-pointer"
+              aria-label="Close navigation"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Mobile Navigation Links */}
-          <nav className="flex flex-col gap-2 w-full">
+          {/* Navigation */}
+          <nav className="bg-white rounded-2xl border border-slate-200/70 p-1.5 shrink-0">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -97,70 +106,96 @@ export default function DashboardSidebar({
                     setActiveTab(item.id);
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`w-full h-12 px-4 rounded-2xl flex items-center gap-3.5 transition-all duration-200 cursor-pointer text-left ${
-                    isActive
-                      ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 font-semibold'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+                  aria-current={isActive ? 'page' : undefined}
+                  className={`w-full px-2.5 py-2.5 rounded-xl flex items-center gap-3 transition cursor-pointer text-left ${
+                    isActive ? 'bg-orange-50' : 'hover:bg-slate-50'
                   }`}
                 >
-                  <Icon className="w-5 h-5 shrink-0" />
-                  <span className="text-sm font-semibold">{item.label}</span>
+                  <span
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition ${
+                      isActive ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25' : 'bg-slate-100 text-slate-500'
+                    }`}
+                  >
+                    <Icon className="w-[18px] h-[18px]" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={`block text-sm font-semibold ${isActive ? 'text-orange-700' : 'text-slate-900'}`}>
+                      {item.label}
+                    </span>
+                    <span className="block text-xs text-slate-400 truncate">{item.hint}</span>
+                  </span>
                 </button>
               );
             })}
           </nav>
+
+          {/* Shop location */}
+          <a
+            href={SHOP_DIRECTIONS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-3 bg-white rounded-2xl border border-slate-200/70 px-3.5 py-3 hover:border-orange-200 transition shrink-0"
+          >
+            <MapPin className="w-[18px] h-[18px] text-orange-500 shrink-0 mt-0.5" />
+            {/* Address gets the full width; the directions link sits under it */}
+            <span className="flex-1 min-w-0">
+              <span className="block text-sm text-slate-700 leading-snug">{SHOP_INFO.address}</span>
+              <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
+                Get directions
+                <Navigation className="w-3 h-3" />
+              </span>
+            </span>
+          </a>
         </div>
 
-        {/* Bottom Profile, Settings & Logout in Mobile Drawer */}
-        <div className="flex flex-col gap-2.5 w-full pt-4 border-t border-slate-100 shrink-0">
-          {/* User Identity Card */}
-          <div
+        {/* Profile, settings & sign out */}
+        <div className="relative shrink-0 p-4 pt-3 border-t border-slate-200/70 space-y-2">
+          {/* Profile card (opens My Profile) */}
+          <button
+            type="button"
             onClick={() => {
               setActiveTab('profile');
               setIsMobileMenuOpen(false);
             }}
-            className="w-full p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-100 transition cursor-pointer flex items-center gap-3"
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-              {userProfile?.full_name ? userProfile.full_name.charAt(0).toUpperCase() : 'K'}
-            </div>
-            <div className="truncate flex-1">
-              <div className="text-xs font-bold text-slate-900 truncate">
-                {userProfile?.full_name || 'Rider Member'}
-              </div>
-              <div className="text-[11px] text-slate-400 truncate">
-                {/* Google sign-ups have no phone yet ('N/A') */}
-                {(userProfile?.phone_number !== 'N/A' && userProfile?.phone_number) || userProfile?.email || 'View Profile'}
-              </div>
-            </div>
-          </div>
-
-          {/* Settings & Policies Button (Directly under Profile) */}
-          <button
-            type="button"
-            onClick={() => {
-              setActiveTab('settings');
-              setIsMobileMenuOpen(false);
-            }}
-            className={`w-full h-11 px-4 rounded-2xl flex items-center gap-3 transition-all duration-200 cursor-pointer text-left ${
-              activeTab === 'settings'
-                ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25 font-semibold'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium'
+            className={`w-full p-3 rounded-2xl bg-white border card-elevated transition cursor-pointer flex items-center gap-3 text-left ${
+              activeTab === 'profile' ? 'border-orange-300' : 'border-slate-200/70 hover:border-orange-200'
             }`}
           >
-            <Settings className="w-4 h-4 shrink-0" />
-            <span className="text-sm font-semibold">Settings & Policies</span>
+            <span className="w-11 h-11 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 text-white flex items-center justify-center font-bold shrink-0">
+              {initial}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-slate-900 truncate">{userProfile?.full_name || 'Rider'}</span>
+              <span className="block text-xs text-slate-500 truncate">{contactLine}</span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
           </button>
 
-          {/* Sign Out Button */}
-          <button
-            type="button"
-            onClick={onLogout}
-            className="w-full h-11 px-4 rounded-2xl flex items-center gap-3 text-rose-600 hover:bg-rose-50 transition cursor-pointer font-semibold text-sm"
-          >
-            <LogOut className="w-4 h-4 shrink-0" />
-            <span>Sign Out</span>
-          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('settings');
+                setIsMobileMenuOpen(false);
+              }}
+              className={`h-11 rounded-full border text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer ${
+                activeTab === 'settings'
+                  ? 'bg-orange-50 border-orange-200 text-orange-700'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Settings className="w-4 h-4 shrink-0" />
+              Settings
+            </button>
+            <button
+              type="button"
+              onClick={onLogout}
+              className="h-11 rounded-full border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 text-sm font-semibold flex items-center justify-center gap-2 transition cursor-pointer"
+            >
+              <LogOut className="w-4 h-4 shrink-0" />
+              Sign out
+            </button>
+          </div>
         </div>
       </div>
 

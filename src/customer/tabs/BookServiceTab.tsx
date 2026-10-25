@@ -31,7 +31,7 @@ import {
   HelpCircle,
   Sliders,
   CalendarSync
-} from 'lucide-react';
+} from '../../components/icons';
 import { TabType } from '../../types/dashboard';
 import {
   FIXED_WORKSHOP_CAPACITY,
@@ -819,22 +819,20 @@ export default function BookServiceTab({
 
       {/* Reschedule Active Banner */}
       {activeReschedule && (
-        <div className="bg-gradient-to-r from-orange-50 via-amber-50/50 to-white border border-orange-200/90 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
+        <div className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-5 card-elevated flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 animate-in fade-in duration-200">
           <div className="flex items-start sm:items-center gap-3.5 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <div className="w-10 h-10 rounded-[12px] bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
               <CalendarSync className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-orange-950 uppercase tracking-wider">
-                  Rescheduling Mode Active
-                </span>
+                <span className="text-sm font-bold text-slate-900">Rescheduling your booking</span>
                 <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 border border-orange-200/60">
                   Ticket #{activeReschedule.ticket_code}
                 </span>
               </div>
               <p className="text-xs text-slate-600 mt-0.5 leading-snug">
-                {activeReschedule.motorcycles?.model || 'Motorcycle'} ({activeReschedule.motorcycles?.plate_number || 'N/A'}) • {activeReschedule.service_type}. Pumili ng bagong petsa sa calendar at time slot window.
+                {activeReschedule.motorcycles?.model || 'Motorcycle'} ({activeReschedule.motorcycles?.plate_number || 'N/A'}) • {activeReschedule.service_type}. Pick a new date and arrival window below.
               </p>
             </div>
           </div>
@@ -854,7 +852,7 @@ export default function BookServiceTab({
       )}
 
       {/* SERVICE BOOKING STEPPER NAVIGATION BAR (Responsive Mobile & Desktop) */}
-      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-4 sm:p-5 shadow-xs">
+      <div className="bg-white border border-slate-200/80 rounded-[2rem] p-4 sm:p-5 card-elevated">
         {/* Mobile Stepper (< sm) */}
         <div className="sm:hidden space-y-2">
           <div className="flex items-center justify-between">
@@ -881,7 +879,7 @@ export default function BookServiceTab({
                         setCurrentStep(st.num as 1 | 2 | 3 | 4);
                       }
                     }}
-                    className={`w-7 h-7 rounded-full text-[10px] font-bold flex items-center justify-center transition-all ${
+                    className={`w-8 h-8 rounded-full text-xs font-bold flex items-center justify-center transition-all ${
                       isCurrent
                         ? 'bg-orange-500 text-white shadow-xs scale-105'
                         : isPast
@@ -971,7 +969,7 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 1 && (
         <div className="space-y-4 pb-16 sm:pb-8">
-          <div id="tour-booking-packages" className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-4">
+          <div id="tour-booking-packages" className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 card-elevated space-y-4">
             {/* Header Title & Subtitle */}
             <div className="pb-3 sm:pb-4 border-b border-slate-100">
               <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-[-0.02em] leading-snug">
@@ -982,9 +980,10 @@ export default function BookServiceTab({
               </p>
             </div>
 
-            {/* Category Navigation Bar (Mobile-first, horizontally scrollable on mobile, wraps cleanly on larger screens) */}
+            {/* Category Navigation Bar: swipes edge to edge on phones (the right edge fades to hint
+                there is more), wraps on larger screens; short labels keep it to one line on desktop */}
             <div className="pt-0.5">
-              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 pt-1 no-scrollbar sm:flex-wrap -mx-3.5 px-3.5 sm:mx-0 sm:px-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar sm:flex-wrap -mx-4 px-4 pr-10 sm:mx-0 sm:px-0 [mask-image:linear-gradient(to_right,black_80%,transparent)] sm:[mask-image:none]">
                 {SERVICE_CATEGORIES.map((cat) => {
                   const isCatActive = selectedCategory === cat.id;
                   const count =
@@ -997,26 +996,22 @@ export default function BookServiceTab({
                       key={cat.id}
                       type="button"
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`px-3 py-2 sm:py-1.5 rounded-full text-xs font-semibold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 sm:gap-2 active:scale-95 ${
+                      className={`px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all shrink-0 cursor-pointer flex items-center gap-1.5 active:scale-95 border ${
                         isCatActive
-                          ? 'bg-slate-900 text-white shadow-xs'
+                          ? 'bg-orange-50 text-orange-700 border-orange-200'
                           : cat.id === 'diagnostic'
-                          ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/90'
-                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60'
+                          ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-200/90'
+                          : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
                       }`}
                     >
                       {cat.id === 'diagnostic' && (
-                        <HelpCircle
-                          className={`w-3.5 h-3.5 shrink-0 ${
-                            isCatActive ? 'text-amber-300' : 'text-amber-600'
-                          }`}
-                        />
+                        <HelpCircle className={`w-3.5 h-3.5 shrink-0 ${isCatActive ? 'text-orange-500' : 'text-amber-600'}`} />
                       )}
-                      <span>{cat.label}</span>
+                      <span>{cat.shortLabel}</span>
                       <span
-                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold leading-none tabular-nums ${
                           isCatActive
-                            ? 'bg-white/20 text-white'
+                            ? 'bg-orange-500 text-white'
                             : cat.id === 'diagnostic'
                             ? 'bg-amber-200/80 text-amber-950'
                             : 'bg-slate-200 text-slate-600'
@@ -1031,7 +1026,7 @@ export default function BookServiceTab({
             </div>
 
             {/* Service Packages Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 sm:gap-4 pt-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-4">
               {filteredPackages.map((pkg) => {
                 const isSelected = serviceType === pkg.id;
                 const isExpanded = expandedPackageId === pkg.id;
@@ -1044,18 +1039,18 @@ export default function BookServiceTab({
                       setServiceType(pkg.id);
                       if (errorMsg) setErrorMsg(null);
                     }}
-                    className={`p-3.5 sm:p-5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
+                    className={`p-3 sm:p-5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
                       isSelected
                         ? pkg.isDiagnostic
-                          ? 'border-amber-500 bg-amber-50/20 shadow-xs ring-2 ring-amber-500/20'
-                          : 'border-orange-500 bg-orange-50/30 shadow-xs ring-2 ring-orange-500/20'
+                          ? 'border-amber-500 bg-amber-50/20 card-elevated ring-2 ring-amber-500/20'
+                          : 'border-orange-500 bg-orange-50/30 card-elevated ring-2 ring-orange-500/20'
                         : 'border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50/50'
                     }`}
                   >
-                    <div className="space-y-3">
+                    <div className="space-y-1.5 md:space-y-3">
                       {/* Top Header Row (Mobile-responsive with title wrap and pinned radio) */}
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+                        <div className="flex items-start gap-2.5 sm:gap-3 min-w-0 flex-1">
                           <div
                             className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
                               isSelected
@@ -1072,9 +1067,9 @@ export default function BookServiceTab({
                               {pkg.title}
                             </h3>
 
-                            {/* Category Tag Badge */}
-                            {pkg.tag && (
-                              <div className="pt-0.5">
+                            {/* Tag badge, with the details toggle beside it on phones */}
+                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                              {pkg.tag && (
                                 <span
                                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border inline-block ${
                                     pkg.isDiagnostic
@@ -1084,8 +1079,20 @@ export default function BookServiceTab({
                                 >
                                   {pkg.tag}
                                 </span>
-                              </div>
-                            )}
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setExpandedPackageId(isExpanded ? null : pkg.id);
+                                }}
+                                aria-expanded={isExpanded}
+                                className="md:hidden text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-0.5 cursor-pointer transition py-1.5 -my-1.5"
+                              >
+                                <span>{isExpanded ? 'Hide details' : "What's included"}</span>
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -1105,26 +1112,9 @@ export default function BookServiceTab({
                         </div>
                       </div>
 
-                      {/* --- MOBILE ACCORDION (md:hidden) --- */}
-                      <div className="md:hidden pt-0.5">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedPackageId(isExpanded ? null : pkg.id);
-                          }}
-                          className="text-[11px] font-semibold text-slate-600 hover:text-orange-600 flex items-center gap-1 cursor-pointer py-1 bg-slate-50 hover:bg-slate-100 px-2.5 rounded-lg border border-slate-200/80 transition"
-                        >
-                          <span>{isExpanded ? 'Hide service details' : 'View service inclusions'}</span>
-                          {isExpanded ? (
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          ) : (
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-
-                        {isExpanded && (
-                          <div className="space-y-2.5 pt-2.5 border-t border-slate-100 mt-2 animate-in fade-in duration-150">
+                      {/* --- MOBILE ACCORDION (md:hidden): details open below the header --- */}
+                      {isExpanded && (
+                          <div className="md:hidden space-y-2.5 pt-2.5 border-t border-slate-100 animate-in fade-in duration-150">
                             <p className="text-xs text-slate-500 leading-relaxed">{pkg.description}</p>
 
                             <div className="space-y-1 text-xs">
@@ -1139,8 +1129,7 @@ export default function BookServiceTab({
                               ))}
                             </div>
                           </div>
-                        )}
-                      </div>
+                      )}
 
                       {/* --- DESKTOP VIEW (Always visible on md: and above) --- */}
                       <div className="hidden md:block space-y-3">
@@ -1214,7 +1203,7 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 2 && (
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 card-elevated space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
               <div>
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 tracking-[-0.02em] leading-snug">
@@ -1232,7 +1221,7 @@ export default function BookServiceTab({
                     setBikeMode(bikeMode === 'existing' ? 'new' : 'existing');
                     if (errorMsg) setErrorMsg(null);
                   }}
-                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-1.5 rounded-full transition flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-2 rounded-full transition flex items-center gap-1 self-start sm:self-auto cursor-pointer"
                 >
                   {bikeMode === 'existing' ? (
                     <>
@@ -1265,8 +1254,8 @@ export default function BookServiceTab({
                         className={`p-4 rounded-2xl border cursor-pointer transition-all flex items-center justify-between ${
                           isSelected
                             ? isBikeActive
-                              ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 shadow-xs'
-                              : 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20 shadow-xs'
+                              ? 'border-amber-500 bg-amber-50/40 ring-2 ring-amber-500/20 card-elevated'
+                              : 'border-orange-500 bg-orange-50/30 ring-2 ring-orange-500/20 card-elevated'
                             : isBikeActive
                             ? 'border-amber-200/80 bg-amber-50/20 hover:border-amber-300'
                             : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -1288,13 +1277,13 @@ export default function BookServiceTab({
                           </div>
                           <div className="min-w-0">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <p className="font-bold text-xs text-slate-900 truncate">{bike.model}</p>
+                              <p className="font-bold text-xs text-slate-900 line-clamp-2 break-words">{bike.model}</p>
                               {isBikeActive ? (
-                                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
+                                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">
                                   In Workshop
                                 </span>
                               ) : (
-                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
                                   Available
                                 </span>
                               )}
@@ -1550,7 +1539,7 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 3 && (
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 card-elevated space-y-6">
             {/* Header / Intro */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
               <div>
@@ -1598,13 +1587,14 @@ export default function BookServiceTab({
 
             {/* STEP 1: MONTHLY CALENDAR GRID VIEW */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
+              {/* Stacks on phones: title first, then the month navigator full width */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                 <div>
                   <label className="text-xs font-bold text-slate-800 block">
                     Step 1: Choose Workshop Date
                   </label>
                   <p className="text-[11px] text-slate-400">
-                    Monday to Saturday schedule • Maximum {FIXED_WORKSHOP_CAPACITY} intake slots per day (Closed on Sundays)
+                    Monday to Saturday, up to {FIXED_WORKSHOP_CAPACITY} bikes a day. Closed on Sundays.
                   </p>
                 </div>
 
@@ -1619,7 +1609,7 @@ export default function BookServiceTab({
                       Today
                     </button>
                   )}
-                  <div className="flex items-center border border-slate-200 rounded-xl bg-white shadow-2xs overflow-hidden">
+                  <div className="flex-1 sm:flex-none flex items-center justify-between border border-slate-200 rounded-xl bg-white shadow-2xs overflow-hidden">
                     <button
                       type="button"
                       disabled={isCurrentMonth}
@@ -1645,9 +1635,9 @@ export default function BookServiceTab({
               </div>
 
               {/* 7-Day Matrix */}
-              <div className="border border-slate-200 rounded-2xl bg-white p-2.5 sm:p-4 shadow-2xs space-y-2">
+              <div className="border border-slate-200 rounded-2xl bg-white p-2.5 sm:p-4 card-elevated space-y-2">
                 {/* Weekday Names Header */}
-                <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center pb-2 border-b border-slate-100 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center pb-2 border-b border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase sm:tracking-wider">
                   <div className="text-rose-500/80">Sun</div>
                   <div>Mon</div>
                   <div>Tue</div>
@@ -1661,7 +1651,7 @@ export default function BookServiceTab({
                 <div className="grid grid-cols-7 gap-1 sm:gap-2">
                   {calendarData.cells.map((cell) => {
                     if (cell.empty) {
-                      return <div key={cell.key} className="h-14 sm:h-16 rounded-xl bg-transparent" />;
+                      return <div key={cell.key} className="h-11 sm:h-16 rounded-xl bg-transparent" />;
                     }
 
                     const { dayNum, dateKey, isPast, isToday, capacity, isSunday } = cell;
@@ -1696,7 +1686,7 @@ export default function BookServiceTab({
                             if (errorMsg) setErrorMsg(null);
                           }
                         }}
-                        className={`relative h-14 sm:h-16 rounded-xl p-1 sm:p-1.5 flex flex-col justify-between items-center text-center transition-all cursor-pointer ${
+                        className={`relative h-11 sm:h-16 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex flex-col justify-center sm:justify-between items-center gap-1 sm:gap-0 text-center transition-all cursor-pointer ${
                           isSelected
                             ? 'bg-orange-500 text-white font-bold shadow-md shadow-orange-500/25 ring-2 ring-orange-500 ring-offset-2 z-10'
                             : isDisabled
@@ -1710,17 +1700,27 @@ export default function BookServiceTab({
                             : 'bg-white hover:bg-orange-50/25 border border-slate-200 hover:border-orange-300 text-slate-800 hover:scale-[1.02]'
                         }`}
                       >
-                        <div className="w-full flex items-center justify-between text-[11px] sm:text-xs">
+                        <div className="w-full flex items-center justify-center sm:justify-between text-xs">
                           <span className={`font-semibold ${isSelected ? 'text-white' : isSunday ? 'text-slate-400 font-normal' : isToday ? 'text-orange-600 font-bold' : ''}`}>
                             {dayNum}
                           </span>
                           {isToday && !isSelected && !isSunday && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-orange-500" title="Today" />
+                            <span className="hidden sm:block w-1.5 h-1.5 rounded-full bg-orange-500" title="Today" />
                           )}
                         </div>
 
+                        {/* Phones: a colored dot instead of the tiny label (see the legend) */}
+                        {!isSunday && !isPast && (
+                          <span
+                            aria-hidden="true"
+                            className={`sm:hidden w-1.5 h-1.5 rounded-full ${
+                              isSelected ? 'bg-white' : isFull ? 'bg-rose-500' : isLimited ? 'bg-amber-500' : 'bg-emerald-500'
+                            }`}
+                          />
+                        )}
+
                         {/* Status Label */}
-                        <div className="w-full">
+                        <div className="w-full hidden sm:block">
                           {isSunday ? (
                             <span className="text-[8.5px] sm:text-[9.5px] font-bold px-1 py-0.5 rounded block uppercase leading-none bg-slate-200/70 text-slate-500 border border-slate-300/60">
                               Closed
@@ -1760,21 +1760,21 @@ export default function BookServiceTab({
 
                 {/* Calendar Legend */}
                 <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span>Open (3+ Slots)</span>
+                      <span>Open</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span>Limited (1-2 Left)</span>
+                      <span>1–2 left</span>
                     </span>
                     <span className="flex items-center gap-1">
                       <span className="w-2 h-2 rounded-full bg-rose-500" />
-                      <span>Full (0 Slots)</span>
+                      <span>Full</span>
                     </span>
                   </div>
-                  <span className="text-slate-400">Past dates closed</span>
+                  <span className="text-slate-400">Sundays and past dates are closed</span>
                 </div>
               </div>
             </div>
@@ -1899,7 +1899,7 @@ export default function BookServiceTab({
       {/* ========================================================================= */}
       {currentStep === 4 && (
         <div className="space-y-4">
-          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 shadow-xs space-y-6">
+          <div className="bg-white border border-slate-200/80 rounded-[1.75rem] sm:rounded-[2rem] p-4 sm:p-7 card-elevated space-y-6">
             <div className="pb-4 border-b border-slate-100">
               <span className="text-[10px] font-bold text-orange-600 uppercase tracking-widest block">
                 Final Step • Transparent Summary
@@ -1951,13 +1951,13 @@ export default function BookServiceTab({
 
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
-                  Workshop Intake Priority
+                  Booking status
                 </span>
                 <strong className="text-sm font-bold text-slate-900 block mt-1">
-                  Same-Day Bay Priority
+                  Slot {currentCapacity.occupiedCount + 1} of {currentCapacity.totalSlots}
                 </strong>
-                <span className="text-xs text-emerald-600 font-semibold block mt-0.5">
-                  Slot #{currentCapacity.occupiedCount + 1} of {currentCapacity.totalSlots} Confirmed
+                <span className="text-xs text-amber-700 font-semibold block mt-0.5">
+                  Waiting for the shop to confirm
                 </span>
               </div>
             </div>
@@ -1969,13 +1969,13 @@ export default function BookServiceTab({
               </span>
 
               <div className="space-y-2.5 text-xs divide-y divide-slate-200/70">
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-slate-600 font-medium">Selected Service</span>
-                  <span className="font-bold text-slate-900">{selectedPackage?.title || 'Selected Service'}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-3 pt-1">
+                  <span className="text-slate-600 font-medium whitespace-nowrap">Selected Service</span>
+                  <span className="font-bold text-slate-900 sm:text-right">{selectedPackage?.title || 'Selected Service'}</span>
                 </div>
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-slate-600">Time Slot Window</span>
-                  <span className="font-semibold text-slate-800">{selectedTimeWindow}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-0.5 sm:gap-3 pt-2">
+                  <span className="text-slate-600 whitespace-nowrap">Arrival window</span>
+                  <span className="font-semibold text-slate-800 sm:text-right">{selectedTimeWindow}</span>
                 </div>
                 <div className="pt-3">
                   <div className="p-3.5 bg-white rounded-xl border border-slate-200 flex items-start gap-2.5">
@@ -1984,7 +1984,7 @@ export default function BookServiceTab({
                       <strong className="text-slate-900 font-bold block mb-0.5">
                         Workshop Payment & Official Receipt Policy
                       </strong>
-                      This is an appointment booking for workshop bay scheduling. Final charges will be computed at the shop counter upon inspection and parts approval. Payment (Cash or GCash) and your official itemized receipt will be provided upon vehicle release at the workshop.
+                      This is an appointment booking for workshop bay scheduling. The final amount is confirmed at the shop after the inspection, and you approve any extra parts first. You pay in cash at the counter and get your receipt when you pick up your motorcycle.
                     </div>
                   </div>
                 </div>
@@ -1997,7 +1997,7 @@ export default function BookServiceTab({
                 <CreditCard className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
                 <div>
                   <strong className="block text-slate-900 font-semibold">Zero Advance Payment</strong>
-                  <span className="text-slate-500 text-[11px]">Pay via Cash or GCash upon vehicle release.</span>
+                  <span className="text-slate-500 text-[11px]">Pay in cash at the counter on pickup.</span>
                 </div>
               </div>
               <div className="p-3 rounded-2xl border border-slate-200 bg-white flex items-start gap-2.5">

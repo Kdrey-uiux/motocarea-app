@@ -1,4 +1,4 @@
-import { User } from 'lucide-react';
+import { User } from '../../components/icons';
 
 interface MechanicPickerProps {
   value: string;
@@ -17,7 +17,7 @@ export default function MechanicPicker({ value, onChange }: MechanicPickerProps)
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Type the mechanic's name"
-        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition font-medium"
+        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition font-medium"
       />
     </div>
   );

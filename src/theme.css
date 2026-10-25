@@ -1,0 +1,317 @@
+/* =========================================================================
+   THEME (light / dark)
+   Generated palette: the Tailwind colors the app uses are CSS variables
+   (see tailwind.config.js). Light values are the normal Tailwind colors;
+   under html.dark they flip so cards turn dark and text turns light, without
+   adding dark: classes to every component.
+   .force-light keeps an area light in dark mode (printed documents).
+   ========================================================================= */
+
+:root,
+.force-light {
+  --c-page: 242 242 247;
+  --c-surface: 255 255 255;
+  --c-slate-50: 248 250 252;
+  --c-slate-100: 241 245 249;
+  --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 100 116 139;
+  --c-slate-600: 71 85 105;
+  --c-slate-700: 51 65 85;
+  --c-slate-800: 30 41 59;
+  --c-slate-900: 15 23 42;
+  --c-slate-950: 2 6 23;
+  --c-orange-50: 255 247 237;
+  --c-orange-100: 255 237 213;
+  --c-orange-200: 254 215 170;
+  --c-orange-300: 253 186 116;
+  --c-orange-400: 251 146 60;
+  --c-orange-500: 249 115 22;
+  --c-orange-600: 234 88 12;
+  --c-orange-700: 194 65 12;
+  --c-orange-800: 154 52 18;
+  --c-orange-900: 124 45 18;
+  --c-orange-950: 67 20 7;
+  --c-amber-50: 255 251 235;
+  --c-amber-100: 254 243 199;
+  --c-amber-200: 253 230 138;
+  --c-amber-300: 252 211 77;
+  --c-amber-400: 251 191 36;
+  --c-amber-500: 245 158 11;
+  --c-amber-600: 217 119 6;
+  --c-amber-700: 180 83 9;
+  --c-amber-800: 146 64 14;
+  --c-amber-900: 120 53 15;
+  --c-amber-950: 69 26 3;
+  --c-emerald-50: 236 253 245;
+  --c-emerald-100: 209 250 229;
+  --c-emerald-200: 167 243 208;
+  --c-emerald-300: 110 231 183;
+  --c-emerald-400: 52 211 153;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 5 150 105;
+  --c-emerald-700: 4 120 87;
+  --c-emerald-800: 6 95 70;
+  --c-emerald-900: 6 78 59;
+  --c-emerald-950: 2 44 34;
+  --c-rose-50: 255 241 242;
+  --c-rose-100: 255 228 230;
+  --c-rose-200: 254 205 211;
+  --c-rose-300: 253 164 175;
+  --c-rose-400: 251 113 133;
+  --c-rose-500: 244 63 94;
+  --c-rose-600: 225 29 72;
+  --c-rose-700: 190 18 60;
+  --c-rose-800: 159 18 57;
+  --c-rose-900: 136 19 55;
+  --c-rose-950: 76 5 25;
+  --c-sky-50: 240 249 255;
+  --c-sky-100: 224 242 254;
+  --c-sky-200: 186 230 253;
+  --c-sky-300: 125 211 252;
+  --c-sky-400: 56 189 248;
+  --c-sky-500: 14 165 233;
+  --c-sky-600: 2 132 199;
+  --c-sky-700: 3 105 161;
+  --c-sky-800: 7 89 133;
+  --c-sky-900: 12 74 110;
+  --c-sky-950: 8 47 73;
+  --c-blue-50: 239 246 255;
+  --c-blue-100: 219 234 254;
+  --c-blue-200: 191 219 254;
+  --c-blue-300: 147 197 253;
+  --c-blue-400: 96 165 250;
+  --c-blue-500: 59 130 246;
+  --c-blue-600: 37 99 235;
+  --c-blue-700: 29 78 216;
+  --c-blue-800: 30 64 175;
+  --c-blue-900: 30 58 138;
+  --c-blue-950: 23 37 84;
+  --c-purple-50: 250 245 255;
+  --c-purple-100: 243 232 255;
+  --c-purple-200: 233 213 255;
+  --c-purple-300: 216 180 254;
+  --c-purple-400: 192 132 252;
+  --c-purple-500: 168 85 247;
+  --c-purple-600: 147 51 234;
+  --c-purple-700: 126 34 206;
+  --c-purple-800: 107 33 168;
+  --c-purple-900: 88 28 135;
+  --c-purple-950: 59 7 100;
+  --c-teal-50: 240 253 250;
+  --c-teal-100: 204 251 241;
+  --c-teal-200: 153 246 228;
+  --c-teal-300: 94 234 212;
+  --c-teal-400: 45 212 191;
+  --c-teal-500: 20 184 166;
+  --c-teal-600: 13 148 136;
+  --c-teal-700: 15 118 110;
+  --c-teal-800: 17 94 89;
+  --c-teal-900: 19 78 74;
+  --c-teal-950: 4 47 46;
+}
+
+html.dark {
+  --c-page: 14 14 16;
+  --c-surface: 28 28 30;
+  --c-slate-50: 42 42 45;
+  --c-slate-100: 49 49 52;
+  --c-slate-200: 58 58 62;
+  --c-slate-300: 74 74 79;
+  --c-slate-400: 142 142 147;
+  --c-slate-500: 156 156 161;
+  --c-slate-600: 174 174 178;
+  --c-slate-700: 199 199 204;
+  --c-slate-800: 229 229 234;
+  --c-slate-900: 242 242 247;
+  --c-slate-950: 250 250 250;
+  --c-orange-50: 50 37 29;
+  --c-orange-100: 63 42 29;
+  --c-orange-200: 94 54 28;
+  --c-orange-300: 150 76 26;
+  --c-orange-400: 251 146 60;
+  --c-orange-500: 249 115 22;
+  --c-orange-600: 234 88 12;
+  --c-orange-700: 253 186 116;
+  --c-orange-800: 254 215 170;
+  --c-orange-900: 255 237 213;
+  --c-orange-950: 255 247 237;
+  --c-amber-50: 50 41 28;
+  --c-amber-100: 63 49 27;
+  --c-amber-200: 93 67 24;
+  --c-amber-300: 147 100 20;
+  --c-amber-400: 251 191 36;
+  --c-amber-500: 245 158 11;
+  --c-amber-600: 217 119 6;
+  --c-amber-700: 252 211 77;
+  --c-amber-800: 253 230 138;
+  --c-amber-900: 254 243 199;
+  --c-amber-950: 255 251 235;
+  --c-emerald-50: 27 44 40;
+  --c-emerald-100: 26 53 46;
+  --c-emerald-200: 24 75 60;
+  --c-emerald-300: 21 114 84;
+  --c-emerald-400: 52 211 153;
+  --c-emerald-500: 16 185 129;
+  --c-emerald-600: 5 150 105;
+  --c-emerald-700: 110 231 183;
+  --c-emerald-800: 167 243 208;
+  --c-emerald-900: 209 250 229;
+  --c-emerald-950: 236 253 245;
+  --c-rose-50: 50 32 36;
+  --c-rose-100: 63 34 40;
+  --c-rose-200: 93 38 49;
+  --c-rose-300: 147 47 65;
+  --c-rose-400: 251 113 133;
+  --c-rose-500: 244 63 94;
+  --c-rose-600: 225 29 72;
+  --c-rose-700: 253 164 175;
+  --c-rose-800: 254 205 211;
+  --c-rose-900: 255 228 230;
+  --c-rose-950: 255 241 242;
+  --c-sky-50: 27 42 50;
+  --c-sky-100: 26 50 62;
+  --c-sky-200: 24 69 91;
+  --c-sky-300: 20 103 142;
+  --c-sky-400: 56 189 248;
+  --c-sky-500: 14 165 233;
+  --c-sky-600: 2 132 199;
+  --c-sky-700: 125 211 252;
+  --c-sky-800: 186 230 253;
+  --c-sky-900: 224 242 254;
+  --c-sky-950: 240 249 255;
+  --c-blue-50: 31 38 52;
+  --c-blue-100: 33 44 65;
+  --c-blue-200: 37 59 95;
+  --c-blue-300: 45 84 149;
+  --c-blue-400: 96 165 250;
+  --c-blue-500: 59 130 246;
+  --c-blue-600: 37 99 235;
+  --c-blue-700: 147 197 253;
+  --c-blue-800: 191 219 254;
+  --c-blue-900: 219 234 254;
+  --c-blue-950: 239 246 255;
+  --c-purple-50: 42 34 52;
+  --c-purple-100: 50 37 65;
+  --c-purple-200: 70 45 95;
+  --c-purple-300: 105 59 149;
+  --c-purple-400: 192 132 252;
+  --c-purple-500: 168 85 247;
+  --c-purple-600: 147 51 234;
+  --c-purple-700: 216 180 254;
+  --c-purple-800: 233 213 255;
+  --c-purple-900: 243 232 255;
+  --c-purple-950: 250 245 255;
+  --c-teal-50: 27 44 44;
+  --c-teal-100: 27 53 52;
+  --c-teal-200: 26 75 71;
+  --c-teal-300: 24 114 105;
+  --c-teal-400: 45 212 191;
+  --c-teal-500: 20 184 166;
+  --c-teal-600: 13 148 136;
+  --c-teal-700: 94 234 212;
+  --c-teal-800: 153 246 228;
+  --c-teal-900: 204 251 241;
+  --c-teal-950: 240 253 250;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+html.dark body {
+  background-color: rgb(var(--c-page));
+  color: rgb(var(--c-slate-800));
+}
+.force-light {
+  color-scheme: light;
+}
+
+/* Cards: bg-white becomes the dark surface (text-white on orange buttons stays white) */
+html.dark :is(.bg-white, .hover\:bg-white:hover, .focus\:bg-white:focus, .focus-within\:bg-white:focus-within, .group:hover .group-hover\:bg-white):not(.force-light *) {
+  background-color: rgb(var(--c-surface));
+}
+html.dark .bg-white\/50:not(.force-light *) { background-color: rgb(var(--c-surface) / 0.5); }
+html.dark .bg-white\/60:not(.force-light *) { background-color: rgb(var(--c-surface) / 0.6); }
+html.dark .bg-white\/70:not(.force-light *) { background-color: rgb(var(--c-surface) / 0.7); }
+html.dark .bg-white\/80:not(.force-light *) { background-color: rgb(var(--c-surface) / 0.8); }
+html.dark .bg-white\/90:not(.force-light *) { background-color: rgb(var(--c-surface) / 0.9); }
+html.dark .bg-white\/95:not(.force-light *) { background-color: rgb(var(--c-surface) / 0.95); }
+html.dark .to-white:not(.force-light *) {
+  --tw-gradient-to: rgb(var(--c-surface)) var(--tw-gradient-to-position);
+}
+html.dark .to-white\/80:not(.force-light *) {
+  --tw-gradient-to: rgb(var(--c-surface) / 0.8) var(--tw-gradient-to-position);
+}
+html.dark .border-white:not(.force-light *) {
+  border-color: rgb(var(--c-surface));
+}
+
+/* Focus ring gaps match the dark surface instead of a white halo */
+html.dark *:not(.force-light *) {
+  --tw-ring-offset-color: rgb(var(--c-surface));
+}
+
+/* Elements meant to stay dark: modal overlays and the few dark buttons */
+html.dark :is([class^='bg-slate-900/'], [class*=' bg-slate-900/'], [class^='bg-black/'], [class*=' bg-black/']):not(.force-light *) {
+  background-color: rgb(0 0 0 / 0.65);
+}
+html.dark :is(.bg-slate-700, .bg-slate-800, .bg-slate-900, .bg-slate-950):not(.force-light *) {
+  background-color: #2f3b4e;
+}
+html.dark :is(.hover\:bg-slate-700:hover, .hover\:bg-slate-800:hover, .hover\:bg-slate-900:hover):not(.force-light *) {
+  background-color: #3b495e;
+}
+
+/* Glass cards: a faint light sheen at the top, hairline light border, soft depth */
+html.dark .card-elevated:not(.force-light *) {
+  background-color: rgb(44 44 48 / 0.62);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.06) 0%, rgb(255 255 255 / 0.015) 55%, transparent 100%);
+  border-color: rgb(255 255 255 / 0.09);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 1px 2px rgb(0 0 0 / 0.4),
+    0 18px 40px -20px rgb(0 0 0 / 0.8);
+}
+/* Inputs, chips, and secondary buttons sit as slightly lighter glass */
+html.dark :is(.bg-slate-50, .bg-slate-100):not(.force-light *) {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.03), rgb(255 255 255 / 0));
+}
+/* Light borders read as thin glass edges instead of solid gray lines */
+html.dark :is(.border-slate-100, .border-slate-200, [class*="border-slate-200/"], [class*="border-slate-100/"]):not(.force-light *):not(:focus):not(:focus-within):not(:hover) {
+  border-color: rgb(255 255 255 / 0.07);
+}
+html.dark :is(.divide-slate-100, .divide-slate-200) > :not(:first-child):not(.force-light *) {
+  border-color: rgb(255 255 255 / 0.06);
+}
+
+/* The page: graphite with soft studio light (iOS dark materials sit on it) */
+html.dark .theme-page:not(.force-light *) {
+  background-color: rgb(var(--c-page));
+  background-image:
+    radial-gradient(55% 45% at 18% 0%, rgb(255 255 255 / 0.07), transparent 70%),
+    radial-gradient(45% 40% at 100% 8%, rgb(255 255 255 / 0.04), transparent 70%),
+    radial-gradient(40% 40% at 95% 100%, rgb(249 115 22 / 0.07), transparent 70%),
+    linear-gradient(180deg, #19191c 0%, rgb(var(--c-page)) 60%);
+  background-attachment: fixed;
+}
+
+/* iOS look for the staff console (html.ios-ui is set while the console or rider dashboard is open) */
+html.ios-ui body,
+html.ios-ui :is(.font-sans, h1, h2, h3, h4, .font-display) {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+}
+html.ios-ui :is(h1, h2, h3, h4, .font-display) {
+  letter-spacing: -0.02em;
+}
+html.ios-ui:not(.dark) .card-elevated {
+  border-color: rgb(60 60 67 / 0.08);
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.03),
+    0 10px 30px -16px rgb(0 0 0 / 0.14);
+}
+html.dark .card-lift:hover:not(.force-light *) {
+  box-shadow:
+    0 2px 4px rgb(0 0 0 / 0.4),
+    0 18px 36px -14px rgb(0 0 0 / 0.7);
+}

@@ -2,7 +2,7 @@ import { useState, useEffect, ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { verifyCustomerSession } from '../../lib/customerAuth';
-import { Wrench } from 'lucide-react';
+import LoadingScreen from '../brand/LoadingScreen';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -66,16 +66,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50/80 flex flex-col items-center justify-center p-4 font-sans select-none animate-in fade-in duration-150">
-        <div className="relative flex items-center justify-center">
-          {/* Active Spinning Ring */}
-          <div className="w-16 h-16 rounded-full border-3 border-orange-200 border-t-orange-500 animate-spin" />
-          {/* Centered MotoCare Icon */}
-          <div className="absolute w-9 h-9 rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/25">
-            <Wrench className="w-4 h-4 animate-pulse" />
-          </div>
-        </div>
-      </div>
+      <LoadingScreen />
     );
   }
 

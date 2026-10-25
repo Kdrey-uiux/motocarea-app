@@ -7,7 +7,7 @@ import {
   Search, 
   ShieldAlert, 
   RefreshCw 
-} from 'lucide-react';
+} from '../../components/icons';
 import { toast } from '../utils/toast';
 
 interface InternalAuditTabProps {
@@ -182,7 +182,7 @@ function AuditTrail() {
               placeholder="Search by action, actor, ticket #, or details..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-hidden focus:border-orange-500 transition font-medium"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition font-medium"
             />
           </div>
 

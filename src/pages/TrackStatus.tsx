@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import {
   Search,
-  Wrench,
   CheckCircle2,
   Clock,
   ArrowLeft,
@@ -15,6 +14,7 @@ import {
   Loader2,
   Store
 } from 'lucide-react';
+import MotoCareLogo from '../components/brand/MotoCareLogo';
 
 interface PublicTicket {
   id: string;
@@ -362,26 +362,19 @@ export default function TrackStatus() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-orange-600 transition"
+            className="inline-flex items-center gap-1.5 py-2 text-xs font-semibold text-slate-600 hover:text-orange-600 transition whitespace-nowrap"
           >
             <ArrowLeft className="w-4 h-4" />
-            <span>Back to Home</span>
+            <span><span className="hidden sm:inline">Back to </span>Home</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-sm shadow-orange-500/20">
-              <Wrench className="w-4 h-4" />
-            </div>
-            <span className="font-extrabold text-sm text-slate-900 tracking-tight">
-              Moto<span className="text-orange-500">Care</span>
-            </span>
-          </div>
+          <MotoCareLogo className="h-10 sm:h-11 w-auto text-slate-900" />
 
           <Link
             to="/login"
-            className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-1.5 rounded-full border border-orange-200/80 transition"
+            className="text-xs font-semibold text-orange-600 hover:text-orange-700 bg-orange-50 px-3.5 py-2 rounded-full border border-orange-200/80 transition whitespace-nowrap"
           >
-            Portal Login
+            Log In
           </Link>
         </div>
       </header>
@@ -420,8 +413,8 @@ export default function TrackStatus() {
                   if (val.startsWith('MC-')) val = val.slice(3);
                   setTicketInput(val.slice(0, 10));
                 }}
-                placeholder="684920 o W-7842"
-                className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-mono font-bold tracking-wider focus:outline-hidden"
+                placeholder="4821 or W-4821"
+                className="w-full bg-transparent text-slate-900 placeholder-slate-400 text-xs sm:text-sm font-mono font-bold tracking-wider focus:outline-none"
               />
               <button
                 type="submit"
@@ -484,7 +477,7 @@ export default function TrackStatus() {
                     setVerifyDate(e.target.value);
                     setVerifyError(null);
                   }}
-                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-hidden focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-slate-900 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">It's the date on your slip from the counter.</p>
               </div>
