@@ -53,6 +53,7 @@ import { parseTicketReview } from '../../utils/ticketReviews';
 import { parseTicketNotes, formatPhoneNumber } from '../../utils/ticketNotesParser';
 import { InternalStaffMember } from '../types/internal';
 import { toast } from '../utils/toast';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 function MotorcycleIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
@@ -1612,6 +1613,7 @@ export function InternalQueueTab({
       {/* Soft Cancellation / Void Modal */}
       {voidTarget && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div>
               <h3 className="font-bold text-base text-slate-900">
@@ -1660,6 +1662,7 @@ export function InternalQueueTab({
       {/* Assisted Reschedule Modal */}
       {rescheduleTarget && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div>
               <h3 className="font-bold text-base text-slate-900">
@@ -1723,6 +1726,7 @@ export function InternalQueueTab({
       {/* Quick Assign Mechanic Modal */}
       {assigningMechanicTicket && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between">
               <div>

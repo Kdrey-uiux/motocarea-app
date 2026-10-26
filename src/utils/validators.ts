@@ -8,13 +8,86 @@ export const MODEL_YEARS = Array.from({ length: 47 }, (_, i) => (2026 - i).toStr
  * Supports:
  * - Modern 2 Letters + 4/5 digits (e.g. ND 45821)
  * - Old 3 Letters + 3/4 digits (e.g. ABC 1234)
+ * - Old motorcycle 4 digits + 2 letters, or 3 digits + 3 letters (e.g. 1234 AB, 123 ABC)
  * - MV File Number (e.g. 1301-00000123456)
  */
 export const isValidLTOPlate = (plate: string): boolean => {
   const cleaned = plate.trim().toUpperCase();
   const modern = /^[A-Z]{2}\s?\d{4,5}$/;
   const old = /^[A-Z]{3}\s?\d{3,4}$/;
+  const oldMotorcycle = /^(\d{4}\s?[A-Z]{2}|\d{3}\s?[A-Z]{3})$/;
   const mvFile = /^\d{4}[-\s]?\d{6,12}$/;
 
-  return modern.test(cleaned) || old.test(cleaned) || mvFile.test(cleaned);
+  return modern.test(cleaned) || old.test(cleaned) || oldMotorcycle.test(cleaned) || mvFile.test(cleaned);
 };
+
+/** Common keyboard mashing / spam patterns (same rule as rider sign-up) */
+export const KEYBOARD_MASH_REGEX = /(?:asdf|wasd|qwer|zxcv|hjkl|dfgh|jkl;|poiu|poa|qwe|zxc|asd|fgh|jkl|lkj|mnb|poi)/i;
+
+/** Error text for a field, or null when it's fine */
+export type FieldError = string | null;
+
+/**
+ * A person's name typed by staff at the counter (first name only is OK).
+ * Letters (incl. ñ and accents), spaces, dots, hyphens and apostrophes; no keyboard mashing.
+ */
+export function validatePersonName(raw: string): FieldError {
+  const name = raw.trim().replace(/\s+/g, ' ');
+  if (!name) return 'Enter the customer’s name.';
+  if (name.length < 2) return 'Name is too short.';
+  if (name.length > 60) return 'Keep the name under 60 characters.';
+  if (!/^[\p{L}][\p{L} .'-]*$/u.test(name)) return 'Use letters only (no numbers or symbols).';
+  if (/(\p{L})\1{2,}/iu.test(name)) return 'Check the spelling (repeated letters).';
+  if (KEYBOARD_MASH_REGEX.test(name)) return 'Enter a real name (not random keys).';
+  // Every word needs a vowel, except initials like "J." and short surnames like "Ng"
+  const looksReal = name
+    .split(' ')
+    .every((w) => w.endsWith('.') || w.toLowerCase() === 'ng' || /[aeiouyáéíóú]/i.test(w));
+  if (!looksReal || /[bcdfghjklmnpqrstvwxz]{5,}/i.test(name)) return 'Enter a real name.';
+  return null;
+}
+
+/**
+ * Philippine mobile numbers in any common form: 0917 123 4567, 917 123 4567, +63 917 123 4567.
+ * Returns the 10 digits after +63 (9XXXXXXXXX), or null when it isn't a PH mobile number.
+ */
+export function phMobileDigits(raw: string): string | null {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('63') && digits.length === 12) digits = digits.slice(2);
+  else if (digits.startsWith('0') && digits.length === 11) digits = digits.slice(1);
+  return /^9\d{9}$/.test(digits) ? digits : null;
+}
+
+/** For a +63 field that holds the 10 digits after +63 (9XXXXXXXXX) */
+export function validatePHMobile(raw: string): FieldError {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return 'Enter a mobile number.';
+  if (phMobileDigits(raw)) return null;
+  const local = digits.startsWith('63') ? digits.slice(2) : digits.startsWith('0') ? digits.slice(1) : digits;
+  if (!local.startsWith('9')) return 'Must start with 9, e.g. 917 123 4567.';
+  if (local.length < 10) return `Incomplete number (${local.length} of 10 digits).`;
+  return 'Too many digits. Use 10 digits after +63.';
+}
+
+/**
+ * Typing or pasting into a +63 field: keeps digits only, drops a leading 0 or 63,
+ * and stops at 10 digits ("0917-123-4567" -> "9171234567").
+ */
+export function toPHMobileInput(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.startsWith('63') && digits.length > 10) digits = digits.slice(2);
+  digits = digits.replace(/^0+/, '');
+  return digits.slice(0, 10);
+}
+
+/** Shown and saved as "+63 917 123 4567" */
+export function formatPHMobile(digits10: string): string {
+  return `+63 ${digits10.slice(0, 3)} ${digits10.slice(3, 6)} ${digits10.slice(6)}`;
+}
+
+export function validatePlate(raw: string): FieldError {
+  const plate = raw.trim();
+  if (!plate) return 'Enter the plate number.';
+  if (!isValidLTOPlate(plate)) return 'Not a valid plate. Examples: NDE 1234, AB 12345, or an MV file no.';
+  return null;
+}

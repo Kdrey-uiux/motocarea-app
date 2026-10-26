@@ -27,6 +27,7 @@ import { getTicketDisplayDate } from '../../utils/ticketDates';
 import { printDocument } from '../../utils/printDocument';
 import { PrintPortal } from '../../components/print/PrintTemplate';
 import { ServiceHistoryDocument, ServiceRecordDocument } from '../../components/print/MotoCareDocuments';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
@@ -795,6 +796,7 @@ export default function ServiceHistoryTab({
       {selectedTicket && (
         createPortal(
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-2xl sm:rounded-[2rem] max-w-lg w-full p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 print:border-b-2 print:border-slate-900">
               <div className="flex items-center gap-2">
@@ -998,6 +1000,7 @@ export default function ServiceHistoryTab({
       {ratingTargetTicket && (
         createPortal(
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl relative">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">

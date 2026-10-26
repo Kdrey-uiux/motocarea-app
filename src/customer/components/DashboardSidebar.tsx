@@ -12,6 +12,7 @@ import {
 } from '../../components/icons';
 import { SHOP_INFO, SHOP_DIRECTIONS_URL } from '../../utils/shopInfo';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
 interface DashboardSidebarProps {
   activeTab: TabType;
@@ -32,6 +33,8 @@ export default function DashboardSidebar({
   setIsMobileMenuOpen,
   isSidebarCollapsed,
 }: DashboardSidebarProps) {
+  // The page behind the phone drawer stays still (desktop never opens it)
+  useLockBodyScroll(isMobileMenuOpen);
   const navItems = [
     { id: 'overview' as TabType, label: 'Dashboard', icon: LayoutGrid },
     { id: 'book' as TabType, label: 'Book Service', icon: Calendar },

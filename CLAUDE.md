@@ -29,7 +29,7 @@ src/
 server/src/
   index.ts, routes/ (tickets, admin, messages, motorcycles, profile), middlewares/ (auth, adminOnly), config/supabase.ts, scripts/ (motorcycle seeders)
 supabase/functions/       Edge Functions (notify-customer: email notifications)
-supabase/migrations/      Clean schema, run in order 00 → 15 (00_reset is dev-only). Ito ang iisang basehan ng database.
+supabase/migrations/      Clean schema, run in order 00 → 17 (00_reset is dev-only). Ito ang iisang basehan ng database.
 supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 ```
 
@@ -38,8 +38,8 @@ supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 - **`profiles.role`** ay lowercase: `customer`, `staff`, `admin` (tingnan `supabase/migrations/01_profiles.sql`).
 - **`service_tickets.status`** ay may CHECK constraint (tingnan `supabase/migrations/03_service_tickets.sql`). Allowed: `PENDING_CONFIRMATION`, `PENDING_DROPOFF`, `CONFIRMED_APPOINTMENT`, `IN_PROGRESS`, `READY_FOR_PICKUP`, `COMPLETED`, `CANCELLED`, `MISSED`, `NO_SHOW`, `CANCELLED_BY_ADMIN`. Huwag gumamit ng ibang value.
 - **Stages 1–5:** 1 Intake, 2 Bay Inspection, 3 Repair, 4 Quality Testing, 5 Ready for Release.
-- Ang booking state ay bahagyang naka-encode sa `notes` bilang tags: `[BOOKING:PENDING_CONFIRMATION]`, `[BOOKING:PENDING_DROPOFF]`, `[MISSED_EXPIRATION...]`, `[LATE_CHECKIN_OVERRIDE...]`, at `Arrival Window: ...`. Gamitin ang `src/utils/ticketNotesParser.ts` sa pag-parse.
-- Workshop capacity: 1 bay = 1 online booking/araw, sarado tuwing Linggo. Ang owner (admin) ang nagdadagdag/nagbabawas ng bays sa Bays tab (default 3, max 12). Naka-save sa `app_settings` key `workshop_bays`, live sa lahat ng device (`src/utils/workshopBays.ts`, `src/utils/workshopCapacity.ts`); ang DB guard ay nasa migration 15.
+- Ang booking state ay bahagyang naka-encode sa `notes` bilang tags: `[BOOKING:PENDING_CONFIRMATION]`, `[BOOKING:PENDING_DROPOFF]`, `[MISSED_EXPIRATION...]`, `[LATE_CHECKIN_OVERRIDE...]`, at `Arrival Window: ...`. Gamitin ang `src/utils/ticketNotesParser.ts` sa pag-parse. Hindi kayang idagdag o baguhin ng rider ang mga shop tag (BOOKING, CHECKED_IN, LATE_CHECKIN_OVERRIDE, GRACE_EXTENDED, MISSED_EXPIRATION) — migration 17; kung may bagong rider flow na sumusulat ng tag, i-update ang guard.
+- Workshop capacity: 1 bay = 1 online booking/araw, sarado tuwing Linggo. Ang owner (admin) ang nagdadagdag/nagbabawas ng bays sa Bays tab (3 fixed bays na hindi matatanggal, max 12). Naka-save sa `app_settings` key `workshop_bays`, live sa lahat ng device (`src/utils/workshopBays.ts`, `src/utils/workshopCapacity.ts`); ang DB guard ay nasa migration 15–16.
 - **Walang bayad na pumapasok sa system.** Sa labas (cash sa counter) ang lahat ng bayaran. Estimate lang ang mga presyo (services, parts approval); walang revenue tracking o sales analytics.
 - Realtime updates: `broadcastTicketSync` sa `src/lib/realtimeSync.ts` + Supabase `postgres_changes`.
 

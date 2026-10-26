@@ -10,6 +10,7 @@ import { SERVICE_STAGES } from '../../utils/serviceStages';
 import { useNow } from '../hooks/useNow';
 import { useBayCount, saveBayCount, bayLabel, MAX_BAYS, MIN_BAYS } from '../../utils/workshopBays';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 // Shared looks (same as the staff Dashboard and Queue)
 const CARD = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
@@ -498,6 +499,7 @@ export default function InternalBaysTab({
       {confirmRemove &&
         createPortal(
           <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <ScrollLock />
             <div className="bg-white rounded-[1.75rem] max-w-sm w-full shadow-2xl p-6 animate-in fade-in zoom-in-95 duration-200">
               <span className="w-11 h-11 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
                 <Trash2 className="w-5 h-5" />
@@ -534,6 +536,7 @@ export default function InternalBaysTab({
       {dispatchTargetBay &&
         createPortal(
           <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <ScrollLock />
             <div className="bg-white rounded-[1.75rem] max-w-md w-full shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
               <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200/80 flex items-start justify-between gap-3">
                 <div>

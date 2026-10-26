@@ -19,7 +19,7 @@ import { runMissedBookingScanInBackground } from '../utils/bookingLifecycle';
 import { parseTicketNotes } from '../utils/ticketNotesParser';
 import { TICKET_SYNC_CHANNEL, TICKET_SYNC_EVENT, debounce } from '../lib/realtimeSync';
 import { AlertCircle } from '../components/icons';
-import { useThemePreference } from '../utils/theme';
+import { useThemePreference, rememberConsoleScope } from '../utils/theme';
 
 // Components
 import InternalHeader from './components/InternalHeader';
@@ -152,7 +152,10 @@ export default function InternalConsole() {
   const currentRole: UserRole = session?.role || 'staff';
 
   // Light / dark appearance (saved on this device; dark only applies inside the console)
-  const [themePreference, setThemePreference, isDarkTheme] = useThemePreference();
+  // Owner and staff each keep their own light/dark choice
+  const themeScope = currentRole === 'admin' ? 'admin' : 'staff';
+  const [themePreference, setThemePreference, isDarkTheme] = useThemePreference(themeScope);
+  useEffect(() => rememberConsoleScope(themeScope), [themeScope]);
 
   // iOS look (system font, softer cards) for the console and its pop-ups, which render outside it
   useEffect(() => {

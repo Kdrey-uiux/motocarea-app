@@ -12,6 +12,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { TabType } from '../../types/dashboard';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 export interface TourStep {
   id: number;
@@ -510,6 +511,7 @@ export default function SpotlightTour({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden select-none pointer-events-auto font-sans">
+      <ScrollLock />
       {/* 1. Calm, Eye-Friendly Backdrop Mask (Soft Slate, No Blinking) */}
       <svg
         className={`fixed inset-0 w-full h-full pointer-events-none transition-opacity duration-300 ${

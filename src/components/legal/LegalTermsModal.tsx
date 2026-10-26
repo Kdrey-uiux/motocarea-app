@@ -8,6 +8,7 @@ import {
   Scale
 } from 'lucide-react';
 import { SHOP_INFO } from '../../utils/shopInfo';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 export interface LegalTermsModalProps {
   isOpen: boolean;
@@ -81,6 +82,7 @@ export default function LegalTermsModal({
       // The landing page's smooth scroll (Lenis) leaves the mouse wheel to this modal
       data-lenis-prevent
     >
+      <ScrollLock />
       <div className="bg-white text-slate-800 w-full max-w-3xl rounded-t-[1.75rem] sm:rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200 max-h-[92dvh] sm:max-h-[88vh]">
         
         {/* =========================================================================

@@ -13,7 +13,7 @@ import {
   Loader2, 
   AlertCircle,
 } from '../../components/icons';
-import { useThemePreference } from '../../utils/theme';
+import { useThemePreference, getLastConsoleScope } from '../../utils/theme';
 import { CAPTCHA_ENABLED } from '../../lib/captcha';
 import TurnstileWidget, { type TurnstileHandle } from '../../components/auth/TurnstileWidget';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
@@ -22,7 +22,7 @@ export default function InternalLogin() {
   const navigate = useNavigate();
 
   // Same look as the console: saved light/dark choice and the iOS system font
-  const [, , isDarkTheme] = useThemePreference();
+  const [, , isDarkTheme] = useThemePreference(getLastConsoleScope());
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add('ios-ui');

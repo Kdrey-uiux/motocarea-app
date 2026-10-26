@@ -26,6 +26,7 @@ import {
 } from '../../components/icons';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
 import { toast } from '../utils/toast';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface FleetBike {
   id: string;
@@ -613,6 +614,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
       {/* ======================================================== */}
       {isRegisterOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
@@ -748,6 +750,7 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
       {/* ======================================================== */}
       {isAddModelOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4 text-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">

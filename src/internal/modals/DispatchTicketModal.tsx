@@ -22,6 +22,7 @@ import VehicleHistoryModal from './VehicleHistoryModal';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
 import { useBayCount, bayList } from '../../utils/workshopBays';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface DispatchTicketModalProps {
   ticket: InternalTicket | null;
@@ -227,6 +228,7 @@ export default function DispatchTicketModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <ScrollLock />
       <form
         onSubmit={handleSave}
         className="bg-white border border-slate-200 text-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]"

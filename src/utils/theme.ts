@@ -1,31 +1,59 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 /**
  * Light / dark appearance. The choice is saved on this device only (no database),
  * and "system" follows the phone or computer setting.
+ *
+ * Rider, staff and owner each keep their own choice, so switching one (e.g. testing all
+ * three in the same browser) never changes the others.
  */
 export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemeScope = 'rider' | 'staff' | 'admin';
 
-const STORAGE_KEY = 'motocare_theme';
+const STORAGE_KEYS: Record<ThemeScope, string> = {
+  rider: 'motocare_theme',
+  staff: 'motocare_staff_theme',
+  admin: 'motocare_admin_theme',
+};
+// Who last used the console on this device, so the sign-in page uses their look
+const LAST_CONSOLE_ROLE_KEY = 'motocare_console_last_role';
+
+export function rememberConsoleScope(scope: 'staff' | 'admin') {
+  try {
+    localStorage.setItem(LAST_CONSOLE_ROLE_KEY, scope);
+  } catch {
+    // Not remembered; the sign-in page falls back to the staff look
+  }
+}
+
+export function getLastConsoleScope(): 'staff' | 'admin' {
+  try {
+    return localStorage.getItem(LAST_CONSOLE_ROLE_KEY) === 'admin' ? 'admin' : 'staff';
+  } catch {
+    return 'staff';
+  }
+}
 const CHANGE_EVENT = 'motocare-theme-change';
 
-export function getThemePreference(): ThemePreference {
+const isPreference = (v: unknown): v is ThemePreference => v === 'light' || v === 'dark' || v === 'system';
+
+export function getThemePreference(scope: ThemeScope): ThemePreference {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+    const saved = localStorage.getItem(STORAGE_KEYS[scope]);
+    if (isPreference(saved)) return saved;
   } catch {
     // Storage blocked (private mode): fall back to the default
   }
   return 'system';
 }
 
-export function setThemePreference(preference: ThemePreference) {
+export function setThemePreference(scope: ThemeScope, preference: ThemePreference) {
   try {
-    localStorage.setItem(STORAGE_KEY, preference);
+    localStorage.setItem(STORAGE_KEYS[scope], preference);
   } catch {
     // Not saved, but still applied for this visit
   }
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: preference }));
+  window.dispatchEvent(new CustomEvent(CHANGE_EVENT, { detail: { scope, preference } }));
 }
 
 const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -35,15 +63,20 @@ const prefersDark = () => window.matchMedia('(prefers-color-scheme: dark)').matc
  * (adds the `dark` class on <html>, removes it again on leave).
  * Returns the preference, a setter for the Appearance switch, and whether dark is showing now.
  */
-export function useThemePreference(): [ThemePreference, (preference: ThemePreference) => void, boolean] {
-  const [preference, setPreference] = useState<ThemePreference>(getThemePreference);
+export function useThemePreference(
+  scope: ThemeScope
+): [ThemePreference, (preference: ThemePreference) => void, boolean] {
+  const [preference, setPreference] = useState<ThemePreference>(() => getThemePreference(scope));
   const [systemDark, setSystemDark] = useState<boolean>(prefersDark);
 
   // Follow changes from the switch, other tabs, and the device setting
   useEffect(() => {
-    const onChange = (e: Event) => setPreference((e as CustomEvent<ThemePreference>).detail);
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ scope: ThemeScope; preference: ThemePreference }>).detail;
+      if (detail.scope === scope) setPreference(detail.preference);
+    };
     const onStorage = (e: StorageEvent) => {
-      if (e.key === STORAGE_KEY) setPreference(getThemePreference());
+      if (e.key === STORAGE_KEYS[scope]) setPreference(getThemePreference(scope));
     };
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const onMedia = () => setSystemDark(media.matches);
@@ -55,7 +88,7 @@ export function useThemePreference(): [ThemePreference, (preference: ThemePrefer
       window.removeEventListener('storage', onStorage);
       media.removeEventListener('change', onMedia);
     };
-  }, []);
+  }, [scope]);
 
   const isDark = preference === 'dark' || (preference === 'system' && systemDark);
 
@@ -66,5 +99,6 @@ export function useThemePreference(): [ThemePreference, (preference: ThemePrefer
     return () => root.classList.remove('dark');
   }, [isDark]);
 
-  return [preference, setThemePreference, isDark];
+  const setForScope = useCallback((next: ThemePreference) => setThemePreference(scope, next), [scope]);
+  return [preference, setForScope, isDark];
 }

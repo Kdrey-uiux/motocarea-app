@@ -4,6 +4,7 @@ import { Printer, X } from 'lucide-react';
 import MotoCareLogo from '../brand/MotoCareLogo';
 import { SHOP_INFO } from '../../utils/shopInfo';
 import { formatPrintDate, printDocument } from '../../utils/printDocument';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 /**
  * Shared layout for every printed MotoCare document (job order, gate pass, service records,
@@ -219,6 +220,7 @@ export function PrintPreviewModal({
     <>
       {createPortal(
         <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+          <ScrollLock />
           <div className="bg-white w-full max-w-4xl rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             <div className="px-5 sm:px-6 py-4 border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0">
               <div className="min-w-0">

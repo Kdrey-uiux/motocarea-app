@@ -31,7 +31,7 @@ export default function CustomerDashboard() {
   const navigate = useNavigate();
 
   // Light / dark appearance (saved on this device) and the iOS look, same as the staff console
-  const [themePreference, setThemePreference, isDarkTheme] = useThemePreference();
+  const [themePreference, setThemePreference, isDarkTheme] = useThemePreference('rider');
   useEffect(() => {
     const root = document.documentElement;
     root.classList.add('ios-ui');
@@ -262,17 +262,6 @@ export default function CustomerDashboard() {
       supabase.removeChannel(hardcopyChannel);
     };
   }, [userId, loadDashboardData]);
-
-  // Lock body scroll when mobile drawer is open
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
-  }, [isMobileMenuOpen]);
 
   // BFCache Interceptor: Disallows viewing dashboard via browser Back button after logout
   useEffect(() => {

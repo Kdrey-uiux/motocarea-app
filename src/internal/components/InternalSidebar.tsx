@@ -16,6 +16,7 @@ import { InternalTab, UserRole } from '../types/internal';
 import { canAccessTab } from '../utils/permissions';
 import { useBayCount } from '../../utils/workshopBays';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
 interface InternalSidebarProps {
   activeTab: InternalTab;
@@ -167,6 +168,8 @@ export default function InternalSidebar({
   isCollapsed = false,
 }: InternalSidebarProps) {
   const bayCount = useBayCount();
+  // The page behind the phone drawer stays still
+  useLockBodyScroll(isMobileOpen);
   // Badges only for things that need attention (or quick capacity info)
   const allGroups: NavGroup[] = [
     {

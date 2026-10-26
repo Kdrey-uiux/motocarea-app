@@ -6,6 +6,7 @@ import { PrintPortal } from '../../components/print/PrintTemplate';
 import { WalkInTicketDocument } from '../../components/print/MotoCareDocuments';
 import { printDocument } from '../../utils/printDocument';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 export interface WalkInSlipInfo {
   ticketCode: string;
@@ -65,6 +66,7 @@ export default function WalkInClaimSlipModal({ slip, onClose }: WalkInClaimSlipM
 
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <ScrollLock />
       {/* What goes on paper: the half-page walk-in ticket (shared print template) */}
       <PrintPortal>
         <WalkInTicketDocument slip={slip} trackingUrl={trackingUrl} />

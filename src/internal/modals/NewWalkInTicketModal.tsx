@@ -3,12 +3,15 @@ import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { getCompleteMotorcycleCatalog, OfficialBikeModel } from '../../utils/motorcycleCatalog';
-import { X, User, Phone, Gauge, Wrench, Loader2, CheckCircle2, Search, AlertTriangle, Bike } from '../../components/icons';
+import { X, User, Gauge, Loader2, CheckCircle2, Search, AlertTriangle, Bike } from '../../components/icons';
 import { getSharedServiceCatalog } from '../../utils/serviceCatalog';
 import { getWorkshopCapacity, isSundayDate } from '../../utils/workshopCapacity';
 import { toast } from '../utils/toast';
+import ServicePicker from '../components/ServicePicker';
 import WalkInClaimSlipModal, { WalkInSlipInfo } from './WalkInClaimSlipModal';
 import { newWalkInCode } from '../../utils/ticketCode';
+import { validatePersonName, validatePHMobile, phMobileDigits, formatPHMobile, toPHMobileInput, validatePlate, type FieldError } from '../../utils/validators';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface NewWalkInTicketModalProps {
   isOpen: boolean;
@@ -27,8 +30,26 @@ function localDateString(d = new Date()): string {
 
 const sectionLabel = 'font-display text-sm font-bold tracking-tight text-slate-900';
 const fieldLabel = 'text-xs font-medium text-slate-600 block mb-1.5';
-const inputClass =
-  'w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
+const inputBase =
+  'w-full bg-white border rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:ring-4 transition';
+const inputClass = `${inputBase} border-slate-200 focus:border-orange-500 focus:ring-orange-500/10`;
+const inputErrorClass = `${inputBase} border-rose-400 focus:border-rose-500 focus:ring-rose-500/10`;
+
+const NOTES_MAX = 300;
+type FieldKey = 'name' | 'phone' | 'model' | 'plate' | 'odometer' | 'service' | 'notes';
+// Order used to jump to the first field that needs fixing
+const FIELD_ORDER: FieldKey[] = ['name', 'phone', 'model', 'plate', 'odometer', 'service', 'notes'];
+
+/** Small red line under a field */
+function FieldMessage({ id, error }: { id: string; error: FieldError }) {
+  if (!error) return null;
+  return (
+    <span id={id} role="alert" className="mt-1 flex items-start gap-1 text-xs text-rose-600">
+      <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
+      {error}
+    </span>
+  );
+}
 
 export default function NewWalkInTicketModal({
   isOpen,
@@ -36,7 +57,8 @@ export default function NewWalkInTicketModal({
   onTicketCreated,
   currentStaffName = 'Service Advisor',
 }: NewWalkInTicketModalProps) {
-  const availableServices = useMemo(() => getSharedServiceCatalog().map((s) => s.title || s.name), []);
+  const serviceCatalog = useMemo(() => getSharedServiceCatalog(), []);
+  const availableServices = useMemo(() => serviceCatalog.map((s) => s.title || s.name), [serviceCatalog]);
 
   const [customerName, setCustomerName] = useState('');
   const [contactNumber, setContactNumber] = useState('');
@@ -53,6 +75,9 @@ export default function NewWalkInTicketModal({
 
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // A field shows its error after the user leaves it, or after a submit try
+  const [touched, setTouched] = useState<Partial<Record<FieldKey, boolean>>>({});
+  const [triedSubmit, setTriedSubmit] = useState(false);
   // Claim slip shown right after the ticket is created, so the customer leaves with their ticket number
   const [createdSlip, setCreatedSlip] = useState<WalkInSlipInfo | null>(null);
 
@@ -86,6 +111,30 @@ export default function NewWalkInTicketModal({
       .slice(0, 10);
   }, [catalog, motorcycleModel]);
 
+  const fieldErrors: Record<FieldKey, FieldError> = {
+    name: validatePersonName(customerName),
+    phone: validatePHMobile(contactNumber),
+    model: !motorcycleModel.trim()
+      ? 'Pick or type the motorcycle model.'
+      : motorcycleModel.trim().length < 2
+        ? 'Model name is too short.'
+        : motorcycleModel.trim().length > 60
+          ? 'Keep the model under 60 characters.'
+          : null,
+    plate: validatePlate(plateNumber),
+    odometer: odometer.replace(/\D/g, '').length > 7 ? 'That reading looks too high. Check the odometer.' : null,
+    service: !selectedService ? (availableServices.length ? 'Pick a service.' : 'No services set up yet. Add one in Services.') : null,
+    notes: complaintNotes.length > NOTES_MAX ? `Keep it under ${NOTES_MAX} characters.` : null,
+  };
+  const shownError = (key: FieldKey): FieldError => (touched[key] || triedSubmit ? fieldErrors[key] : null);
+  const markTouched = (key: FieldKey) => () => setTouched((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  const fieldProps = (key: FieldKey) => ({
+    id: `walkin-${key}`,
+    onBlur: markTouched(key),
+    'aria-invalid': Boolean(shownError(key)),
+    'aria-describedby': shownError(key) ? `walkin-${key}-error` : undefined,
+  });
+
   if (!isOpen) return null;
 
   if (createdSlip) {
@@ -110,6 +159,8 @@ export default function NewWalkInTicketModal({
     setSelectedService(availableServices[0] || '');
     setComplaintNotes('');
     setErrorMessage(null);
+    setTouched({});
+    setTriedSubmit(false);
   };
 
   const handleClose = () => {
@@ -121,20 +172,19 @@ export default function NewWalkInTicketModal({
     e.preventDefault();
     setErrorMessage(null);
 
-    const cleanName = customerName.trim();
-    const cleanPhone = contactNumber.trim();
+    // Check every field first; jump to the first one that needs fixing
+    const firstInvalid = FIELD_ORDER.find((key) => fieldErrors[key]);
+    if (firstInvalid) {
+      setTriedSubmit(true);
+      document.getElementById(`walkin-${firstInvalid}`)?.focus();
+      return;
+    }
+
+    const cleanName = customerName.trim().replace(/\s+/g, ' ');
+    const cleanPhone = formatPHMobile(phMobileDigits(contactNumber) as string);
     const cleanPlate = plateNumber.trim().toUpperCase().replace(/\s+/g, ' ');
     const cleanModel = motorcycleModel.trim();
     const cleanOdometer = odometer.replace(/[^\d]/g, '');
-
-    if (!cleanName || !cleanPhone || !cleanPlate || !cleanModel || !selectedService) {
-      setErrorMessage('Please fill in the customer name, mobile number, motorcycle model, plate number, and service.');
-      return;
-    }
-    if (cleanPhone.replace(/\D/g, '').length < 10) {
-      setErrorMessage('Please enter a valid mobile number (at least 10 digits).');
-      return;
-    }
 
     setLoading(true);
     try {
@@ -251,8 +301,10 @@ export default function NewWalkInTicketModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <ScrollLock />
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="bg-white text-slate-900 w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"
       >
         {/* Header */}
@@ -301,29 +353,40 @@ export default function NewWalkInTicketModal({
                     type="text"
                     required
                     autoFocus
+                    autoComplete="off"
+                    maxLength={60}
                     placeholder="e.g. Juan Dela Cruz"
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
-                    className={`${inputClass} pl-9`}
+                    {...fieldProps('name')}
+                    className={`${shownError('name') ? inputErrorClass : inputClass} pl-9`}
                   />
                 </span>
+                <FieldMessage id="walkin-name-error" error={shownError('name')} />
               </label>
               <label className="block">
                 <span className={fieldLabel}>
                   Mobile number <span className="text-orange-600">*</span>
                 </span>
+                {/* Fixed +63 in front, 10 digits after it (same as rider sign-up) */}
                 <span className="relative block">
-                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500 pointer-events-none select-none">
+                    +63
+                  </span>
                   <input
                     type="tel"
-                    inputMode="tel"
+                    inputMode="numeric"
                     required
-                    placeholder="e.g. 0917 123 4567"
+                    autoComplete="off"
+                    placeholder="917 123 4567"
                     value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                    className={`${inputClass} pl-9`}
+                    // Digits only; a pasted 0917… or +63 917… is trimmed to the 10 digits
+                    onChange={(e) => setContactNumber(toPHMobileInput(e.target.value))}
+                    {...fieldProps('phone')}
+                    className={`${shownError('phone') ? inputErrorClass : inputClass} pl-12 tabular-nums tracking-wide`}
                   />
                 </span>
+                <FieldMessage id="walkin-phone-error" error={shownError('phone')} />
               </label>
             </div>
           </section>
@@ -348,10 +411,20 @@ export default function NewWalkInTicketModal({
                         setIsDropdownOpen(true);
                       }}
                       onFocus={() => setIsDropdownOpen(true)}
-                      className={`${inputClass} pr-8`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape' || e.key === 'Tab' || e.key === 'Enter') {
+                          if (e.key !== 'Tab' && isDropdownOpen) e.preventDefault();
+                          setIsDropdownOpen(false);
+                        }
+                      }}
+                      autoComplete="off"
+                      maxLength={60}
+                      {...fieldProps('model')}
+                      className={`${shownError('model') ? inputErrorClass : inputClass} pr-8`}
                     />
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </span>
+                  <FieldMessage id="walkin-model-error" error={shownError('model')} />
                 </label>
 
                 {isDropdownOpen && (filteredBikes.length > 0 || motorcycleModel.trim().length > 0) && (
@@ -391,11 +464,16 @@ export default function NewWalkInTicketModal({
                 <input
                   type="text"
                   required
+                  autoComplete="off"
+                  maxLength={17}
                   placeholder="e.g. NDE 1234"
                   value={plateNumber}
-                  onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                  className={`${inputClass} font-mono font-bold`}
+                  // Letters, digits, spaces and dashes only
+                  onChange={(e) => setPlateNumber(e.target.value.toUpperCase().replace(/[^A-Z0-9\s-]/g, ''))}
+                  {...fieldProps('plate')}
+                  className={`${shownError('plate') ? inputErrorClass : inputClass} font-mono font-bold`}
                 />
+                <FieldMessage id="walkin-plate-error" error={shownError('plate')} />
               </label>
             </div>
 
@@ -408,36 +486,35 @@ export default function NewWalkInTicketModal({
                   inputMode="numeric"
                   placeholder="e.g. 14250"
                   value={odometer}
+                  maxLength={9}
                   onChange={(e) => setOdometer(e.target.value.replace(/[^\d,]/g, ''))}
-                  className={`${inputClass} pl-9 font-mono`}
+                  {...fieldProps('odometer')}
+                  className={`${shownError('odometer') ? inputErrorClass : inputClass} pl-9 font-mono`}
                 />
               </span>
+              <FieldMessage id="walkin-odometer-error" error={shownError('odometer')} />
             </label>
           </section>
 
           {/* Service */}
           <section className="space-y-3">
             <p className={sectionLabel}>Service</p>
-            <label className="block">
-              <span className={fieldLabel}>
+            {/* A div, not a label: the picker has its own buttons inside */}
+            <div>
+              <span id="walkin-service-label" className={fieldLabel}>
                 Service <span className="text-orange-600">*</span>
               </span>
-              <span className="relative block">
-                <Wrench className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <select
-                  required
-                  value={selectedService}
-                  onChange={(e) => setSelectedService(e.target.value)}
-                  className={`${inputClass} pl-9 font-medium cursor-pointer`}
-                >
-                  {availableServices.map((srv) => (
-                    <option key={srv} value={srv}>
-                      {srv}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </label>
+              <ServicePicker
+                id="walkin-service"
+                services={serviceCatalog}
+                value={selectedService}
+                onChange={setSelectedService}
+                onBlur={markTouched('service')}
+                invalid={Boolean(shownError('service'))}
+                describedBy={shownError('service') ? 'walkin-service-error' : undefined}
+              />
+              <FieldMessage id="walkin-service-error" error={shownError('service')} />
+            </div>
             <label className="block">
               <span className={fieldLabel}>What's the problem? (customer's own words)</span>
               <textarea
@@ -445,8 +522,15 @@ export default function NewWalkInTicketModal({
                 placeholder="e.g. Rattling noise when accelerating, weak brakes"
                 value={complaintNotes}
                 onChange={(e) => setComplaintNotes(e.target.value)}
-                className={`${inputClass} resize-none`}
+                {...fieldProps('notes')}
+                className={`${shownError('notes') || complaintNotes.length > NOTES_MAX ? inputErrorClass : inputClass} resize-none`}
               />
+              <span className="mt-1 flex items-start justify-between gap-2">
+                <FieldMessage id="walkin-notes-error" error={complaintNotes.length > NOTES_MAX ? fieldErrors.notes : null} />
+                <span className={`ml-auto text-[11px] tabular-nums ${complaintNotes.length > NOTES_MAX ? 'text-rose-600' : 'text-slate-400'}`}>
+                  {complaintNotes.length}/{NOTES_MAX}
+                </span>
+              </span>
             </label>
           </section>
         </div>

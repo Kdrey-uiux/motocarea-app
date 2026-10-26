@@ -22,6 +22,7 @@ import LegalTermsModal from '../components/legal/LegalTermsModal';
 import MotoCareLogo from '../components/brand/MotoCareLogo';
 import { CAPTCHA_ENABLED } from '../lib/captcha';
 import TurnstileWidget, { type TurnstileHandle } from '../components/auth/TurnstileWidget';
+import { KEYBOARD_MASH_REGEX } from '../utils/validators';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
 
@@ -35,8 +36,6 @@ const VALID_2_LETTER_FIRST_NAMES = new Set([
   'jo', 'al', 'ed', 'ty', 'bo', 'cy', 'vy', 'lu', 'li', 'an', 'aj', 'cj', 'dj', 'rj', 'pj', 'tj', 'mj', 'bj', 'jj', 'kc'
 ]);
 
-// Common keyboard mashing / spam patterns
-const KEYBOARD_MASH_REGEX = /(?:asdf|wasd|qwer|zxcv|hjkl|dfgh|jkl;|poiu|poa|qwe|zxc|asd|fgh|jkl|lkj|mnb|poi)/i;
 
 const getAuthRedirectUrl = (path: string = '/login?verified=true') => {
   const base = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, '');

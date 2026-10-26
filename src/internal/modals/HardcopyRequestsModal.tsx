@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Check
 } from '../../components/icons';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface HardcopyRequestsModalProps {
   isOpen: boolean;
@@ -122,6 +123,7 @@ export default function HardcopyRequestsModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+      <ScrollLock />
       <div className="bg-white text-slate-800 w-full max-w-3xl rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col my-auto max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-5 sm:px-6 pt-5 flex items-start justify-between gap-3">

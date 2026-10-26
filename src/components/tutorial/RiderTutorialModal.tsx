@@ -14,6 +14,7 @@ import {
   FileText,
   Gauge
 } from 'lucide-react';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 export interface RiderTutorialModalProps {
   isOpen: boolean;
@@ -317,6 +318,7 @@ export default function RiderTutorialModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto animate-in fade-in duration-200">
+      <ScrollLock />
       <div 
         className="bg-white border border-slate-200 text-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto transition-all animate-in zoom-in-95 duration-200 max-h-[92vh] sm:max-h-[88vh]"
         role="dialog"

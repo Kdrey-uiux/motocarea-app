@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
 import { X, Bike, Calendar, UserCheck, Phone } from '../../components/icons';
 import { stageName } from '../../utils/serviceStages';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface VehicleHistoryModalProps {
   vehicle: {
@@ -48,6 +49,7 @@ export default function VehicleHistoryModal({ vehicle, tickets, isOpen, onClose 
 
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <ScrollLock />
       <div className="bg-white w-full max-w-2xl rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-200/80 flex items-start justify-between gap-3">

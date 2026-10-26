@@ -15,6 +15,7 @@ import {
   ShieldCheck, 
   Loader2 
 } from '../../components/icons';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface Stage5BillingModalProps {
   ticket: InternalTicket | null;
@@ -125,6 +126,7 @@ export default function Stage5BillingModal({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <ScrollLock />
       <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full shadow-2xl flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95">
         {releaseSuccess ? (
           <div className="p-8 text-center space-y-5 animate-in fade-in zoom-in-95 my-auto">

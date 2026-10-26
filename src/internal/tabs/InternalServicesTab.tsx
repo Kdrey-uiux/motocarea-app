@@ -20,6 +20,7 @@ import {
   Search
 } from '../../components/icons';
 import { toast } from '../utils/toast';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface InternalServicesTabProps {
   currentRole?: UserRole;
@@ -306,6 +307,7 @@ export default function InternalServicesTab({
       {(editingService || isAddingNew) &&
         createPortal(
           <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+            <ScrollLock />
             <form
               onSubmit={handleSaveService}
               className="bg-white w-full max-w-lg rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"

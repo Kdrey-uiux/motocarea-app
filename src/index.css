@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Scrollable areas (modal bodies, dropdown lists) keep the scroll to themselves:
+   reaching the end of the list doesn't start scrolling the page behind */
+.overflow-auto,
+.overflow-y-auto,
+.overflow-y-scroll {
+  overscroll-behavior: contain;
+}
+
 @layer base {
   html {
     overflow-y: scroll;

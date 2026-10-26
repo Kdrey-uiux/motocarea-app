@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Loader2 } from '../icons';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
 interface ConfirmLogoutModalProps {
   isOpen: boolean;
@@ -30,17 +31,7 @@ export default function ConfirmLogoutModal({
   }, [isOpen, loading, onClose]);
 
   // The page behind stays still while the sheet is open
-  useEffect(() => {
-    if (!isOpen) return;
-    const html = document.documentElement;
-    const body = document.body;
-    const prev = [html.style.overflow, body.style.overflow];
-    html.style.overflow = 'hidden';
-    body.style.overflow = 'hidden';
-    return () => {
-      [html.style.overflow, body.style.overflow] = prev;
-    };
-  }, [isOpen]);
+  useLockBodyScroll(isOpen);
 
   if (!isOpen) return null;
 

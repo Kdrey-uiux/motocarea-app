@@ -5,8 +5,9 @@ import { readSharedSetting, reloadSharedSetting, saveSharedSetting, SHARED_SETTI
  * Number of service bays on the workshop floor. The owner sets it on the Bays page;
  * it is stored in app_settings ('workshop_bays', migration 15) and reaches every device live.
  * One bay = one online booking per day, so it is also the daily booking limit.
+ * Bays 01–03 are the shop's fixed bays and can't be removed; only added bays (04+) can.
  */
-export const MIN_BAYS = 1;
+export const MIN_BAYS = 3;
 export const MAX_BAYS = 12;
 export const DEFAULT_BAYS = 3;
 

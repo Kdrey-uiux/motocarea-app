@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Check
 } from '../../components/icons';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -102,6 +103,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
   // Rendered at the end of <body> so the dark overlay always covers the whole screen
   return createPortal(
     <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+      <ScrollLock />
       <form
         onSubmit={handleSubmit}
         className="bg-white w-full max-w-md rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200"

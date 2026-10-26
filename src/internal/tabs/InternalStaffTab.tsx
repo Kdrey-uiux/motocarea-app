@@ -21,6 +21,7 @@ import {
   X
 } from '../../components/icons';
 import { toast } from '../utils/toast';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 // Random 12-character starting password (no look-alike characters), shown once to the admin
 function generateStaffPassword(): string {
@@ -455,6 +456,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
       {/* Provision Staff Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
@@ -568,6 +570,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
       {/* Edit Staff Modal */}
       {editingStaff && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm sm:text-base text-slate-900 flex items-center gap-2">
@@ -630,6 +633,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
       {/* Toggle Status Confirmation Modal */}
       {statusTarget && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <h3 className="font-bold text-sm text-slate-900">
               Confirm Status Change: {statusTarget.fullName}
@@ -679,6 +683,7 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
       {/* Send Password Reset Confirmation Modal */}
       {resetTarget && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <ScrollLock />
           <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">

@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { X, Loader2, AlertTriangle, Calendar, Bike, Wrench } from '../../components/icons';
 import { ServiceTicket } from '../../types/dashboard';
+import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 interface CancelBookingModalProps {
   isOpen: boolean;
@@ -25,6 +26,7 @@ export default function CancelBookingModal({
   // Rendered at the end of <body> so the dark overlay always covers the whole screen
   return createPortal(
     <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+      <ScrollLock />
       <div className="bg-white border border-slate-200/90 rounded-[2rem] max-w-md w-full max-h-[90dvh] overflow-y-auto p-5 sm:p-6 space-y-4 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
