@@ -25,6 +25,7 @@ import { HardcopyRequest, fetchHardcopyRequests } from '../lib/hardcopyService';
 import { runMissedBookingScanInBackground, checkAndSendBookingReminders } from '../utils/bookingLifecycle';
 import { TICKET_SYNC_CHANNEL, TICKET_SYNC_EVENT, broadcastTicketSync, debounce } from '../lib/realtimeSync';
 import { useThemePreference } from '../utils/theme';
+import { isRiderProfileComplete } from '../utils/riderProfile';
 import LoadingScreen from '../components/brand/LoadingScreen';
 
 export default function CustomerDashboard() {
@@ -157,9 +158,15 @@ export default function CustomerDashboard() {
           }
           const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name, phone_number')
+            .select('full_name, phone_number, terms_accepted_at')
             .eq('id', user.id)
             .maybeSingle();
+
+          // Missing a mobile number or Terms consent (e.g. a Google sign-up): finish the profile first
+          if (!isRiderProfileComplete(profile)) {
+            navigate('/complete-profile', { replace: true });
+            return;
+          }
 
           setUserProfile({
             full_name: profile?.full_name || user.user_metadata?.full_name || 'Rider Member',

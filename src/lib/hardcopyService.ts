@@ -49,14 +49,19 @@ export async function fetchHardcopyRequests(userId?: string): Promise<HardcopyRe
           if (req.id) {
             requestMap.set(keyOf(msg.user_id, req.id), {
               ...req,
-              userId: req.userId || msg.user_id,
+              // Always the conversation's real owner, never an id written inside the request
+              userId: msg.user_id,
               createdAt: req.createdAt || msg.created_at,
             });
           }
         } catch {
           // ignore corrupted message
         }
-      } else if (text.startsWith('[HARDCOPY_STATUS_UPDATE]')) {
+      } else if (
+        text.startsWith('[HARDCOPY_STATUS_UPDATE]') &&
+        // Ready / claimed only counts when the shop sent it (migration 18 also blocks riders)
+        (msg.sender_role === 'admin' || msg.sender_role === 'staff')
+      ) {
         try {
           const jsonStr = text.replace('[HARDCOPY_STATUS_UPDATE]', '').trim();
           const update = JSON.parse(jsonStr);

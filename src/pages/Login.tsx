@@ -22,20 +22,10 @@ import LegalTermsModal from '../components/legal/LegalTermsModal';
 import MotoCareLogo from '../components/brand/MotoCareLogo';
 import { CAPTCHA_ENABLED } from '../lib/captcha';
 import TurnstileWidget, { type TurnstileHandle } from '../components/auth/TurnstileWidget';
-import { KEYBOARD_MASH_REGEX } from '../utils/validators';
+import { validateFirstName, validateLastName } from '../utils/validators';
+import { TERMS_VERSION } from '../utils/riderProfile';
 
 type AuthMode = 'signin' | 'register' | 'forgot_password';
-
-// Whitelist of valid 2-letter surnames in the Philippines (mostly Chinese-Filipino roots)
-const VALID_2_LETTER_SURNAMES = new Set([
-  'sy', 'uy', 'po', 'yu', 'co', 'go', 'ng', 'ho', 'lo', 'do', 'wu', 'li', 'lu', 'su', 'ku'
-]);
-
-// Whitelist of valid 2-letter first names
-const VALID_2_LETTER_FIRST_NAMES = new Set([
-  'jo', 'al', 'ed', 'ty', 'bo', 'cy', 'vy', 'lu', 'li', 'an', 'aj', 'cj', 'dj', 'rj', 'pj', 'tj', 'mj', 'bj', 'jj', 'kc'
-]);
-
 
 const getAuthRedirectUrl = (path: string = '/login?verified=true') => {
   const base = (import.meta.env.VITE_SITE_URL || window.location.origin).replace(/\/$/, '');
@@ -159,86 +149,6 @@ export default function Login() {
   };
 
   // --- Strict & Realistic Validation Functions ---
-
-  // 1. Realistic First Name Validation
-  const validateFirstName = (nameStr: string): { isValid: boolean; error: string | null } => {
-    const trimmed = nameStr.trim();
-    if (!trimmed) {
-      return { isValid: false, error: 'First name is required.' };
-    }
-    if (trimmed.length < 2) {
-      return { isValid: false, error: 'Must be at least 2 characters.' };
-    }
-    if (trimmed.length > 40) {
-      return { isValid: false, error: 'Must be 40 characters or less.' };
-    }
-    // Only letters, spaces, hyphens, and apostrophes
-    if (!/^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s'-]+$/.test(trimmed)) {
-      return { isValid: false, error: 'Letters and spaces only (no numbers or symbols).' };
-    }
-    // Check 2-letter first names
-    if (trimmed.length === 2 && !VALID_2_LETTER_FIRST_NAMES.has(trimmed.toLowerCase())) {
-      return { isValid: false, error: 'Please enter a valid first name (e.g. Juan, Maria, Mark).' };
-    }
-    // Block keyboard mashing patterns (like "poa", "asdf", "wasd")
-    if (KEYBOARD_MASH_REGEX.test(trimmed)) {
-      return { isValid: false, error: 'Please enter a realistic first name (no keyboard letters).' };
-    }
-    // Block repeating identical characters (e.g. "aaa", "xxx")
-    if (/(.)\1{2,}/i.test(trimmed)) {
-      return { isValid: false, error: 'Name cannot contain repeated identical letters.' };
-    }
-    // Must contain at least one vowel and one consonant
-    if (!/[aeiouyAEIOUY]/.test(trimmed) || !/[bcdfghjklmnpqrstvwxzBCDFGHJKLMNPQRSTVWXZ]/i.test(trimmed)) {
-      return { isValid: false, error: 'Please enter a realistic first name.' };
-    }
-    // Block 4+ consecutive consonants or 3+ consecutive vowels
-    if (/[bcdfghjklmnpqrstvwxzBCDFGHJKLMNPQRSTVWXZ]{4,}/i.test(trimmed) || /[aeiouyAEIOUY]{3,}/i.test(trimmed)) {
-      return { isValid: false, error: 'Invalid name pattern detected. Please enter a real name.' };
-    }
-    return { isValid: true, error: null };
-  };
-
-  // 2. Realistic Last Name Validation (rejection of "sa", "poa", etc.)
-  const validateLastName = (nameStr: string): { isValid: boolean; error: string | null } => {
-    const trimmed = nameStr.trim();
-    if (!trimmed) {
-      return { isValid: false, error: 'Last name is required.' };
-    }
-    if (trimmed.length < 2) {
-      return { isValid: false, error: 'Must be at least 2 characters.' };
-    }
-    if (trimmed.length > 40) {
-      return { isValid: false, error: 'Must be 40 characters or less.' };
-    }
-    // Only letters, spaces, hyphens, and apostrophes
-    if (!/^[a-zA-ZñÑáéíóúÁÉÍÓÚ\s'-]+$/.test(trimmed)) {
-      return { isValid: false, error: 'Letters and spaces only (no numbers or symbols).' };
-    }
-    // 2-letter surnames MUST be in the recognized Philippine list (Sy, Uy, Po, Yu, Co, etc.)
-    if (trimmed.length === 2 && !VALID_2_LETTER_SURNAMES.has(trimmed.toLowerCase())) {
-      return { isValid: false, error: 'Please enter a valid last name (e.g. Dela Cruz, Santos, Garcia, Sy).' };
-    }
-    // Block keyboard mashing patterns
-    if (KEYBOARD_MASH_REGEX.test(trimmed)) {
-      return { isValid: false, error: 'Please enter a realistic last name (no keyboard letters).' };
-    }
-    // Block repeating identical characters
-    if (/(.)\1{2,}/i.test(trimmed)) {
-      return { isValid: false, error: 'Last name cannot contain repeated identical letters.' };
-    }
-    // Must contain at least one vowel and one consonant (unless valid 2-letter like "Ng")
-    if (trimmed.toLowerCase() !== 'ng') {
-      if (!/[aeiouyAEIOUY]/.test(trimmed) || !/[bcdfghjklmnpqrstvwxzBCDFGHJKLMNPQRSTVWXZ]/i.test(trimmed)) {
-        return { isValid: false, error: 'Please enter a realistic last name.' };
-      }
-    }
-    // Block 4+ consecutive consonants or 3+ consecutive vowels
-    if (/[bcdfghjklmnpqrstvwxzBCDFGHJKLMNPQRSTVWXZ]{4,}/i.test(trimmed) || /[aeiouyAEIOUY]{3,}/i.test(trimmed)) {
-      return { isValid: false, error: 'Invalid name pattern detected. Please enter a real name.' };
-    }
-    return { isValid: true, error: null };
-  };
 
   // 3. Philippine Mobile Number Validation (Strict 10 digits following +63: 9XXXXXXXXX)
   const validatePhone = (phoneStr: string): { isValid: boolean; error: string | null } => {
@@ -554,6 +464,8 @@ export default function Login() {
               last_name: lastName.trim(),
               full_name: fullName,
               phone_number: canonicalPhone,
+              // They ticked "I agree" above; the database saves when (migration 19)
+              terms_version: TERMS_VERSION,
             },
             emailRedirectTo: getAuthRedirectUrl('/login?verified=true'),
           },
@@ -584,6 +496,8 @@ export default function Login() {
                 full_name: fullName,
                 phone_number: canonicalPhone,
                 role: 'customer',
+                terms_accepted_at: new Date().toISOString(),
+                terms_version: TERMS_VERSION,
               },
               { onConflict: 'id' }
             );

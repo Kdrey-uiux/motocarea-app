@@ -29,7 +29,7 @@ src/
 server/src/
   index.ts, routes/ (tickets, admin, messages, motorcycles, profile), middlewares/ (auth, adminOnly), config/supabase.ts, scripts/ (motorcycle seeders)
 supabase/functions/       Edge Functions (notify-customer: email notifications)
-supabase/migrations/      Clean schema, run in order 00 → 17 (00_reset is dev-only). Ito ang iisang basehan ng database.
+supabase/migrations/      Clean schema, run in order 00 → 19 (00_reset is dev-only). Ito ang iisang basehan ng database.
 supabase/migrations_old/  Lumang migrations (archive lang, huwag nang i-run)
 ```
 

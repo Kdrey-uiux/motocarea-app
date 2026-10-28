@@ -13,6 +13,7 @@ const TrackStatus = lazy(() => import('./pages/TrackStatus'));
 const WalkIn = lazy(() => import('./pages/WalkIn'));
 const Login = lazy(() => import('./pages/Login'));
 const ResetPassword = lazy(() => import('./pages/ResetPassword'));
+const CompleteProfile = lazy(() => import('./pages/CompleteProfile'));
 const CustomerDashboard = lazy(() => import('./customer/CustomerDashboard'));
 const InternalConsole = lazy(() => import('./internal/InternalConsole'));
 const InternalLogin = lazy(() => import('./internal/pages/InternalLogin'));
@@ -91,6 +92,15 @@ export default function App() {
             <Route path="/admin/*" element={<Navigate to="/" replace />} />
 
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* Riders missing a name, mobile number or Terms consent (e.g. Google sign-ups) finish here first */}
+            <Route
+              path="/complete-profile"
+              element={
+                <ProtectedRoute>
+                  <CompleteProfile />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/dashboard/*"
               element={
