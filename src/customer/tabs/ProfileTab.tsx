@@ -1,15 +1,80 @@
+import { useCallback, useEffect, useState } from 'react';
 import { UserProfile } from '../../types/dashboard';
-import { Key, Shield, User, Mail, Phone, MessageSquare } from '../../components/icons';
+import { Key, Shield, User, Mail, Phone, MessageSquare, Clock, Loader2 } from '../../components/icons';
+import { supabase } from '../../lib/supabase';
+import {
+  cancelPhoneRequest,
+  fetchMyPhoneRequests,
+  formatPhoneForDisplay,
+  nextPhoneChangeDate,
+  type PhoneChangeRequest,
+} from '../../lib/phoneChangeService';
+import ChangePhoneModal from '../modals/ChangePhoneModal';
 
 interface ProfileTabProps {
   userProfile: UserProfile | null;
   onOpenPasswordModal: () => void;
+  userId?: string | null;
+  /** The owner approved a new number: show it right away */
+  onPhoneUpdated?: (phone: string) => void;
 }
 
 export default function ProfileTab({
   userProfile,
   onOpenPasswordModal,
+  userId,
+  onPhoneUpdated,
 }: ProfileTabProps) {
+  // Mobile number changes go through the shop (migration 20)
+  const [phoneRequests, setPhoneRequests] = useState<PhoneChangeRequest[]>([]);
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [phoneNotice, setPhoneNotice] = useState<string | null>(null);
+
+  const loadPhoneRequests = useCallback(async () => {
+    if (!userId) return;
+    setPhoneRequests(await fetchMyPhoneRequests(userId));
+  }, [userId]);
+
+  useEffect(() => {
+    if (!userId) return;
+    let active = true;
+    fetchMyPhoneRequests(userId).then((rows) => {
+      if (active) setPhoneRequests(rows);
+    });
+    // The owner's decision shows up live
+    const channel = supabase
+      .channel(`phone-requests-${userId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'phone_change_requests', filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const row = payload.new as Partial<PhoneChangeRequest> | undefined;
+          if (row?.status === 'APPROVED' && row.new_phone) onPhoneUpdated?.(row.new_phone);
+          fetchMyPhoneRequests(userId).then((rows) => {
+            if (active) setPhoneRequests(rows);
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      active = false;
+      supabase.removeChannel(channel);
+    };
+  }, [userId, onPhoneUpdated]);
+
+  const pendingRequest = phoneRequests.find((r) => r.status === 'PENDING');
+  const latestDecided = phoneRequests.find((r) => r.status === 'APPROVED' || r.status === 'DECLINED');
+  const nextChangeDate = nextPhoneChangeDate(phoneRequests);
+
+  const handleCancelRequest = async () => {
+    if (!pendingRequest) return;
+    setCancelling(true);
+    const result = await cancelPhoneRequest(pendingRequest.id);
+    setCancelling(false);
+    setPhoneNotice(result.success ? 'Request cancelled.' : result.error || 'Could not cancel the request.');
+    loadPhoneRequests();
+  };
   const initials = userProfile?.full_name
     ? userProfile.full_name
         .split(' ')
@@ -83,12 +148,59 @@ export default function ProfileTab({
                 <Phone className="w-3.5 h-3.5 text-slate-400" />
                 <span>Mobile Contact Number</span>
               </label>
-              <input
-                type="text"
-                disabled
-                value={userProfile?.phone_number || ''}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-base sm:text-xs font-medium cursor-not-allowed"
-              />
+              {/* Number + Change: only the shop changes it, after the rider asks */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-800 text-base sm:text-xs font-medium tabular-nums truncate">
+                  {formatPhoneForDisplay(userProfile?.phone_number)}
+                </div>
+                {userId && !pendingRequest && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPhoneNotice(null);
+                      setIsPhoneModalOpen(true);
+                    }}
+                    disabled={Boolean(nextChangeDate)}
+                    title={nextChangeDate ? 'You can change your number once every 30 days' : undefined}
+                    className="shrink-0 h-10 sm:h-9 px-4 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm sm:text-xs font-semibold text-slate-700 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Change
+                  </button>
+                )}
+              </div>
+
+              {pendingRequest ? (
+                <div className="mt-2 rounded-xl bg-amber-50 border border-amber-200 px-3.5 py-3 flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0 hidden sm:block" />
+                  <div className="min-w-0 flex-1 text-xs leading-relaxed">
+                    <p className="font-semibold text-amber-900">Waiting for the shop to approve</p>
+                    <p className="text-amber-800 tabular-nums break-words">
+                      {formatPhoneForDisplay(pendingRequest.old_phone)} → {formatPhoneForDisplay(pendingRequest.new_phone)}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancelRequest}
+                    disabled={cancelling}
+                    className="self-start sm:self-auto shrink-0 h-9 px-3.5 rounded-lg border border-amber-300 bg-white hover:bg-amber-100/60 text-xs font-semibold text-amber-900 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-60"
+                  >
+                    {cancelling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Cancel request
+                  </button>
+                </div>
+              ) : nextChangeDate ? (
+                <p className="text-[11px] text-slate-500">
+                  Number changed recently. You can request another change on{' '}
+                  {nextChangeDate.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}.
+                </p>
+              ) : latestDecided?.status === 'DECLINED' ? (
+                <p className="text-[11px] text-rose-600">
+                  Your last request was declined{latestDecided.decline_reason ? `: ${latestDecided.decline_reason}` : '.'}
+                </p>
+              ) : (
+                <p className="text-[11px] text-slate-400">To change it, send a request. The shop checks it’s you first.</p>
+              )}
+              {phoneNotice && <p className="text-[11px] text-slate-500">{phoneNotice}</p>}
             </div>
           </div>
         </div>
@@ -136,6 +248,20 @@ export default function ProfileTab({
           </div>
         </div>
       </div>
+
+      {/* Mounted only while open, so every visit starts with an empty form */}
+      {userId && isPhoneModalOpen && (
+        <ChangePhoneModal
+          isOpen={isPhoneModalOpen}
+          onClose={() => setIsPhoneModalOpen(false)}
+          userId={userId}
+          currentPhone={userProfile?.phone_number}
+          onSent={() => {
+            setPhoneNotice('Request sent. The shop will check it is you, then change your number.');
+            loadPhoneRequests();
+          }}
+        />
+      )}
     </div>
   );
 }

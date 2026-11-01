@@ -1064,7 +1064,7 @@ export default function Login() {
                         }
                         setAgreedToTerms(e.target.checked);
                       }}
-                      className="mt-0.5 w-4 h-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                      className="mt-0.5 w-4 h-4 rounded border-slate-300 accent-orange-500 cursor-pointer"
                     />
                     <span className="leading-relaxed">
                       I agree to the{' '}

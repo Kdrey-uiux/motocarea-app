@@ -55,6 +55,10 @@ export default function CustomerDashboard() {
   // User States
   const [userId, setUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  // The owner approved a new mobile number (Profile tab hears it live)
+  const handlePhoneUpdated = useCallback((phone: string) => {
+    setUserProfile((prev) => (prev ? { ...prev, phone_number: phone } : prev));
+  }, []);
 
   // Database States
   const [motorcycles, setMotorcycles] = useState<Motorcycle[]>([]);
@@ -477,6 +481,8 @@ export default function CustomerDashboard() {
             <ProfileTab
               userProfile={userProfile}
               onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+              userId={userId}
+              onPhoneUpdated={handlePhoneUpdated}
             />
           )}
 

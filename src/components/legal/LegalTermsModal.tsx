@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   X,
   ShieldCheck,
   FileText,
   Lock,
   CheckCircle2,
-  Scale
+  Scale,
+  ArrowRight
 } from 'lucide-react';
 import { SHOP_INFO } from '../../utils/shopInfo';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
@@ -63,6 +64,34 @@ export default function LegalTermsModal({
   hasAgreed = false,
 }: LegalTermsModalProps) {
   const [activeTab, setActiveTab] = useState<'terms' | 'privacy'>(initialTab);
+  // "I agree" unlocks only after both tabs were scrolled to the end (or fit without scrolling)
+  const [readTabs, setReadTabs] = useState({ terms: false, privacy: false });
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const mustRead = Boolean(onAccept) && !hasAgreed;
+  const bothRead = readTabs.terms && readTabs.privacy;
+  const otherTab = activeTab === 'terms' ? 'privacy' : 'terms';
+
+  const checkReadEnd = () => {
+    const el = bodyRef.current;
+    if (!el) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 24) {
+      setReadTabs((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
+    }
+  };
+
+  // Each tab starts at the top; short content counts as read right away
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = bodyRef.current;
+    if (el) el.scrollTop = 0;
+    const frame = requestAnimationFrame(() => {
+      const box = bodyRef.current;
+      if (box && box.scrollHeight <= box.clientHeight + 24) {
+        setReadTabs((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeTab, isOpen]);
 
   if (!isOpen) return null;
 
@@ -142,7 +171,11 @@ export default function LegalTermsModal({
         {/* =========================================================================
             SCROLLABLE CONTENT BODY (Eye-Friendly Calm Slate Styling)
             ========================================================================= */}
-        <div className="px-5 sm:px-7 py-5 sm:py-6 overflow-y-auto flex-1 min-h-0 border-t border-slate-200/80 text-slate-600 text-[15px] sm:text-sm leading-relaxed">
+        <div
+          ref={bodyRef}
+          onScroll={checkReadEnd}
+          className="px-5 sm:px-7 py-5 sm:py-6 overflow-y-auto flex-1 min-h-0 border-t border-slate-200/80 text-slate-600 text-[15px] sm:text-sm leading-relaxed"
+        >
           
           {/* TAB 1: TERMS OF SERVICE */}
           {activeTab === 'terms' && (
@@ -363,9 +396,15 @@ export default function LegalTermsModal({
             ========================================================================= */}
         <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0 pb-[max(0.875rem,env(safe-area-inset-bottom))]">
           <div className="flex items-center gap-2 text-xs text-slate-500">
-            <CheckCircle2 className={`w-4 h-4 shrink-0 ${hasAgreed ? 'text-emerald-500' : 'text-slate-400'}`} />
+            <CheckCircle2 className={`w-4 h-4 shrink-0 ${hasAgreed || (mustRead && bothRead) ? 'text-emerald-500' : 'text-slate-400'}`} />
             <span>
-              {hasAgreed ? 'You have previously accepted these terms.' : 'Please review all terms carefully before agreeing.'}
+              {hasAgreed
+                ? 'You have previously accepted these terms.'
+                : !mustRead
+                  ? 'Please review all terms carefully before agreeing.'
+                  : bothRead
+                    ? 'You have read both. You can agree now.'
+                    : `Read to the end of Terms ${readTabs.terms ? '✓' : ''} and Privacy ${readTabs.privacy ? '✓' : ''} to agree.`}
             </span>
           </div>
 
@@ -378,16 +417,29 @@ export default function LegalTermsModal({
               Close
             </button>
 
-            {onAccept && (
-              <button
-                type="button"
-                onClick={handleAccept}
-                className="flex-[2] sm:flex-none px-5 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-sm font-semibold transition flex items-center justify-center gap-2 shadow-md shadow-orange-500/25 cursor-pointer"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>I agree</span>
-              </button>
-            )}
+            {onAccept &&
+              (mustRead && !bothRead && readTabs[activeTab] && !readTabs[otherTab] ? (
+                // This tab is done: take them to the other one
+                <button
+                  type="button"
+                  onClick={() => setActiveTab(otherTab)}
+                  className="flex-[2] sm:flex-none px-5 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-sm font-semibold transition flex items-center justify-center gap-2 shadow-md shadow-orange-500/25 cursor-pointer"
+                >
+                  <span>Next: {otherTab === 'privacy' ? 'Privacy' : 'Terms'}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleAccept}
+                  disabled={mustRead && !bothRead}
+                  title={mustRead && !bothRead ? 'Scroll to the end to continue' : undefined}
+                  className="flex-[2] sm:flex-none px-5 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 active:scale-95 text-white text-sm font-semibold transition flex items-center justify-center gap-2 shadow-md shadow-orange-500/25 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 disabled:hover:bg-orange-500"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>{mustRead && !bothRead ? 'Scroll to read' : 'I agree'}</span>
+                </button>
+              ))}
           </div>
         </div>
       </div>

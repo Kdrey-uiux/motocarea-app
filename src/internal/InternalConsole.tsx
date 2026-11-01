@@ -436,6 +436,24 @@ export default function InternalConsole() {
       })
       .subscribe();
 
+    // Rider asked to change their mobile number (the database only sends these to the owner)
+    const phoneRequestChannel = realtimeClient
+      .channel('internal_phone_requests_notif')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'phone_change_requests' }, () => {
+        setNotifications((prev) => [
+          {
+            id: `notif-phone-${Date.now()}`,
+            title: 'Number change request',
+            message: 'A rider wants to change their mobile number. Review it on the Dashboard.',
+            timestamp: new Date().toISOString(),
+            type: 'system',
+            read: false,
+          },
+          ...prev,
+        ]);
+      })
+      .subscribe();
+
     // 30s Polling Fallback (silent background check)
     const pollInterval = setInterval(() => {
       loadTickets();
@@ -448,6 +466,7 @@ export default function InternalConsole() {
       realtimeClient.removeChannel(dispatchBroadcast);
       realtimeClient.removeChannel(messageChannel);
       realtimeClient.removeChannel(hardcopyChannel);
+      realtimeClient.removeChannel(phoneRequestChannel);
       clearInterval(pollInterval);
     };
   }, [loadTickets, loadStaff, loadHardcopies]);

@@ -23,6 +23,7 @@ import {
   getDailyCapacityLimit
 } from '../../utils/workshopCapacity';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
+import PhoneRequestsCard from '../components/PhoneRequestsCard';
 import { normalizeBayNumber } from '../utils/bays';
 import { useBayCount, bayList } from '../../utils/workshopBays';
 
@@ -629,6 +630,9 @@ export function WorkshopDashboard({
           </button>
         </div>
       )}
+
+      {/* Owner: riders asking to change their mobile number (hidden when none) */}
+      {isOwner && <PhoneRequestsCard />}
 
       {/* 2. Key numbers, with the period that "Completed" counts */}
       <section className="space-y-3">
