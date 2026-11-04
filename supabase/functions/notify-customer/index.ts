@@ -13,6 +13,8 @@
 //   RESEND_API_KEY      API key from resend.com
 //   NOTIFY_FROM_EMAIL   e.g. "MotoCare <notifications@your-domain.com>"
 //   SITE_URL            e.g. "https://motocare.vercel.app" (links in the email)
+//   NOTIFY_SECRET       long random text; the same value is kept in the database Vault as
+//                       'notify_customer_secret' (migration 21). Calls without it are refused.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
 //
 // Deploy with JWT verification OFF (the database calls it without a user token):
@@ -206,8 +208,23 @@ async function notify(kind: Kind, t: TicketRow): Promise<string> {
   }
 }
 
+/** Same length and characters, compared without stopping early (no timing hints) */
+function sameSecret(given: string, expected: string): boolean {
+  if (given.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+
+  // Only the database (trigger and daily job) knows this secret; anyone else is turned away
+  const expectedSecret = Deno.env.get('NOTIFY_SECRET') || '';
+  if (!expectedSecret) return json({ error: 'Not configured' }, 503);
+  if (!sameSecret(req.headers.get('x-motocare-secret') || '', expectedSecret)) {
+    return json({ error: 'Unauthorized' }, 401);
+  }
 
   let body: { kind?: string; ticket_id?: string };
   try {
