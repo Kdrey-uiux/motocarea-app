@@ -414,7 +414,7 @@ export function InternalQueueTab({
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
+        throw new Error("This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again.");
       }
 
       await recordAuditLog({
@@ -464,7 +464,7 @@ export function InternalQueueTab({
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
+        throw new Error("This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again.");
       }
 
       await recordAuditLog({
@@ -520,7 +520,7 @@ export function InternalQueueTab({
 
       if (error) throw error;
       if (!data || data.length === 0) {
-        throw new Error('Database write permission error. Please run migration 03_service_tickets.sql.');
+        throw new Error("This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again.");
       }
 
       await recordAuditLog({

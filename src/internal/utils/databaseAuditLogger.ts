@@ -22,16 +22,10 @@ if (typeof window !== 'undefined') {
   try {
     db()
       .channel(AUDIT_REALTIME_CHANNEL)
-      .on('broadcast', { event: 'AUDIT_LOG_ENTRY' }, (payload) => {
-        if (payload.payload && payload.payload.log) {
-          const newEntry = payload.payload.log as AuditLogEntry;
-          const current = getLocalAuditLogs();
-          if (!current.some((l) => l.id === newEntry.id)) {
-            const updated = [newEntry, ...current].slice(0, 300);
-            localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(updated));
-            window.dispatchEvent(new CustomEvent('motocare_audit_updated'));
-          }
-        }
+      // Signal only: the Activity Logs screen reloads from the database. (Broadcasts skip the
+      // database rules, so entries sent over them could be read or faked by anyone.)
+      .on('broadcast', { event: 'AUDIT_LOG_ENTRY' }, () => {
+        window.dispatchEvent(new CustomEvent('motocare_audit_updated'));
       })
       .subscribe();
   } catch {
@@ -136,7 +130,7 @@ export async function recordAuditLog(entry: {
       db().channel(AUDIT_REALTIME_CHANNEL).send({
         type: 'broadcast',
         event: 'AUDIT_LOG_ENTRY',
-        payload: { log: newLog },
+        payload: {},
       });
     } catch {
       // ignore

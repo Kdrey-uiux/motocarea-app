@@ -135,7 +135,8 @@ export async function createHardcopyRequest(params: {
       await channel.send({
         type: 'broadcast',
         event: 'NEW_HARDCOPY_REQUEST',
-        payload: newReq,
+        // Signal only: broadcasts skip the database rules, so no names, numbers or plates
+        payload: { id: newReq.id },
       });
     } catch {
       // Broadcast fallback
@@ -196,7 +197,8 @@ export async function updateHardcopyStatus(params: {
       await channel.send({
         type: 'broadcast',
         event: 'HARDCOPY_STATUS_CHANGED',
-        payload: updatePayload,
+        // Signal only (listeners reload from the database)
+        payload: {},
       });
     } catch {
       // broadcast fallback

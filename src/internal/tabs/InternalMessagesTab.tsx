@@ -247,7 +247,7 @@ export default function InternalMessagesTab({
 
       if (error) {
         if (error.code === '42501' || error.message?.includes('policy')) {
-          throw new Error('Database permission error: Please run migration 04_messages.sql in Supabase SQL Editor to allow staff replies.');
+          throw new Error("Your account can't send replies right now. Refresh the page or sign in again.");
         }
         throw error;
       }

@@ -184,7 +184,7 @@ export default function DispatchTicketModal({
       if (error) throw error;
       if (!data || data.length === 0) {
         throw new Error(
-          'Database rejected update due to PostgreSQL Row-Level Security. Please run migration 03_service_tickets.sql in Supabase SQL Editor.'
+          "This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again."
         );
       }
       broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });

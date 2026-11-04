@@ -88,7 +88,7 @@ export async function saveSharedSetting(
       .select('key');
     if (error) return { success: false, error: error.message };
     if (!data || data.length === 0) {
-      return { success: false, error: 'Database write permission error. Please run migration 07_app_settings.sql.' };
+      return { success: false, error: "This setting could not be saved. Your account may not be allowed to change it. Refresh and try again." };
     }
     return { success: true };
   } catch (err: unknown) {

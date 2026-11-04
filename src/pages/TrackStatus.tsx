@@ -241,11 +241,9 @@ export default function TrackStatus() {
       .on(
         'broadcast',
         { event: 'TICKET_DISPATCH_SYNC' },
-        (payload: { payload?: { ticket_code?: string; id?: string } }) => {
-          if (
-            payload?.payload?.ticket_code === currentTicketCode ||
-            payload?.payload?.id === currentTicketId
-          ) {
+        // Broadcasts carry only the ticket id (no codes or customer details)
+        (payload: { payload?: { id?: string } }) => {
+          if (currentTicketId && payload?.payload?.id === currentTicketId) {
             fetchTicket(currentTicketCode);
           }
         }

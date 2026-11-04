@@ -137,15 +137,20 @@ export async function evaluateAndExpireMissedBookings(): Promise<{
         ? currentNotes
         : `${currentNotes} | [MISSED_EXPIRATION: Drop-off window ended without check-in. Slot released.]`.trim();
 
-      const { error: updateError } = await db()
+      // Only flip it if it's still waiting: when the rider's dashboard and the staff console scan
+      // at the same moment, just one of them wins and sends the notice (no double message)
+      const { data: flipped, error: updateError } = await db()
         .from('service_tickets')
         .update({
           status: 'MISSED',
           notes: updatedNotes,
         })
-        .eq('id', ticket.id);
+        .eq('id', ticket.id)
+        .eq('status', 'IN_PROGRESS')
+        .eq('stage', 1)
+        .select('id');
 
-      if (!updateError) {
+      if (!updateError && flipped && flipped.length > 0) {
         expiredTickets.push({
           id: ticket.id,
           ticket_code: ticket.ticket_code,
@@ -313,7 +318,8 @@ export async function rescheduleServiceTicket({
     }
 
     if (customNotes && customNotes.trim()) {
-      updatedNotes = `${updatedNotes} | Reschedule Note: ${customNotes.trim()}`;
+      // Same rule as booking notes: no [tags] or | separators from free text
+      updatedNotes = `${updatedNotes} | Reschedule Note: ${customNotes.trim().replace(/[[\]|\r\n]+/g, ' ')}`;
     }
 
     const timestampStr = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -391,7 +397,7 @@ export async function adminLateCheckInOverride(
 
     if (updateErr) return { success: false, error: updateErr.message };
     if (!updatedRows || updatedRows.length === 0) {
-      return { success: false, error: 'Database write permission error. Please run migration 03_service_tickets.sql.' };
+      return { success: false, error: "This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again." };
     }
 
     return { success: true };

@@ -736,7 +736,8 @@ export default function BookServiceTab({
       const combinedNotes = [
         customerPrefix,
         selectedSymptoms.length > 0 ? `Reported Symptoms: ${selectedSymptoms.join(', ')}` : '',
-        notes.trim() ? `Instructions: ${notes.trim()}` : '',
+        // Free text can't carry [tags] or | separators (they'd be read as shop tags / new fields)
+        notes.trim() ? `Instructions: ${notes.trim().replace(/[[\]|\r\n]+/g, ' ')}` : '',
         `Arrival Window: ${selectedTimeWindow}`,
       ]
         .filter(Boolean)

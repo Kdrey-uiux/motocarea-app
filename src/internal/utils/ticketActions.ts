@@ -8,7 +8,9 @@ import { InternalTicket } from '../types/internal';
  * so both screens behave exactly the same.
  */
 
-const RLS_WRITE_ERROR = 'Database write permission error. Please run migration 03_service_tickets.sql.';
+// Nothing was updated: the ticket changed in the meantime, or this account may not edit it
+const RLS_WRITE_ERROR =
+  "This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again.";
 
 export function isPendingOnlineBooking(t: { status: string; notes?: string | null }): boolean {
   return t.status === 'PENDING_CONFIRMATION' || Boolean(t.notes && t.notes.includes('[BOOKING:PENDING_CONFIRMATION]'));

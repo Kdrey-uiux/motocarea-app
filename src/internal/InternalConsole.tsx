@@ -416,13 +416,14 @@ export default function InternalConsole() {
       })
       .on('broadcast', { event: 'NEW_HARDCOPY_REQUEST' }, (message) => {
         loadHardcopies();
-        const req = message.payload as HardcopyRequest | undefined;
+        // The broadcast carries only the request id; details load from the database
+        const req = message.payload as { id?: string } | undefined;
         if (req?.id) {
           setNotifications((prev) => [
             {
               id: `notif-hc-${Date.now()}`,
               title: 'New Certified Hardcopy Request',
-              message: `Official record requested by ${req.customerName} for ${req.bikeModel} (${req.plateNumber}).`,
+              message: 'A rider requested a certified copy of their service record.',
               timestamp: new Date().toISOString(),
               type: 'system',
               read: false,

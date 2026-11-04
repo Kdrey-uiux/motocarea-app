@@ -15,10 +15,18 @@ export const TICKET_SYNC_EVENT = 'TICKET_DISPATCH_SYNC';
  */
 export function broadcastTicketSync(payload: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
+  // Broadcast channels skip the database rules, so anyone with the app's public key could
+  // listen. Send only a "something changed" signal: the ticket's id and the kind of change.
+  // Listeners reload from the database (which does check who may see what).
+  const ticketId = typeof payload.id === 'string' ? payload.id : typeof payload.ticketId === 'string' ? payload.ticketId : undefined;
+  const safePayload = {
+    ...(ticketId ? { id: ticketId } : {}),
+    ...(typeof payload.action === 'string' ? { action: payload.action } : {}),
+  };
   try {
     db()
       .channel(TICKET_SYNC_CHANNEL)
-      .send({ type: 'broadcast', event: TICKET_SYNC_EVENT, payload })
+      .send({ type: 'broadcast', event: TICKET_SYNC_EVENT, payload: safePayload })
       .catch(() => {});
   } catch {
     // ignore
