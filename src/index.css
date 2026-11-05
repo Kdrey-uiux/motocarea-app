@@ -429,11 +429,15 @@ html.dark:has(.loading-screen) body {
 @media print {
   @page {
     size: portrait;
-    margin: 12mm 14mm;
+    /* No page margin: browsers print the date, title and URL inside it.
+       The margin is the padding on .print-doc-root instead. */
+    margin: 0;
   }
 
   html,
   body {
+    /* An open modal locks the page with position: fixed, which would cut the paper to one page */
+    position: static !important;
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
@@ -451,6 +455,10 @@ html.dark:has(.loading-screen) body {
   }
   body.printing-doc > .print-doc-root {
     display: block !important;
+    padding: 12mm 14mm;
+    /* Repeat that padding on every page of a long document */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
   }
 }
 /* =========================================================================

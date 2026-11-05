@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import MotoCareLogo from '../brand/MotoCareLogo';
@@ -199,6 +199,11 @@ export function PrintSignatures({ signers }: { signers: PrintSigner[] }) {
   );
 }
 
+/** The preview sheet is at least 560px wide; the modal's side padding on phones adds up to 32px */
+function getPaperZoom(): number {
+  return Math.min(1, (window.innerWidth - 32) / 560);
+}
+
 /**
  * Modal that shows a document as a sheet of paper, with Print and Close buttons.
  * What you see is exactly what prints.
@@ -216,6 +221,14 @@ export function PrintPreviewModal({
   onClose: () => void;
   children: ReactNode;
 }) {
+  // On phones the whole sheet shrinks to fit the screen, so nothing is cut off at the side
+  const [paperZoom, setPaperZoom] = useState(getPaperZoom);
+  useEffect(() => {
+    const onResize = () => setPaperZoom(getPaperZoom());
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   return (
     <>
       {createPortal(
@@ -225,7 +238,7 @@ export function PrintPreviewModal({
             <div className="px-5 sm:px-6 py-4 border-b border-slate-200/80 flex items-center justify-between gap-3 shrink-0">
               <div className="min-w-0">
                 <h2 className="font-display text-lg font-bold tracking-tight text-slate-900 leading-tight">{title}</h2>
-                {description && <p className="text-xs sm:text-sm text-slate-500 truncate">{description}</p>}
+                {description && <p className="text-xs sm:text-sm text-slate-500 sm:truncate">{description}</p>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button
@@ -248,7 +261,10 @@ export function PrintPreviewModal({
             </div>
             <div className="bg-slate-100 p-2 sm:p-6 overflow-auto flex-1">
               {/* The paper stays white in dark mode, like the printed copy */}
-              <div className="force-light mx-auto bg-white text-slate-900 shadow-md ring-1 ring-slate-200 rounded-sm p-4 sm:p-10 max-w-[820px] min-w-[560px]">
+              <div
+                className="force-light mx-auto bg-white text-slate-900 shadow-md ring-1 ring-slate-200 rounded-sm p-4 sm:p-10 max-w-[820px] min-w-[560px]"
+                style={{ zoom: paperZoom }}
+              >
                 {children}
               </div>
             </div>
