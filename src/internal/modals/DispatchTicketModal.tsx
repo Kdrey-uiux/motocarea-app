@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   Loader2,
   History,
-  Clock,
   CheckCircle,
   Check,
 } from '../../components/icons';
@@ -39,10 +38,37 @@ interface DispatchTicketModalProps {
 const STAGES = SERVICE_STAGES.filter((s) => s.step >= 2).map((s) => ({
   stage: s.step,
   label: s.name,
-  desc: s.staffHint,
 }));
 
-const ETA_PRESETS = ['Today, 12:00 PM', 'Today, 4:00 PM', 'Tomorrow, 12:00 PM'];
+// What the rider sees until the shop sets a time
+const NO_READY_TIME = ['To be assessed upon arrival', 'Evaluating unit...'];
+
+/**
+ * Times to pick from for "Ready by": what is left of today, then the next open day (closed Sundays).
+ * Saves a real date ("Nov 6, 4:00 PM"), because a saved "Today" would be wrong by tomorrow.
+ */
+function readyByOptions(now: Date): { label: string; value: string }[] {
+  const options: { label: string; value: string }[] = [];
+  const addDay = (day: Date, dayLabel: string) => {
+    for (const hour of [12, 16]) {
+      const at = new Date(day);
+      at.setHours(hour, 0, 0, 0);
+      if (at <= now) continue;
+      options.push({
+        label: `${dayLabel}, ${hour === 12 ? '12 PM' : '4 PM'}`,
+        value: at.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }),
+      });
+    }
+  };
+
+  if (now.getDay() !== 0) addDay(now, 'Today');
+  const next = new Date(now);
+  next.setDate(next.getDate() + 1);
+  const isTomorrow = next.getDay() !== 0;
+  if (!isTomorrow) next.setDate(next.getDate() + 1);
+  addDay(next, isTomorrow ? 'Tomorrow' : next.toLocaleDateString('en-US', { weekday: 'short' }));
+  return options;
+}
 
 // Mechanic findings live in their own " | Mechanic Findings: ..." segment so editing
 // them never touches the customer's details or the booking tags stored in notes.
@@ -142,7 +168,8 @@ export default function DispatchTicketModal({
       // Dispatching a Stage 1 (checked-in) unit starts the inspection
       setStage(ticket.stage === 1 ? 2 : ticket.stage || 2);
       setStatus(ticket.status || 'IN_PROGRESS');
-      setEstimatedPickup(ticket.estimated_pickup || '');
+      const savedReadyTime = ticket.estimated_pickup || '';
+      setEstimatedPickup(NO_READY_TIME.includes(savedReadyTime) ? '' : savedReadyTime);
       setFindings(extractFindings(ticket.notes));
       setErrorMsg(null);
     }
@@ -156,6 +183,10 @@ export default function DispatchTicketModal({
   const isAssignMode = ticket.stage <= 1;
   const isMarkingReady = !isAssignMode && Number(stage) === 5;
   const hasFreeBay = BAYS.some((b) => !bayOccupancyMap.has(b.num) && !isUnderMaintenance(b.num));
+  const readyOptions = readyByOptions(new Date());
+  // A time saved earlier stays visible even when it is no longer one of the choices
+  const savedReadyOption =
+    estimatedPickup && !readyOptions.some((o) => o.value === estimatedPickup) ? estimatedPickup : null;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,7 +279,7 @@ export default function DispatchTicketModal({
       <ScrollLock />
       <form
         onSubmit={handleSave}
-        className={`bg-white text-slate-800 w-full ${isAssignMode ? 'max-w-lg' : 'max-w-2xl'} rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]`}
+        className={`bg-white text-slate-800 w-full max-w-xl rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]`}
       >
         {/* Header */}
         <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-100 space-y-3 shrink-0">
@@ -273,13 +304,13 @@ export default function DispatchTicketModal({
             </button>
           </div>
 
-          <div className="px-3.5 py-2.5 rounded-2xl bg-slate-50 text-sm">
+          <div className="px-3.5 py-2.5 rounded-2xl bg-slate-50 text-sm space-y-0.5">
             <p className="text-slate-800 break-words">
               <span className="text-slate-500">Service: </span>
               {ticket.service_type}
             </p>
             {customerReport.symptoms && (
-              <p className="mt-0.5 text-slate-800 break-words">
+              <p className="text-slate-800 break-words">
                 <span className="text-slate-500">Rider&apos;s concern: </span>
                 {customerReport.symptoms}
               </p>
@@ -288,7 +319,7 @@ export default function DispatchTicketModal({
               <button
                 type="button"
                 onClick={() => setShowHistoryModal(true)}
-                className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
               >
                 <History className="w-3.5 h-3.5" /> Previous visits
               </button>
@@ -297,7 +328,7 @@ export default function DispatchTicketModal({
         </div>
 
         {/* Body (scrolls) */}
-        <div className="px-5 sm:px-6 py-5 overflow-y-auto space-y-5 text-sm">
+        <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 text-sm">
           {errorMsg && (
             <div className="p-3 bg-rose-50 text-rose-700 rounded-2xl flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
@@ -305,179 +336,145 @@ export default function DispatchTicketModal({
             </div>
           )}
 
-          {/* 1. Progress */}
+          {/* Stage: for corrections. The Queue's next button handles the normal steps. */}
           {!isAssignMode && (
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className={sectionLabel}>Progress</span>
-              <span className="text-[11px] text-slate-500">
-                Now: Stage {ticket.stage}
-                {stage !== ticket.stage && (
-                  <>
-                    {' '}→ <strong className="text-orange-600">Stage {stage}</strong>
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {STAGES.map((s) => {
-                const isSelected = stage === s.stage;
-                const isDone = s.stage < stage;
-                return (
-                  <button
-                    key={s.stage}
-                    type="button"
-                    onClick={() => setStage(s.stage)}
-                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-50 ring-2 ring-orange-500/15'
-                        : isDone
-                        ? 'border-emerald-200 bg-emerald-50/50'
-                        : 'border-slate-200 bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <span
-                      className={`flex items-center gap-1.5 text-xs font-bold ${
-                        isSelected ? 'text-orange-700' : isDone ? 'text-emerald-700' : 'text-slate-800'
+            <section className="space-y-1.5">
+              <span className={sectionLabel}>Stage</span>
+              <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Stage">
+                {STAGES.map((s) => {
+                  const isSelected = stage === s.stage;
+                  const isDone = s.stage < stage;
+                  return (
+                    <button
+                      key={s.stage}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setStage(s.stage)}
+                      className={`h-10 px-0.5 rounded-full border text-xs sm:text-sm transition cursor-pointer ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-500 text-white font-semibold'
+                          : isDone
+                          ? 'border-orange-200 bg-orange-50 text-orange-700 font-medium'
+                          : 'border-slate-200 bg-white text-slate-700 font-medium hover:border-slate-300'
                       }`}
                     >
-                      <span
-                        className={`w-5 h-5 rounded-full text-[10px] flex items-center justify-center shrink-0 ${
-                          isSelected
-                            ? 'bg-orange-500 text-white'
-                            : isDone
-                            ? 'bg-emerald-500 text-white'
-                            : 'bg-slate-100 text-slate-500'
-                        }`}
-                      >
-                        {isDone ? <Check className="w-3 h-3" /> : s.stage}
-                      </span>
                       {s.label}
-                    </span>
-                    <span className="block text-[10px] text-slate-500 mt-1 leading-snug">{s.desc}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
+                    </button>
+                  );
+                })}
+              </div>
+              {isMarkingReady && <p className="text-xs text-slate-500">The rider will see this as ready for pickup.</p>}
+            </section>
           )}
 
-          {/* 2. Bay */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between">
+          {/* Bay and mechanic */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <section className="space-y-1.5 min-w-0">
               <span className={sectionLabel}>Bay</span>
-            </div>
-            {isAssignMode && !hasFreeBay && (
-              <p className="px-3.5 py-2.5 rounded-2xl bg-amber-50 text-amber-800 text-sm">
-                All bays are taken. Close this for now. The motorcycle stays in the Queue, waiting for a bay.
-              </p>
-            )}
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-              {BAYS.map((b) => {
-                const occupant = bayOccupancyMap.get(b.num);
-                const inMaintenance = isUnderMaintenance(b.num);
-                const isSelected = assignedBay === b.id;
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    disabled={Boolean(occupant) || (inMaintenance && !isSelected)}
-                    onClick={() => setAssignedBay(b.id)}
-                    title={
-                      occupant
-                        ? `In use by #${occupant.ticketCode} (${occupant.bikeModel})`
-                        : inMaintenance
-                        ? `${b.id} is under maintenance`
-                        : `${b.id}: available`
-                    }
-                    className={`py-2.5 px-1 rounded-2xl border text-center transition ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-500 text-white shadow-xs'
-                        : occupant || inMaintenance
-                        ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
-                        : 'border-slate-200 bg-white text-slate-800 hover:border-orange-300 cursor-pointer'
-                    }`}
-                  >
-                    <span className="block font-display text-base font-bold leading-none">{String(b.num).padStart(2, '0')}</span>
-                    <span
-                      className={`block text-[10px] mt-1 truncate ${
-                        isSelected ? 'text-orange-100' : occupant ? 'text-slate-400' : 'text-slate-500'
+              {isAssignMode && !hasFreeBay && (
+                <p className="px-3.5 py-2.5 rounded-2xl bg-amber-50 text-amber-800 text-sm">
+                  All bays are taken. Close this for now. The motorcycle stays in the Queue, waiting for a bay.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {BAYS.map((b) => {
+                  const occupant = bayOccupancyMap.get(b.num);
+                  const inMaintenance = isUnderMaintenance(b.num);
+                  const isSelected = assignedBay === b.id;
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      disabled={Boolean(occupant) || (inMaintenance && !isSelected)}
+                      onClick={() => setAssignedBay(b.id)}
+                      aria-pressed={isSelected}
+                      aria-label={`${b.id}: ${occupant ? 'taken' : inMaintenance ? 'under maintenance' : 'free'}`}
+                      title={
+                        occupant
+                          ? `Taken by #${occupant.ticketCode} (${occupant.bikeModel})`
+                          : inMaintenance
+                          ? `${b.id} is under maintenance`
+                          : `${b.id} is free`
+                      }
+                      className={`flex-1 min-w-[3.25rem] max-w-[6rem] h-11 rounded-2xl border leading-none transition ${
+                        isSelected
+                          ? 'border-orange-500 bg-orange-500 text-white'
+                          : occupant || inMaintenance
+                          ? 'border-slate-100 bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'border-slate-200 bg-white text-slate-800 hover:border-orange-300 cursor-pointer'
                       }`}
                     >
-                      {occupant ? 'Taken' : inMaintenance ? 'Maintenance' : isSelected ? 'Selected' : 'Free'}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-slate-400">Grey bays are taken or under maintenance.</p>
-          </section>
+                      <span className="block font-display text-sm font-bold">{String(b.num).padStart(2, '0')}</span>
+                      <span className={`block text-[10px] mt-0.5 ${isSelected ? 'text-orange-100' : ''}`}>
+                        {occupant ? 'Taken' : inMaintenance ? 'Closed' : isSelected ? 'Selected' : 'Free'}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
 
-          {/* 3. Mechanic & ETA */}
-          <section className={`grid grid-cols-1 gap-4 ${isAssignMode ? '' : 'sm:grid-cols-2'}`}>
-            <div className="space-y-2">
+            <section className="space-y-1.5 min-w-0">
               <span className={sectionLabel}>
                 Mechanic {isAssignMode && <span className="font-medium text-slate-400">(optional)</span>}
               </span>
               <MechanicPicker value={assignedMechanic} onChange={setAssignedMechanic} />
-            </div>
-            {!isAssignMode && (
-            <div className="space-y-2">
-              <span className={sectionLabel}>Estimated ready time</span>
-              <div className="relative">
-                <Clock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  type="text"
-                  value={estimatedPickup}
-                  onChange={(e) => setEstimatedPickup(e.target.value)}
-                  placeholder="e.g. Today, 4:00 PM"
-                  className={`${inputClass} pl-9`}
-                />
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {ETA_PRESETS.map((eta) => (
-                  <button
-                    key={eta}
-                    type="button"
-                    onClick={() => setEstimatedPickup(eta)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition cursor-pointer ${
-                      estimatedPickup === eta
-                        ? 'bg-orange-500 border-orange-500 text-white'
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    {eta}
-                  </button>
-                ))}
-              </div>
-            </div>
-            )}
-          </section>
+            </section>
+          </div>
 
-          {/* 4. Mechanic findings (separate from the customer's notes) */}
           {!isAssignMode && (
-          <section className="space-y-2">
-            <span className={sectionLabel}>Mechanic findings</span>
-            <textarea
-              rows={2}
-              value={findings}
-              onChange={(e) => setFindings(e.target.value)}
-              placeholder="e.g. Cleaned CVT, replaced drive belt, adjusted valve clearance"
-              className={`${inputClass} resize-none`}
-            />
-          </section>
+            <>
+              {/* Shown to the rider on the tracking page */}
+              <section className="space-y-1.5">
+                <span className={sectionLabel}>
+                  Ready by <span className="font-medium text-slate-400">(the rider sees this)</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Ready by">
+                  {[
+                    { label: 'Not sure yet', value: '' },
+                    ...(savedReadyOption ? [{ label: savedReadyOption, value: savedReadyOption }] : []),
+                    ...readyOptions,
+                  ].map((option) => {
+                    const isSelected = estimatedPickup === option.value;
+                    return (
+                      <button
+                        key={option.label}
+                        type="button"
+                        aria-pressed={isSelected}
+                        onClick={() => setEstimatedPickup(option.value)}
+                        className={`px-3 py-1.5 rounded-full border text-sm font-medium transition cursor-pointer ${
+                          isSelected
+                            ? 'border-orange-500 bg-orange-500 text-white'
+                            : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+
+              {/* Mechanic findings (separate from the customer's notes) */}
+              <section className="space-y-1.5">
+                <label htmlFor="job-findings" className={`${sectionLabel} block`}>
+                  Findings
+                </label>
+                <textarea
+                  id="job-findings"
+                  rows={2}
+                  value={findings}
+                  onChange={(e) => setFindings(e.target.value)}
+                  placeholder="e.g. Replaced drive belt, adjusted valve clearance"
+                  className={`${inputClass} resize-none`}
+                />
+              </section>
+            </>
           )}
         </div>
 
         {/* Footer (always visible) */}
         <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 flex items-center justify-between gap-2 shrink-0">
-          <span className="text-sm text-slate-500 hidden sm:block">
-            {isAssignMode
-              ? 'This starts the inspection.'
-              : isMarkingReady
-              ? 'Customer will see this as ready for pickup.'
-              : `${assignedBay} • Stage ${stage}`}
-          </span>
           <div className="flex items-center gap-2 ml-auto">
             <button
               type="button"
