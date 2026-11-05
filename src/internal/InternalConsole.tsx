@@ -46,6 +46,7 @@ import InternalStaffTab from './tabs/InternalStaffTab';
 import InternalAuditTab from './tabs/InternalAuditTab';
 import InternalMessagesTab from './tabs/InternalMessagesTab';
 import InternalFleetTab from './tabs/InternalFleetTab';
+import InternalHistoryTab from './tabs/InternalHistoryTab';
 import InternalServicesTab from './tabs/InternalServicesTab';
 
 /**
@@ -657,7 +658,6 @@ export default function InternalConsole() {
               onRefresh={refreshTickets}
               onOpenDispatch={handleOpenDispatch}
               onOpenStage5Billing={handleOpenStage5Billing}
-              onOpenReceiptPrint={handleOpenReceiptPrint}
               onOpenJobOrderPrint={handleOpenJobOrderPrint}
               currentRole={currentRole}
               currentStaffName={currentUserName}
@@ -698,6 +698,17 @@ export default function InternalConsole() {
               tickets={tickets}
               currentStaffName={currentUserName}
               initialUserId={messagesFocusUserId}
+            />
+          )}
+
+          {activeTab === 'history' && (
+            <InternalHistoryTab
+              tickets={tickets}
+              currentStaffName={currentUserName}
+              onRefresh={refreshTickets}
+              onOpenDispatch={handleOpenDispatch}
+              onOpenJobOrderPrint={handleOpenJobOrderPrint}
+              onOpenReceiptPrint={handleOpenReceiptPrint}
             />
           )}
 

@@ -1,6 +1,7 @@
 import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from './databaseAuditLogger';
+import { adminLateCheckInOverride } from '../../utils/bookingLifecycle';
 import { InternalTicket } from '../types/internal';
 
 /**
@@ -117,6 +118,27 @@ export async function advanceTicketStage(
   });
 
   broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
+  return { success: true };
+}
+
+/**
+ * A rider who missed the booking arrived anyway: the motorcycle comes back to the shop.
+ */
+export async function lateCheckIn(
+  ticket: InternalTicket,
+  actor: string
+): Promise<{ success: boolean; error?: string }> {
+  const result = await adminLateCheckInOverride(ticket.id, actor);
+  if (!result.success) return result;
+
+  await recordAuditLog({
+    ticketCode: ticket.ticket_code,
+    action: 'LATE_CHECKIN_OVERRIDE',
+    actor,
+    details: 'Staff performed manual arrival override for late motorcycle.',
+    previousValue: ticket.status,
+    newValue: 'IN_PROGRESS',
+  });
   return { success: true };
 }
 

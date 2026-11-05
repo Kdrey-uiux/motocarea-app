@@ -3,10 +3,11 @@ import { InternalTab } from '../types/internal';
 /** Page title + one-line description shown in the console header (and the browser tab).
     shortTitle replaces a long title on phones, where the header has little room */
 export const INTERNAL_TAB_INFO: Record<InternalTab, { title: string; subtitle: string; shortTitle?: string }> = {
-  queue: { title: 'Workshop Queue', shortTitle: 'Queue', subtitle: 'Motorcycles in the shop, upcoming appointments, and finished jobs.' },
+  queue: { title: 'Workshop Queue', shortTitle: 'Queue', subtitle: 'Booking requests, motorcycles in the shop, and upcoming appointments.' },
   bays: { title: 'Service Bays', shortTitle: 'Bays', subtitle: 'Which bays are free, in use, or under maintenance.' },
   messages: { title: 'Customer Messages', shortTitle: 'Messages', subtitle: 'Chat with customers about their bookings and repairs.' },
   reviews: { title: 'Customer Reviews', shortTitle: 'Reviews', subtitle: 'Choose which reviews show on the website, and reply as MotoCare.' },
+  history: { title: 'History', subtitle: 'Released motorcycles and closed bookings.' },
   fleet: { title: 'Vehicles', subtitle: 'Customer motorcycles and the motorcycle model catalog.' },
   services: { title: 'Services', subtitle: 'Service packages customers can book.' },
   dashboard: { title: 'Dashboard', subtitle: 'Overview of today’s workshop activity.' },
@@ -25,6 +26,7 @@ export const INTERNAL_TAB_SLUGS: Record<InternalTab, string> = {
   bays: 'bays',
   messages: 'messages',
   reviews: 'reviews',
+  history: 'history',
   fleet: 'vehicles',
   services: 'services',
   staff: 'team',

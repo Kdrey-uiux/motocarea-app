@@ -9,6 +9,7 @@ export type InternalTab =
   | 'audit'
   | 'messages'
   | 'fleet'
+  | 'history'
   | 'services';
 
 export interface BillingLineItem {

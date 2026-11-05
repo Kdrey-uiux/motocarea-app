@@ -8,6 +8,7 @@ import {
   Users,
   ShieldCheck,
   Star,
+  History,
   SignOutIcon,
   X,
   LucideIcon,
@@ -210,6 +211,7 @@ export default function InternalSidebar({
     {
       title: 'Records',
       items: [
+        { id: 'history', label: 'History', icon: History },
         { id: 'fleet', label: 'Vehicles', icon: Bike },
         { id: 'services', label: 'Services', icon: Layers },
       ],

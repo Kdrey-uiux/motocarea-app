@@ -654,6 +654,7 @@ export function WorkshopDashboard({
               value: kpis.completedToday,
               hint: kpis.periodSubtext || 'Released to the owner',
               icon: CheckCircle2,
+              onClick: () => setActiveTab?.('history'),
             },
             {
               label: 'Ready for pickup',

@@ -4,9 +4,8 @@ import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { InternalTicket, UserRole } from '../types/internal';
 import { canVoidTicket } from '../utils/permissions';
-import { acceptOnlineBooking, advanceTicketStage, isPendingOnlineBooking } from '../utils/ticketActions';
+import { acceptOnlineBooking, advanceTicketStage, isPendingOnlineBooking, lateCheckIn } from '../utils/ticketActions';
 import {
-  adminLateCheckInOverride,
   adminAssistedReschedule,
   isArrivalWindowOver,
   TIME_SLOTS
@@ -38,7 +37,6 @@ import {
   Edit,
   X,
   MoreHorizontal,
-  CircleX,
   CalendarClock,
   BellRing,
   type LucideIcon,
@@ -78,7 +76,6 @@ export interface InternalQueueTabProps {
   onRefresh: () => void;
   onOpenDispatch: (ticket: InternalTicket) => void;
   onOpenStage5Billing: (ticket: InternalTicket) => void;
-  onOpenReceiptPrint?: (ticket: InternalTicket) => void;
   onOpenJobOrderPrint?: (ticket: InternalTicket) => void;
   currentRole: UserRole;
   currentStaffName?: string;
@@ -113,8 +110,6 @@ function StatusPill({ label, tone }: { label: string; tone: 'stage' | 'waiting' 
 // Shared button looks (same as the staff Dashboard)
 const PRIMARY_BTN =
   'px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5';
-const PRIMARY_BTN_SM =
-  'px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1';
 const SECONDARY_BTN =
   'px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer flex items-center gap-1.5';
 const ICON_BTN = 'w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer';
@@ -188,7 +183,6 @@ export function InternalQueueTab({
   onRefresh,
   onOpenDispatch,
   onOpenStage5Billing,
-  onOpenReceiptPrint,
   onOpenJobOrderPrint,
   currentRole,
   currentStaffName = 'Workshop Staff',
@@ -196,8 +190,6 @@ export function InternalQueueTab({
   initialView,
 }: InternalQueueTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  // History list (released / cancelled & missed), opened on demand
-  const [historyView, setHistoryView] = useState<'released' | 'closed' | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -366,8 +358,6 @@ export function InternalQueueTab({
     const byDate = (a: InternalTicket, b: InternalTicket) =>
       (a.dropoff_date || '9999-99-99').localeCompare(b.dropoff_date || '9999-99-99') ||
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    const newestFirst = (a: InternalTicket, b: InternalTicket) =>
-      new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime();
 
     const pending = tickets.filter((t) => isPendingOnlineBooking(t) && !isClosed(t) && matchesSearch(t));
     const arrivingToday = todaysArrivals.filter(matchesSearch);
@@ -380,10 +370,12 @@ export function InternalQueueTab({
     const upcoming = tickets
       .filter((t) => isScheduledBooking(t) && t.dropoff_date !== todayDateStr && matchesSearch(t))
       .sort(byDate);
-    const released = tickets.filter((t) => t.status === 'COMPLETED' && matchesSearch(t)).sort(newestFirst);
-    const closed = tickets.filter((t) => isClosed(t) && matchesSearch(t)).sort(newestFirst);
+    // Riders who missed today's slot can still show up. Older ones are in History.
+    const missedToday = tickets.filter(
+      (t) => (t.status === 'MISSED' || t.status === 'NO_SHOW') && t.dropoff_date === todayDateStr && matchesSearch(t)
+    );
 
-    return { pending, arrivingToday, needsAction: [...pending, ...arrivingToday], inShop, upcoming, released, closed };
+    return { pending, arrivingToday, missedToday, needsAction: [...pending, ...arrivingToday, ...missedToday], inShop, upcoming };
   }, [tickets, todaysArrivals, matchesSearch, isActiveFloorTicket, isScheduledBooking, todayDateStr]);
 
   const baysInUse = sections.inShop.filter(
@@ -393,9 +385,7 @@ export function InternalQueueTab({
   const totalShown =
     sections.needsAction.length +
     sections.inShop.length +
-    sections.upcoming.length +
-    sections.released.length +
-    sections.closed.length;
+    sections.upcoming.length;
 
   // Open Quick Assign Mechanic Modal
   const handleOpenAssignMechanic = (ticket: InternalTicket) => {
@@ -532,16 +522,8 @@ export function InternalQueueTab({
   const handleLateCheckIn = async (ticket: InternalTicket) => {
     try {
       setUpdatingId(ticket.id);
-      const result = await adminLateCheckInOverride(ticket.id, currentStaffName);
+      const result = await lateCheckIn(ticket, currentStaffName);
       if (result.success) {
-        await recordAuditLog({
-          ticketCode: ticket.ticket_code,
-          action: 'LATE_CHECKIN_OVERRIDE',
-          actor: currentStaffName,
-          details: 'Staff performed manual arrival override for late motorcycle.',
-          previousValue: ticket.status,
-          newValue: 'IN_PROGRESS',
-        });
         onRefresh();
         onOpenDispatch({ ...ticket, stage: 1, status: 'IN_PROGRESS' });
       } else {
@@ -784,154 +766,9 @@ export function InternalQueueTab({
     </ul>
   );
 
-  const renderTable = (list: InternalTicket[]) => (
-        <div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 text-slate-500 font-medium text-xs">
-                <tr>
-                  <th className="py-3 px-4 sm:pl-6 font-medium">Ticket</th>
-                  <th className="py-3 px-4 font-medium">Motorcycle</th>
-                  <th className="py-3 px-4 font-medium">Customer</th>
-                  <th className="py-3 px-4 font-medium">Date</th>
-                  <th className="py-3 px-4 font-medium">Bay</th>
-                  <th className="py-3 px-4 font-medium">Mechanic</th>
-                  <th className="py-3 px-4 font-medium">Status</th>
-                  <th className="py-3 px-4 sm:pr-6 text-right font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {list.map((ticket) => {
-                  const isCompleted = ticket.status === 'COMPLETED';
-                  const parsedNotes = parseTicketNotes(ticket.notes);
-                  const rawPhone = (ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A')
-                    ? ticket.customer_phone
-                    : parsedNotes.phone;
-                  const displayPhone = rawPhone ? formatPhoneNumber(rawPhone) : 'N/A';
-                  const customerName = ticket.customer_name || parsedNotes.customerName || 'Rider Customer';
-                  const apptInfo = formatAppointmentDate(ticket.dropoff_date);
-                  const bookedDate = formatBookingCreatedDate(ticket.created_at);
-
-                  return (
-                    <tr key={ticket.id} className="hover:bg-slate-50/70 transition">
-                      <td className="py-3 px-4 sm:pl-6 font-mono text-xs font-semibold text-slate-700 whitespace-nowrap">
-                        {ticket.ticket_code}
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-semibold text-slate-900 leading-tight">
-                          {ticket.motorcycles?.model || 'Motorcycle'}
-                        </div>
-                        <span className="font-mono text-[11px] text-slate-500">
-                          {ticket.motorcycles?.plate_number || 'No plate'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="font-medium text-slate-900">{customerName}</div>
-                        {rawPhone && rawPhone !== 'N/A' ? (
-                          <a href={`tel:${rawPhone}`} className="text-slate-500 hover:text-orange-600 font-mono text-[11px]">
-                            {displayPhone}
-                          </a>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">No contact</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {apptInfo ? (
-                          <div className="space-y-0.5">
-                            <span className="font-medium text-slate-800 flex items-center gap-1">
-                              <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                              <span>{apptInfo.label}</span>
-                            </span>
-                            <span className="text-[11px] text-slate-400 block">
-                              Booked: {bookedDate}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">Booked: {bookedDate}</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {ticket.assigned_bay && ticket.assigned_bay !== 'Bay Assignment Pending' ? (
-                          <span className="font-medium text-slate-800 whitespace-nowrap">{ticket.assigned_bay}</span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignMechanic(ticket)}
-                            className={`${CHIP} bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 transition cursor-pointer`}
-                            title="Change mechanic"
-                          >
-                            <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{ticket.assigned_mechanic}</span>
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignMechanic(ticket)}
-                            className={`${CHIP} border border-dashed border-slate-300 hover:border-orange-300 text-slate-500 hover:text-orange-700 transition cursor-pointer`}
-                            title="Assign a mechanic"
-                          >
-                            <Plus className="w-3 h-3 text-slate-400" />
-                            <span>Assign</span>
-                          </button>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        {isCompleted ? (
-                          <StatusPill label="Released" tone="done" />
-                        ) : ticket.status === 'MISSED' || ticket.status === 'NO_SHOW' ? (
-                          <StatusPill label="Missed" tone="missed" />
-                        ) : (
-                          <StatusPill label="Cancelled" tone="void" />
-                        )}
-                      </td>
-                      <td className="py-3 px-4 sm:pr-6 whitespace-nowrap">
-                        <div className="flex justify-end">
-                          {isCompleted ? (
-                            <div className="flex items-center gap-1">
-                              {onOpenJobOrderPrint && (
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenJobOrderPrint(ticket)}
-                                  className="px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition cursor-pointer"
-                                >
-                                  Job order
-                                </button>
-                              )}
-                              {onOpenReceiptPrint && (
-                                <button
-                                  type="button"
-                                  onClick={() => onOpenReceiptPrint(ticket)}
-                                  className="px-2.5 py-1 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 text-xs font-medium transition cursor-pointer"
-                                >
-                                  Gate pass
-                                </button>
-                              )}
-                            </div>
-                          ) : ticket.status === 'MISSED' || ticket.status === 'NO_SHOW' ? (
-                            <button type="button" onClick={() => handleLateCheckIn(ticket)} className={PRIMARY_BTN_SM}>
-                              Late check-in
-                            </button>
-                          ) : (
-                            <span className="text-slate-400 text-xs">—</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-  );
-
   const renderTicketCard = (ticket: InternalTicket) => {
             const isPending = isPendingOnlineBooking(ticket);
+            const isMissed = ticket.status === 'MISSED' || ticket.status === 'NO_SHOW';
             const isScheduled = isScheduledBooking(ticket);
             const isUpdating = updatingId === ticket.id;
             const apptInfo = formatAppointmentDate(ticket.dropoff_date);
@@ -1004,6 +841,8 @@ export function InternalQueueTab({
                   <div className="shrink-0">
                     {isPending ? (
                       <StatusPill label="New request" tone="waiting" />
+                    ) : isMissed ? (
+                      <StatusPill label="Missed today" tone="missed" />
                     ) : (
                       <StatusPill label="Scheduled" tone="waiting" />
                     )}
@@ -1069,6 +908,30 @@ export function InternalQueueTab({
                       >
                         <CheckCircle2 className="w-4 h-4" />
                         <span>Accept booking</span>
+                      </button>
+                    </div>
+                  ) : isMissed ? (
+                    <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto min-w-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRescheduleTarget(ticket);
+                          setRescheduleDate('');
+                          setRescheduleSlot(ticket.dropoff_window || TIME_SLOTS[0]?.id || 'slot-1');
+                        }}
+                        className={SECONDARY_BTN}
+                      >
+                        Reschedule
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUpdating}
+                        onClick={() => handleLateCheckIn(ticket)}
+                        className={PRIMARY_BTN}
+                        title="The rider arrived after the time slot"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Late check-in</span>
                       </button>
                     </div>
                   ) : (
@@ -1197,6 +1060,7 @@ export function InternalQueueTab({
                     `${sections.pending.length} new booking request${sections.pending.length === 1 ? '' : 's'} to accept or decline`,
                   sections.arrivingToday.length > 0 &&
                     `${sections.arrivingToday.length} rider${sections.arrivingToday.length === 1 ? '' : 's'} arriving today to check in`,
+                  sections.missedToday.length > 0 && `${sections.missedToday.length} missed today`,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -1276,57 +1140,6 @@ export function InternalQueueTab({
           {renderCardGrid(sections.upcoming)}
         </section>
       )}
-
-      {/* 4. History: released and cancelled / missed, opened on demand */}
-      <section className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated p-4 sm:p-5 overflow-clip">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-              <History className="w-5 h-5" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">History</h2>
-              <p className="text-sm text-slate-500">Released motorcycles and closed bookings</p>
-            </div>
-          </div>
-          <div className="flex items-center p-1 bg-slate-100 rounded-full" role="group" aria-label="History">
-            {(
-              [
-                { id: 'released', label: 'Released', icon: CheckCircle2, count: sections.released.length },
-                { id: 'closed', label: 'Cancelled / Missed', icon: CircleX, count: sections.closed.length },
-              ] as const
-            ).map((opt) => {
-              const Icon = opt.icon;
-              const selected = historyView === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setHistoryView(selected ? null : opt.id)}
-                  aria-pressed={selected}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer ${
-                    selected ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {opt.label}
-                  <span className="tabular-nums text-slate-400">{opt.count}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {/* Past tickets as a compact list: one line each */}
-        {historyView && (
-          <div className="mt-4 -mx-4 sm:-mx-5 -mb-4 sm:-mb-5 border-t border-slate-100">
-            {(historyView === 'released' ? sections.released : sections.closed).length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-8">Nothing here yet.</p>
-            ) : (
-              renderTable(historyView === 'released' ? sections.released : sections.closed)
-            )}
-          </div>
-        )}
-      </section>
 
       {/* Walk-in Claim Slip */}
       <WalkInClaimSlipModal
