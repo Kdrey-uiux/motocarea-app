@@ -131,12 +131,12 @@ export default function DispatchTicketModal({
     if (loadedTicketId.current === ticket.id) return;
     loadedTicketId.current = ticket.id;
     {
-      // Keep the current bay, or suggest the first free one
+      // Keep the current bay, or suggest the first free one (none selected when all are taken)
       let initialBay = ticket.assigned_bay;
       if (!initialBay) {
         const maint = readSharedSetting<Record<string, boolean>>(SHARED_SETTINGS.bayMaintenance, {});
         const firstFreeBay = BAYS.find((b) => !bayOccupancyMap.has(b.num) && !maint[`bay-${b.num}`]);
-        initialBay = firstFreeBay ? firstFreeBay.id : 'Bay 01';
+        initialBay = firstFreeBay ? firstFreeBay.id : '';
       }
       setAssignedBay(initialBay);
       // Never pre-pick a mechanic silently; staff choose who works on the unit
@@ -154,10 +154,18 @@ export default function DispatchTicketModal({
 
   if (!isOpen || !ticket) return null;
 
-  const isMarkingReady = Number(stage) === 5;
+  // A motorcycle at intake only needs a bay and a mechanic. Everything else comes later.
+  const isAssignMode = ticket.stage <= 1;
+  const isMarkingReady = !isAssignMode && Number(stage) === 5;
+  const hasFreeBay = BAYS.some((b) => !bayOccupancyMap.has(b.num) && !isUnderMaintenance(b.num));
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!assignedBay) {
+      setErrorMsg('Please pick a bay.');
+      return;
+    }
 
     // Stage 5 only marks the unit READY_FOR_PICKUP; the actual handover/release happens
     // when the customer arrives (Queue → In the Shop → 5 · Ready → Process Release).
@@ -165,15 +173,24 @@ export default function DispatchTicketModal({
     setErrorMsg(null);
 
     try {
-      const updates = {
-        assigned_bay: assignedBay,
-        assigned_mechanic: assignedMechanic.trim() || null,
-        stage: Number(stage),
-        // Moving a ready unit back to Stage 2-4 puts it back in progress
-        status: isMarkingReady ? 'READY_FOR_PICKUP' : status === 'READY_FOR_PICKUP' ? 'IN_PROGRESS' : status,
-        estimated_pickup: estimatedPickup.trim() || null,
-        notes: withFindings(ticket.notes, findings) || null,
-      };
+      // Latest notes, so a check-in or tag saved after this form opened is never overwritten
+      const latestNotes = allTickets.find((t) => t.id === ticket.id)?.notes ?? ticket.notes;
+      const updates = isAssignMode
+        ? {
+            assigned_bay: assignedBay,
+            assigned_mechanic: assignedMechanic.trim() || null,
+            stage: 2,
+            status: 'IN_PROGRESS',
+          }
+        : {
+            assigned_bay: assignedBay,
+            assigned_mechanic: assignedMechanic.trim() || null,
+            stage: Number(stage),
+            // Moving a ready unit back to Stage 2-4 puts it back in progress
+            status: isMarkingReady ? 'READY_FOR_PICKUP' : status === 'READY_FOR_PICKUP' ? 'IN_PROGRESS' : status,
+            estimated_pickup: estimatedPickup.trim() || null,
+            notes: withFindings(latestNotes, findings) || null,
+          };
 
       const { data, error } = await db()
         .from('service_tickets')
@@ -189,7 +206,7 @@ export default function DispatchTicketModal({
       }
       broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
 
-      if (ticket.stage !== Number(stage)) {
+      if (!isAssignMode && ticket.stage !== Number(stage)) {
         await recordAuditLog({
           ticketCode: ticket.ticket_code,
           action: 'STAGE_CHANGE',
@@ -200,7 +217,7 @@ export default function DispatchTicketModal({
         });
       }
 
-      if (ticket.assigned_bay !== assignedBay) {
+      if (isAssignMode || ticket.assigned_bay !== assignedBay) {
         await recordAuditLog({
           ticketCode: ticket.ticket_code,
           action: 'BAY_ASSIGNMENT',
@@ -212,9 +229,11 @@ export default function DispatchTicketModal({
       }
 
       toast.success(
-        isMarkingReady
+        isAssignMode
+          ? `#${ticket.ticket_code} is now on ${assignedBay}.`
+          : isMarkingReady
           ? `#${ticket.ticket_code} marked ready for pickup.`
-          : `#${ticket.ticket_code} saved — ${assignedBay}, Stage ${stage}.`
+          : `#${ticket.ticket_code} saved: ${assignedBay}, Stage ${stage}.`
       );
       onSaved();
       onClose();
@@ -231,7 +250,7 @@ export default function DispatchTicketModal({
       <ScrollLock />
       <form
         onSubmit={handleSave}
-        className="bg-white border border-slate-200 text-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]"
+        className={`bg-white border border-slate-200 text-slate-800 w-full ${isAssignMode ? 'max-w-lg' : 'max-w-2xl'} rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]`}
       >
         {/* Header */}
         <div className="px-5 sm:px-6 py-4 border-b border-slate-200 bg-slate-50 space-y-3 shrink-0">
@@ -242,7 +261,7 @@ export default function DispatchTicketModal({
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="font-bold text-base text-slate-900">Update Job</h2>
+                  <h2 className="font-bold text-base text-slate-900">{isAssignMode ? 'Assign a bay' : 'Update job'}</h2>
                   <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold">
                     #{ticket.ticket_code}
                   </span>
@@ -293,6 +312,7 @@ export default function DispatchTicketModal({
           )}
 
           {/* 1. Progress */}
+          {!isAssignMode && (
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <span className={sectionLabel}>Progress</span>
@@ -346,15 +366,21 @@ export default function DispatchTicketModal({
               })}
             </div>
           </section>
+          )}
 
           {/* 2. Bay */}
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <span className={sectionLabel}>Bay</span>
               <span className="text-[11px] text-slate-500">
-                Selected: <strong className="text-orange-600">{assignedBay}</strong>
+                Selected: <strong className="text-orange-600">{assignedBay || 'None'}</strong>
               </span>
             </div>
+            {isAssignMode && !hasFreeBay && (
+              <p className="p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs">
+                All bays are taken. Close this for now. The motorcycle stays in the Queue, waiting for a bay.
+              </p>
+            )}
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
               {BAYS.map((b) => {
                 const occupant = bayOccupancyMap.get(b.num);
@@ -397,11 +423,14 @@ export default function DispatchTicketModal({
           </section>
 
           {/* 3. Mechanic & ETA */}
-          <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <section className={`grid grid-cols-1 gap-4 ${isAssignMode ? '' : 'sm:grid-cols-2'}`}>
             <div className="space-y-2">
-              <span className={sectionLabel}>Mechanic</span>
+              <span className={sectionLabel}>
+                Mechanic {isAssignMode && <span className="font-medium text-slate-400">(optional)</span>}
+              </span>
               <MechanicPicker value={assignedMechanic} onChange={setAssignedMechanic} />
             </div>
+            {!isAssignMode && (
             <div className="space-y-2">
               <span className={sectionLabel}>Estimated ready time</span>
               <div className="relative">
@@ -431,9 +460,11 @@ export default function DispatchTicketModal({
                 ))}
               </div>
             </div>
+            )}
           </section>
 
           {/* 4. Mechanic findings (separate from the customer's notes) */}
+          {!isAssignMode && (
           <section className="space-y-2">
             <span className={sectionLabel}>Mechanic findings</span>
             <textarea
@@ -444,12 +475,17 @@ export default function DispatchTicketModal({
               className={`${inputClass} resize-none`}
             />
           </section>
+          )}
         </div>
 
         {/* Footer (always visible) */}
         <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
           <span className="text-[11px] text-slate-500 hidden sm:block">
-            {isMarkingReady ? 'Customer will see this as ready for pickup.' : `${assignedBay} • Stage ${stage}`}
+            {isAssignMode
+              ? 'This starts the inspection.'
+              : isMarkingReady
+              ? 'Customer will see this as ready for pickup.'
+              : `${assignedBay} • Stage ${stage}`}
           </span>
           <div className="flex items-center gap-2 ml-auto">
             <button
@@ -462,7 +498,7 @@ export default function DispatchTicketModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !assignedBay}
               className={`px-6 py-2.5 disabled:opacity-50 text-white font-bold rounded-xl transition flex items-center gap-2 text-xs shadow-xs cursor-pointer ${
                 isMarkingReady ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-orange-500 hover:bg-orange-600'
               }`}
@@ -470,6 +506,10 @@ export default function DispatchTicketModal({
               {saving ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                </>
+              ) : isAssignMode ? (
+                <>
+                  <Check className="w-4 h-4" /> Start work
                 </>
               ) : isMarkingReady ? (
                 <>

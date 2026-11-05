@@ -40,8 +40,9 @@ function todayDateString(): string {
 }
 
 /**
- * Accepts an online booking. Future-dated bookings move to Scheduled (awaiting drop-off),
- * same-day bookings go straight to Stage 1 intake.
+ * Accepts an online booking. The motorcycle isn't at the shop yet, so every accepted booking
+ * waits for its drop-off: Upcoming, or Arriving today when it is booked for today.
+ * Staff then check it in when the rider arrives.
  */
 export async function acceptOnlineBooking(
   ticket: InternalTicket,
@@ -49,8 +50,7 @@ export async function acceptOnlineBooking(
 ): Promise<{ success: boolean; error?: string }> {
   let cleanedNotes = (ticket.notes || '').replace('[BOOKING:PENDING_CONFIRMATION]', '').trim();
 
-  const isAdvanceDate = Boolean(ticket.dropoff_date && ticket.dropoff_date > todayDateString());
-  if (isAdvanceDate && !cleanedNotes.includes('[BOOKING:PENDING_DROPOFF]')) {
+  if (!cleanedNotes.includes('[BOOKING:PENDING_DROPOFF]')) {
     cleanedNotes = cleanedNotes ? `${cleanedNotes} [BOOKING:PENDING_DROPOFF]` : '[BOOKING:PENDING_DROPOFF]';
   }
 
@@ -73,9 +73,9 @@ export async function acceptOnlineBooking(
     ticketCode: ticket.ticket_code,
     action: 'BOOKING_CONFIRMED',
     actor,
-    details: isAdvanceDate
-      ? `Online booking accepted for scheduled drop-off date: ${ticket.dropoff_date}.`
-      : 'Online booking accepted and placed into Stage 1 intake.',
+    details: ticket.dropoff_date
+      ? `Online booking accepted for drop-off on ${ticket.dropoff_date}.`
+      : 'Online booking accepted.',
     previousValue: ticket.status,
     newValue: 'IN_PROGRESS',
   });
@@ -85,8 +85,8 @@ export async function acceptOnlineBooking(
 }
 
 /**
- * Moves a motorcycle on a bay to the next repair stage (2 → 3 → 4). Stage 5 is
- * "ready for pickup", which goes through the release modal instead.
+ * Moves a motorcycle on a bay to the next repair stage (2 → 3 → 4 → 5).
+ * Stage 5 is "ready for pickup": the rider is told, and the release happens later at the counter.
  */
 export async function advanceTicketStage(
   ticket: InternalTicket,

@@ -640,8 +640,6 @@ export default function InternalConsole() {
               tickets={tickets}
               loading={loading}
               onRefresh={refreshTickets}
-              onOpenDispatch={handleOpenDispatch}
-              onOpenStage5Billing={handleOpenStage5Billing}
               setActiveTab={navigateToTab}
               onOpenQueueView={(view) => {
                 setQueueFocusView(view);
@@ -663,7 +661,10 @@ export default function InternalConsole() {
               onOpenJobOrderPrint={handleOpenJobOrderPrint}
               currentRole={currentRole}
               currentStaffName={currentUserName}
-              onNavigateTab={navigateToTab}
+              onOpenChat={(userId) => {
+                setMessagesFocusUserId(userId);
+                setRequestedTab('messages');
+              }}
               staffList={staffList}
               initialView={queueFocusView}
             />
@@ -673,9 +674,7 @@ export default function InternalConsole() {
             <InternalBaysTab
               tickets={tickets}
               onOpenDispatch={handleOpenDispatch}
-              onOpenStage5Billing={handleOpenStage5Billing}
               currentStaffName={currentUserName}
-              onRefresh={refreshTickets}
               isOwner={currentRole === 'admin'}
             />
           )}

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { InternalTicket } from '../types/internal';
 import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
-import { isAwaitingArrival, advanceTicketStage } from '../utils/ticketActions';
+import { isAwaitingArrival } from '../utils/ticketActions';
 import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power, Trash2, Loader2 } from '../../components/icons';
 import { toast } from '../utils/toast';
 import { normalizeBayNumber } from '../utils/bays';
@@ -20,10 +20,7 @@ const SECONDARY_BTN =
 interface InternalBaysTabProps {
   tickets: InternalTicket[];
   onOpenDispatch: (ticket: InternalTicket) => void;
-  /** Release / mark-ready modal (stages 4 and 5) */
-  onOpenStage5Billing?: (ticket: InternalTicket) => void;
   currentStaffName?: string;
-  onRefresh?: () => void;
   /** The owner can add and remove bays */
   isOwner?: boolean;
 }
@@ -39,33 +36,9 @@ const makeBay = (num: number) => ({ id: `bay-${num}`, bayNumber: String(num).pad
 export default function InternalBaysTab({
   tickets,
   onOpenDispatch,
-  onOpenStage5Billing,
   currentStaffName = 'Workshop Staff',
-  onRefresh,
   isOwner = false,
 }: InternalBaysTabProps) {
-  const [advancingId, setAdvancingId] = useState<string | null>(null);
-
-  // Next step for a motorcycle on a bay, same as the Queue buttons
-  const runNextStep = async (ticket: InternalTicket) => {
-    if (ticket.stage <= 1) {
-      onOpenDispatch(ticket);
-      return;
-    }
-    if (ticket.stage >= 4) {
-      if (onOpenStage5Billing) onOpenStage5Billing(ticket);
-      else onOpenDispatch(ticket);
-      return;
-    }
-    setAdvancingId(ticket.id);
-    const result = await advanceTicketStage(ticket, ticket.stage + 1, currentStaffName);
-    setAdvancingId(null);
-    if (!result.success) {
-      toast.error('Error: ' + (result.error || 'Failed to advance stage.'));
-      return;
-    }
-    onRefresh?.();
-  };
   // Bays on the floor (set by the owner; updates live on every device)
   const bayCount = useBayCount();
   const [bayAction, setBayAction] = useState<'adding' | 'removing' | null>(null);
@@ -283,7 +256,7 @@ export default function InternalBaysTab({
                 <div className="min-w-0 leading-tight">
                   <p className="text-sm font-semibold text-slate-900 truncate">{t.motorcycles?.model || 'Motorcycle'}</p>
                   <p className="text-xs text-slate-500 truncate">
-                    <span className="font-mono">{t.motorcycles?.plate_number}</span> · waiting {formatMinutes(minutesIn(t.created_at))}
+                    <span className="font-mono">{t.motorcycles?.plate_number}</span> {t.is_walk_in && ` · waiting ${formatMinutes(minutesIn(t.created_at))}`}
                   </p>
                 </div>
                 <button
@@ -312,14 +285,6 @@ export default function InternalBaysTab({
               ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? ticket.assigned_mechanic : null;
             const mins = minutesIn(ticket.created_at);
             const isLong = mins >= LONG_JOB_MINUTES;
-            const nextLabel =
-              ticket.stage <= 1
-                ? 'Start'
-                : ticket.stage < 4
-                ? `To ${SERVICE_STAGES[ticket.stage]?.name ?? 'next stage'}`
-                : ticket.stage === 4
-                ? 'Mark ready'
-                : 'Release';
 
             return (
               <div key={bay.id} className={`${CARD} relative overflow-hidden p-5 flex flex-col min-h-[16rem]`}>
@@ -335,15 +300,18 @@ export default function InternalBaysTab({
                       </span>
                     )}
                   </span>
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                      isLong ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
-                    }`}
-                    title={isLong ? 'On the bay for more than 3 hours' : 'Time in the shop'}
-                  >
-                    <Clock className="w-3.5 h-3.5" />
-                    {formatMinutes(mins)}
-                  </span>
+                  {/* Only a walk-in's ticket starts when the motorcycle arrives; a booking's starts when it was booked */}
+                  {ticket.is_walk_in && (
+                    <span
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                        isLong ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                      }`}
+                      title={isLong ? 'On the bay for more than 3 hours' : 'Time in the shop'}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      {formatMinutes(mins)}
+                    </span>
+                  )}
                 </div>
 
                 <div className="mt-4 min-w-0">
@@ -385,24 +353,14 @@ export default function InternalBaysTab({
                     </span>
                     <span className="truncate">{mechanic || 'No mechanic'}</span>
                   </span>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => onOpenDispatch(ticket)}
-                      className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer"
-                    >
-                      Manage
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => runNextStep(ticket)}
-                      disabled={advancingId === ticket.id}
-                      className="px-3 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold shadow-sm shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1"
-                    >
-                      {nextLabel}
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {/* Stage changes happen in the Queue; here staff can fix the job's details */}
+                  <button
+                    type="button"
+                    onClick={() => onOpenDispatch(ticket)}
+                    className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer shrink-0"
+                  >
+                    {ticket.stage <= 1 ? 'Assign bay' : 'Update job'}
+                  </button>
                 </div>
               </div>
             );

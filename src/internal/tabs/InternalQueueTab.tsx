@@ -1,10 +1,10 @@
-import { useState, useMemo, useCallback, type ComponentProps } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, type ComponentProps } from 'react';
 import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
-import { InternalTicket, UserRole, InternalTab } from '../types/internal';
+import { InternalTicket, UserRole } from '../types/internal';
 import { canVoidTicket } from '../utils/permissions';
-import { acceptOnlineBooking, cancelOrDeclineTicket, isPendingOnlineBooking } from '../utils/ticketActions';
+import { acceptOnlineBooking, advanceTicketStage, isPendingOnlineBooking } from '../utils/ticketActions';
 import {
   adminLateCheckInOverride,
   adminAssistedReschedule,
@@ -13,6 +13,8 @@ import {
 } from '../../utils/bookingLifecycle';
 import { getDailyCapacityLimit, isSundayDate } from '../../utils/workshopCapacity';
 import { useNow } from '../hooks/useNow';
+import { normalizeBayNumber } from '../utils/bays';
+import { useBayCount } from '../../utils/workshopBays';
 import { SERVICE_STAGES, stageName } from '../../utils/serviceStages';
 import { 
   Ticket,
@@ -25,22 +27,17 @@ import {
   Phone, 
   Trash2, 
   Plus, 
-  AlertTriangle,
   User,
   KeyRound,
   CheckCircle2,
   History,
-  Star,
   MessageSquare,
   Clock,
-  LayoutGrid,
-  List,
   Calendar,
   UserCheck,
   Edit,
   X,
   MoreHorizontal,
-  Kanban,
   CircleX,
   CalendarClock,
   BellRing,
@@ -49,7 +46,7 @@ import {
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
 import WalkInClaimSlipModal from '../modals/WalkInClaimSlipModal';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
-import { parseTicketReview } from '../../utils/ticketReviews';
+import CancelTicketModal from '../modals/CancelTicketModal';
 import { parseTicketNotes, formatPhoneNumber } from '../../utils/ticketNotesParser';
 import { InternalStaffMember } from '../types/internal';
 import { toast } from '../utils/toast';
@@ -87,7 +84,8 @@ export interface InternalQueueTabProps {
   currentStaffName?: string;
   onOpenHardcopyModal?: () => void;
   pendingHardcopyCount?: number;
-  onNavigateTab?: (tab: InternalTab) => void;
+  /** Opens this rider's conversation in Messages */
+  onOpenChat?: (userId: string) => void;
   staffList?: InternalStaffMember[];
   /** View to open first (e.g. 'PENDING' when coming from the Dashboard) */
   initialView?: OperationalView;
@@ -155,7 +153,7 @@ function MoreMenu({ items }: { items: MoreMenuItem[] }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 bottom-full mb-2 z-20 w-56 bg-white border border-slate-200 rounded-2xl shadow-lg p-1.5 animate-in fade-in zoom-in-95 duration-100"
+          className="absolute left-0 sm:left-auto sm:right-0 bottom-full mb-2 z-20 w-56 bg-white border border-slate-200 rounded-2xl shadow-lg p-1.5 animate-in fade-in zoom-in-95 duration-100"
         >
           {items.map((item) => {
             const Icon = item.icon;
@@ -183,14 +181,6 @@ function MoreMenu({ items }: { items: MoreMenuItem[] }) {
   );
 }
 const CHIP = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium';
-// Left-edge accent per repair stage (1 Intake … 5 Ready)
-const STAGE_ACCENT: Record<number, string> = {
-  1: 'bg-orange-200',
-  2: 'bg-orange-300',
-  3: 'bg-orange-400',
-  4: 'bg-orange-500',
-  5: 'bg-orange-600',
-};
 
 export function InternalQueueTab({
   tickets,
@@ -202,9 +192,8 @@ export function InternalQueueTab({
   onOpenJobOrderPrint,
   currentRole,
   currentStaffName = 'Workshop Staff',
-  onNavigateTab,
-  // Every section is on one page now, so the view to open first is no longer needed
-  initialView: _initialView,
+  onOpenChat,
+  initialView,
 }: InternalQueueTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   // History list (released / cancelled & missed), opened on demand
@@ -220,8 +209,6 @@ export function InternalQueueTab({
 
   // Soft Cancellation Void Modal State
   const [voidTarget, setVoidTarget] = useState<InternalTicket | null>(null);
-  const [voidReason, setVoidReason] = useState('');
-  const [isVoiding, setIsVoiding] = useState(false);
 
   // Assisted Reschedule State
   const [rescheduleTarget, setRescheduleTarget] = useState<InternalTicket | null>(null);
@@ -229,7 +216,20 @@ export function InternalQueueTab({
   const [rescheduleSlot, setRescheduleSlot] = useState(TIME_SLOTS[0]?.id || 'slot-1');
   const [isRescheduling, setIsRescheduling] = useState(false);
 
-  const [viewLayout, setViewLayout] = useState<'grid' | 'table' | 'board'>('board');
+  // Coming from the Dashboard: go straight to what was tapped
+  const focusedViewRef = useRef<OperationalView | undefined>(undefined);
+  useEffect(() => {
+    if (!initialView || focusedViewRef.current === initialView) return;
+    focusedViewRef.current = initialView;
+    const readyTicket = tickets.find((t) => t.status === 'READY_FOR_PICKUP');
+    const target = document.getElementById(
+      initialView === 'READY_RELEASE' && readyTicket ? `ticket-${readyTicket.id}` : 'q-needs'
+    );
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    target.classList.add('ring-4', 'ring-orange-300');
+    window.setTimeout(() => target.classList.remove('ring-4', 'ring-orange-300'), 2000);
+  }, [initialView, tickets]);
 
   // Mechanic Quick Assign Modal State
   const [assigningMechanicTicket, setAssigningMechanicTicket] = useState<InternalTicket | null>(null);
@@ -237,6 +237,8 @@ export function InternalQueueTab({
   const [isAssigningMechanic, setIsAssigningMechanic] = useState(false);
 
   const now = useNow();
+
+  const bayCount = useBayCount();
 
   // Follows the clock, so a console left open overnight rolls over to the new day
   const todayDateStr = useMemo(() => {
@@ -369,7 +371,12 @@ export function InternalQueueTab({
 
     const pending = tickets.filter((t) => isPendingOnlineBooking(t) && !isClosed(t) && matchesSearch(t));
     const arrivingToday = todaysArrivals.filter(matchesSearch);
-    const inShop = tickets.filter((t) => isActiveFloorTicket(t) && matchesSearch(t));
+    // Waiting for a bay first (they need something), then in bay order, so lines don't jump around
+    const bayOrder = (t: InternalTicket) =>
+      normalizeBayNumber(t.assigned_bay === 'Bay Assignment Pending' ? null : t.assigned_bay) ?? 0;
+    const inShop = tickets
+      .filter((t) => isActiveFloorTicket(t) && matchesSearch(t))
+      .sort((a, b) => bayOrder(a) - bayOrder(b));
     const upcoming = tickets
       .filter((t) => isScheduledBooking(t) && t.dropoff_date !== todayDateStr && matchesSearch(t))
       .sort(byDate);
@@ -378,6 +385,10 @@ export function InternalQueueTab({
 
     return { pending, arrivingToday, needsAction: [...pending, ...arrivingToday], inShop, upcoming, released, closed };
   }, [tickets, todaysArrivals, matchesSearch, isActiveFloorTicket, isScheduledBooking, todayDateStr]);
+
+  const baysInUse = sections.inShop.filter(
+    (t) => normalizeBayNumber(t.assigned_bay === 'Bay Assignment Pending' ? null : t.assigned_bay)
+  ).length;
 
   const totalShown =
     sections.needsAction.length +
@@ -478,8 +489,8 @@ export function InternalQueueTab({
 
       broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
       onRefresh();
-      // Prompt lift dispatch modal right away so staff can put motorcycle on a bay
-      onOpenDispatch(ticket);
+      // Next step right away: put the motorcycle on a bay
+      onOpenDispatch({ ...ticket, ...updates });
     } catch (err: unknown) {
       console.error('Failed to check in motorcycle:', err);
       toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to check in motorcycle.'));
@@ -494,6 +505,7 @@ export function InternalQueueTab({
     try {
       const result = await acceptOnlineBooking(ticket, currentStaffName);
       if (!result.success) throw new Error(result.error);
+      toast.success(`#${ticket.ticket_code} accepted. Check it in when the rider arrives.`);
       onRefresh();
     } catch (err: unknown) {
       console.error('Failed to confirm booking:', err);
@@ -503,43 +515,17 @@ export function InternalQueueTab({
     }
   };
 
-  // Quick Advance Stage
-  const handleQuickAdvanceStage = async (ticket: InternalTicket, nextStage: number) => {
+  // Next repair stage. Stage 5 tells the rider the motorcycle is ready for pickup.
+  const handleAdvanceStage = async (ticket: InternalTicket, nextStage: number) => {
     setUpdatingId(ticket.id);
-    try {
-      const updates = {
-        stage: nextStage,
-        status: nextStage === 5 ? 'READY_FOR_PICKUP' : 'IN_PROGRESS',
-      };
-
-      const { data, error } = await db()
-        .from('service_tickets')
-        .update(updates)
-        .eq('id', ticket.id)
-        .select('id, ticket_code');
-
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error("This ticket could not be saved. It may have just changed, or your account can't edit it. Refresh and try again.");
-      }
-
-      await recordAuditLog({
-        ticketCode: ticket.ticket_code,
-        action: 'STAGE_ADVANCE',
-        actor: currentStaffName,
-        details: `Stage advanced from Stage ${ticket.stage} to Stage ${nextStage}`,
-        previousValue: `Stage ${ticket.stage}`,
-        newValue: `Stage ${nextStage}`,
-      });
-
-      broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
-      onRefresh();
-    } catch (err: unknown) {
-      console.error('Failed to advance stage:', err);
-      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to advance stage.'));
-    } finally {
-      setUpdatingId(null);
+    const result = await advanceTicketStage(ticket, nextStage, currentStaffName);
+    setUpdatingId(null);
+    if (!result.success) {
+      toast.error('Error: ' + (result.error || 'Failed to advance stage.'));
+      return;
     }
+    if (nextStage === 5) toast.success(`#${ticket.ticket_code} marked ready for pickup.`);
+    onRefresh();
   };
 
   // Late Arrival Check-in
@@ -557,6 +543,7 @@ export function InternalQueueTab({
           newValue: 'IN_PROGRESS',
         });
         onRefresh();
+        onOpenDispatch({ ...ticket, stage: 1, status: 'IN_PROGRESS' });
       } else {
         toast.error(result.error || 'Failed to perform late check-in.');
       }
@@ -564,31 +551,6 @@ export function InternalQueueTab({
       toast.error('Network error while performing check-in.');
     } finally {
       setUpdatingId(null);
-    }
-  };
-
-  // Void / Cancel Confirmation
-  const handleConfirmVoid = async () => {
-    if (!voidTarget) return;
-    const cleanReason = voidReason.trim();
-    if (!cleanReason) {
-      toast.error('Please specify a cancellation reason.');
-      return;
-    }
-
-    setIsVoiding(true);
-    try {
-      const result = await cancelOrDeclineTicket(voidTarget, cleanReason, currentStaffName);
-      if (!result.success) throw new Error(result.error);
-
-      setVoidTarget(null);
-      setVoidReason('');
-      onRefresh();
-    } catch (err: unknown) {
-      console.error('Failed to void ticket:', err);
-      toast.error('Error: ' + (err instanceof Error ? err.message : 'Failed to void ticket.'));
-    } finally {
-      setIsVoiding(false);
     }
   };
 
@@ -653,100 +615,173 @@ export function InternalQueueTab({
     return `${hours}h ${mins > 0 ? `${mins}m` : ''} in shop`;
   };
 
-  // ---- Renderers shared by every section (cards, board by stage, list) ----
-  const renderBoard = (list: InternalTicket[]) => (
-        <div className="p-4 sm:p-5 bg-slate-50/60 overflow-x-auto">
-          <div className="grid grid-flow-col auto-cols-[minmax(13rem,1fr)] gap-3">
-            {SERVICE_STAGES.map((st) => {
-              const column = list.filter((t) => Math.min(Math.max(t.stage, 1), 5) === st.step);
-              return (
-                <section key={st.step} className="bg-slate-100/70 rounded-2xl p-2.5 flex flex-col gap-2 self-start">
-                  <div className="flex items-center justify-between px-1.5 pt-1 pb-1">
-                    <span className="flex items-center gap-2 min-w-0">
-                      <span className="w-5 h-5 rounded-full bg-white text-[11px] font-bold text-slate-600 flex items-center justify-center shrink-0">
-                        {st.step}
-                      </span>
-                      <span className="text-sm font-semibold text-slate-800 truncate" title={st.staffHint}>
-                        {st.name}
-                      </span>
-                    </span>
-                    <span className="text-xs font-semibold text-slate-500 tabular-nums">{column.length}</span>
-                  </div>
+  // The one next step for a motorcycle in the shop, the same on the board and the cards
+  const getNextAction = (ticket: InternalTicket) => {
+    if (ticket.stage <= 1) return { label: 'Assign bay', icon: Wrench, run: () => onOpenDispatch(ticket) };
+    if (ticket.stage < 4) {
+      return {
+        label: `Move to ${stageName(ticket.stage + 1)}`,
+        icon: ChevronRight,
+        run: () => handleAdvanceStage(ticket, ticket.stage + 1),
+      };
+    }
+    if (ticket.stage === 4) return { label: 'Mark ready', icon: KeyRound, run: () => handleAdvanceStage(ticket, 5) };
+    return { label: 'Release', icon: CheckCircle2, run: () => onOpenStage5Billing(ticket) };
+  };
 
-                  {column.length === 0 ? (
-                    <div className="h-14 rounded-xl border-2 border-dashed border-slate-200 flex items-center justify-center text-xs text-slate-400">
-                      Empty
-                    </div>
-                  ) : (
-                    column.map((ticket) => {
-                      const mechanic =
-                        ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment'
-                          ? ticket.assigned_mechanic
-                          : null;
-                      const bay =
-                        ticket.assigned_bay && ticket.assigned_bay !== 'Bay Assignment Pending' ? ticket.assigned_bay : null;
-                      const action =
-                        ticket.stage <= 1
-                          ? { label: 'Assign bay', run: () => onOpenDispatch(ticket) }
-                          : ticket.stage < 4
-                          ? { label: 'Next stage', run: () => handleQuickAdvanceStage(ticket, ticket.stage + 1) }
-                          : ticket.stage === 4
-                          ? { label: 'Mark ready', run: () => onOpenStage5Billing(ticket) }
-                          : { label: 'Release', run: () => onOpenStage5Billing(ticket) };
+  // Less-used tools for a ticket, the same on the board and the cards
+  const getMenuItems = (ticket: InternalTicket): MoreMenuItem[] => {
+    const isClosed = ['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'].includes(ticket.status);
+    const isActive = !isPendingOnlineBooking(ticket) && !isScheduledBooking(ticket) && !isClosed;
+    const notes = parseTicketNotes(ticket.notes);
+    const phone = ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A'
+      ? ticket.customer_phone
+      : notes.phone;
+    return [
+      ...(isActive && ticket.stage >= 2
+        ? [{ label: 'Update job', icon: Edit, onClick: () => onOpenDispatch(ticket) }]
+        : []),
+      // Walk-ins have no account to chat with
+      ...(onOpenChat && ticket.user_id
+        ? [{ label: 'Chat with customer', icon: MessageSquare, onClick: () => onOpenChat(ticket.user_id as string) }]
+        : []),
+      ...(ticket.motorcycles?.plate_number
+        ? [
+            {
+              label: 'Previous visits',
+              icon: History,
+              onClick: () =>
+                setHistoryVehicle({
+                  plate_number: ticket.motorcycles?.plate_number || 'NO PLATE',
+                  model: ticket.motorcycles?.model || 'Motorcycle',
+                  year_model: ticket.motorcycles?.year_model || '2024',
+                  odometer: ticket.motorcycles?.odometer || '',
+                  owner_name: ticket.customer_name || notes.customerName || 'Rider Customer',
+                  owner_phone: phone || '',
+                }),
+            },
+          ]
+        : []),
+      ...(isActive && ticket.is_walk_in
+        ? [{ label: 'Walk-in ticket slip', icon: Ticket, onClick: () => setClaimSlipTicket(ticket) }]
+        : []),
+      ...(isActive && onOpenJobOrderPrint
+        ? [{ label: 'Print job order', icon: Printer, onClick: () => onOpenJobOrderPrint(ticket) }]
+        : []),
+      ...(isActive && canVoidTicket(currentRole)
+        ? [{ label: 'Cancel ticket', icon: Trash2, onClick: () => setVoidTarget(ticket), danger: true }]
+        : []),
+    ];
+  };
 
-                      return (
-                        <div
-                          key={ticket.id}
-                          className="bg-white border border-slate-200/70 rounded-xl p-3 card-elevated space-y-2"
-                        >
-                          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
-                            <span className="font-mono font-semibold text-slate-600">{ticket.ticket_code}</span>
-                            <span>{getElapsedText(ticket.created_at).replace(' in shop', '')}</span>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-sm text-slate-900 leading-snug">
-                              {ticket.motorcycles?.model || 'Motorcycle'}
-                            </p>
-                            <p className="font-mono text-[11px] text-slate-500">
-                              {ticket.motorcycles?.plate_number || 'No plate'}
-                            </p>
-                          </div>
-                          <p className="text-xs text-slate-500 line-clamp-2" title={ticket.service_type}>
-                            {ticket.service_type}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[11px] text-slate-700">{bay || 'No bay'}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAssignMechanic(ticket)}
-                              className={`px-2 py-0.5 rounded-full text-[11px] transition cursor-pointer ${
-                                mechanic
-                                  ? 'bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-700'
-                                  : 'border border-dashed border-slate-300 text-slate-500 hover:border-orange-300 hover:text-orange-700'
-                              }`}
-                              title="Change mechanic"
-                            >
-                              {mechanic || '+ Mechanic'}
-                            </button>
-                          </div>
-                          <button
-                            type="button"
-                            disabled={updatingId === ticket.id}
-                            onClick={action.run}
-                            className={`${PRIMARY_BTN_SM} w-full justify-center`}
-                          >
-                            {action.label}
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })
+  // ---- Renderers shared by every section (cards, board by stage, history list) ----
+  // In the shop: one line per motorcycle, so a 3-bay shop never shows empty columns
+  const renderShopList = (list: InternalTicket[]) => (
+    <ul className="divide-y divide-slate-100">
+      {list.map((ticket) => {
+        const action = getNextAction(ticket);
+        const ActionIcon = action.icon;
+        const notes = parseTicketNotes(ticket.notes);
+        const customerName = ticket.customer_name || notes.customerName || 'Rider Customer';
+        const rawPhone =
+          ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A'
+            ? ticket.customer_phone
+            : notes.phone;
+        const bayNumber = normalizeBayNumber(ticket.assigned_bay === 'Bay Assignment Pending' ? null : ticket.assigned_bay);
+        const mechanic =
+          ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? ticket.assigned_mechanic : null;
+
+        return (
+          <li
+            key={ticket.id}
+            id={`ticket-${ticket.id}`}
+            className="scroll-mt-28 px-4 sm:px-6 py-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] xl:items-center gap-3 xl:gap-6 transition"
+          >
+            {/* Bay, motorcycle, customer */}
+            <div className="flex items-start gap-3 min-w-0">
+              {bayNumber ? (
+                <span className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex flex-col items-center justify-center shrink-0 leading-none shadow-sm shadow-orange-500/25">
+                  <span className="text-[10px] font-medium text-orange-100">Bay</span>
+                  <span className="font-display text-lg font-bold">{String(bayNumber).padStart(2, '0')}</span>
+                </span>
+              ) : (
+                <span className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-center text-[11px] font-semibold leading-tight shrink-0">
+                  No
+                  <br />
+                  bay
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900 leading-snug">
+                  {ticket.motorcycles?.model || 'Motorcycle'}
+                  <span className="ml-2 inline-block align-middle font-mono text-[11px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                    {ticket.motorcycles?.plate_number || 'No plate'}
+                  </span>
+                </p>
+                <p className="mt-0.5 text-sm text-slate-500 break-words">
+                  {customerName} · {ticket.service_type || 'General service'}
+                </p>
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
+                  <span className="font-mono">{ticket.ticket_code}</span>
+                  {/* Only a walk-in's ticket starts when the motorcycle arrives */}
+                  {ticket.is_walk_in && <span>Walk-in · {getElapsedText(ticket.created_at)}</span>}
+                  {rawPhone && (
+                    <a href={`tel:${rawPhone}`} className="font-mono hover:text-orange-600 transition" title="Call the customer">
+                      {formatPhoneNumber(rawPhone)}
+                    </a>
                   )}
-                </section>
-              );
-            })}
-          </div>
-        </div>
+                </p>
+              </div>
+            </div>
+
+            {/* Where it is in the 5 stages (what the rider sees) */}
+            <div className="grid grid-cols-5 gap-1 min-w-0" aria-label={`Stage ${ticket.stage} of 5: ${stageName(ticket.stage)}`}>
+              {SERVICE_STAGES.map((st) => (
+                <div key={st.step} className="space-y-1 min-w-0">
+                  <div
+                    className={`h-1.5 rounded-full ${
+                      st.step < ticket.stage ? 'bg-orange-300' : st.step === ticket.stage ? 'bg-orange-500' : 'bg-slate-200'
+                    }`}
+                  />
+                  <span className={`block text-[11px] truncate ${st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                    {st.name}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Mechanic, then the one next step */}
+            <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => handleOpenAssignMechanic(ticket)}
+                className={`${CHIP} max-w-[10rem] transition cursor-pointer ${
+                  mechanic
+                    ? 'bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700'
+                    : 'border border-dashed border-slate-300 hover:border-orange-300 text-slate-500 hover:text-orange-700'
+                }`}
+                title={mechanic ? 'Change mechanic' : 'Assign a mechanic'}
+              >
+                {mechanic ? <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <Plus className="w-3.5 h-3.5 shrink-0" />}
+                <span className="truncate">{mechanic || 'Mechanic'}</span>
+              </button>
+              <div className="flex items-center gap-2 ml-auto xl:ml-0">
+                <MoreMenu items={getMenuItems(ticket)} />
+                <button
+                  type="button"
+                  disabled={updatingId === ticket.id}
+                  onClick={action.run}
+                  className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}
+                >
+                  <ActionIcon className="w-4 h-4" />
+                  <span>{action.label}</span>
+                </button>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 
   const renderTable = (list: InternalTicket[]) => (
@@ -767,8 +802,6 @@ export function InternalQueueTab({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {list.map((ticket) => {
-                  const isPending = isPendingOnlineBooking(ticket);
-                  const isScheduled = isScheduledBooking(ticket);
                   const isCompleted = ticket.status === 'COMPLETED';
                   const parsedNotes = parseTicketNotes(ticket.notes);
                   const rawPhone = (ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A')
@@ -848,31 +881,17 @@ export function InternalQueueTab({
                         )}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {isPending ? (
-                          <StatusPill label="New request" tone="waiting" />
-                        ) : isScheduled ? (
-                          <StatusPill label="Scheduled" tone="waiting" />
-                        ) : isCompleted ? (
+                        {isCompleted ? (
                           <StatusPill label="Released" tone="done" />
                         ) : ticket.status === 'MISSED' || ticket.status === 'NO_SHOW' ? (
                           <StatusPill label="Missed" tone="missed" />
-                        ) : ticket.status === 'CANCELLED' || ticket.status === 'CANCELLED_BY_ADMIN' ? (
-                          <StatusPill label="Cancelled" tone="void" />
                         ) : (
-                          <StatusPill label={`${ticket.stage} · ${stageName(ticket.stage)}`} tone="stage" />
+                          <StatusPill label="Cancelled" tone="void" />
                         )}
                       </td>
                       <td className="py-3 px-4 sm:pr-6 whitespace-nowrap">
                         <div className="flex justify-end">
-                          {isPending ? (
-                            <button type="button" onClick={() => handleConfirmBooking(ticket)} className={`${PRIMARY_BTN_SM}`}>
-                              Accept
-                            </button>
-                          ) : isScheduled ? (
-                            <button type="button" onClick={() => handleCheckInMotorcycle(ticket)} className={`${PRIMARY_BTN_SM}`}>
-                              Check in
-                            </button>
-                          ) : isCompleted ? (
+                          {isCompleted ? (
                             <div className="flex items-center gap-1">
                               {onOpenJobOrderPrint && (
                                 <button
@@ -897,24 +916,8 @@ export function InternalQueueTab({
                             <button type="button" onClick={() => handleLateCheckIn(ticket)} className={PRIMARY_BTN_SM}>
                               Late check-in
                             </button>
-                          ) : ticket.status === 'CANCELLED' || ticket.status === 'CANCELLED_BY_ADMIN' ? (
-                            <span className="text-slate-400 text-xs">—</span>
-                          ) : ticket.stage === 1 ? (
-                            <button type="button" onClick={() => onOpenDispatch(ticket)} className={`${PRIMARY_BTN_SM}`}>
-                              Assign bay
-                            </button>
-                          ) : ticket.stage >= 2 && ticket.stage < 4 ? (
-                            <button
-                              type="button"
-                              onClick={() => handleQuickAdvanceStage(ticket, ticket.stage + 1)}
-                              className={`${PRIMARY_BTN_SM}`}
-                            >
-                              Stage {ticket.stage + 1}
-                            </button>
                           ) : (
-                            <button type="button" onClick={() => onOpenStage5Billing(ticket)} className={`${PRIMARY_BTN_SM}`}>
-                              {ticket.stage === 4 ? 'Mark ready' : 'Release'}
-                            </button>
+                            <span className="text-slate-400 text-xs">—</span>
                           )}
                         </div>
                       </td>
@@ -930,14 +933,7 @@ export function InternalQueueTab({
   const renderTicketCard = (ticket: InternalTicket) => {
             const isPending = isPendingOnlineBooking(ticket);
             const isScheduled = isScheduledBooking(ticket);
-            const isCompleted = ticket.status === 'COMPLETED';
-            const isCancelled = ticket.status === 'CANCELLED' || ticket.status === 'CANCELLED_BY_ADMIN';
-            const isMissed = ticket.status === 'MISSED' || ticket.status === 'NO_SHOW';
-            // Motorcycle is in the shop (not a request, appointment, or closed ticket)
-            const isActiveTicket = !isPending && !isScheduled && !isCompleted && !isCancelled && !isMissed;
             const isUpdating = updatingId === ticket.id;
-            const elapsed = getElapsedText(ticket.created_at);
-            const review = parseTicketReview(ticket.notes);
             const apptInfo = formatAppointmentDate(ticket.dropoff_date);
             const bookedDate = formatBookingCreatedDate(ticket.created_at);
 
@@ -954,18 +950,11 @@ export function InternalQueueTab({
             return (
               <div
                 key={ticket.id}
-                className={`relative overflow-hidden bg-white border hover:border-slate-300 rounded-2xl sm:rounded-[1.5rem] p-5 card-elevated space-y-4 transition ${
+                id={`ticket-${ticket.id}`}
+                className={`scroll-mt-28 bg-white border hover:border-slate-300 rounded-2xl sm:rounded-[1.5rem] p-5 card-elevated space-y-4 transition ${
                   isPending ? 'border-orange-300 ring-4 ring-orange-100' : 'border-slate-200/70'
                 }`}
               >
-                {/* Stage accent on the left edge: darker orange the closer it is to release */}
-                {isActiveTicket && (
-                  <span
-                    aria-hidden="true"
-                    className={`absolute left-0 inset-y-0 w-1 ${STAGE_ACCENT[Math.min(Math.max(ticket.stage, 1), 5)]}`}
-                  />
-                )}
-
                 {/* 1. Header: ticket number, motorcycle, plate, time, status */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -990,10 +979,8 @@ export function InternalQueueTab({
                           <Calendar className="w-3.5 h-3.5 text-slate-400" />
                           {apptInfo.label}
                         </span>
-                      ) : isPending || isCompleted || isCancelled || isMissed ? (
-                        <span>Booked {bookedDate}</span>
                       ) : (
-                        <span>{elapsed}</span>
+                        <span>Booked {bookedDate}</span>
                       )}
                       {ticket.is_walk_in && (
                         <>
@@ -1017,45 +1004,11 @@ export function InternalQueueTab({
                   <div className="shrink-0">
                     {isPending ? (
                       <StatusPill label="New request" tone="waiting" />
-                    ) : isScheduled ? (
-                      <StatusPill label="Scheduled" tone="waiting" />
-                    ) : isCompleted ? (
-                      <StatusPill label="Released" tone="done" />
-                    ) : isCancelled ? (
-                      <StatusPill label="Cancelled" tone="void" />
-                    ) : isMissed ? (
-                      <StatusPill label="Missed" tone="missed" />
                     ) : (
-                      <StatusPill label={`Stage ${ticket.stage} · ${stageName(ticket.stage)}`} tone="stage" />
+                      <StatusPill label="Scheduled" tone="waiting" />
                     )}
                   </div>
                 </div>
-
-                {/* 5-step repair progress (what the customer sees on their dashboard) */}
-                {!isPending && !isScheduled && !isCompleted && !isCancelled && !isMissed && (
-                  <div className="grid grid-cols-5 gap-1" aria-label={`Stage ${ticket.stage} of 5`}>
-                    {SERVICE_STAGES.map((st) => (
-                      <div key={st.step} className="space-y-1 min-w-0">
-                        <div
-                          className={`h-1.5 rounded-full ${
-                            st.step < ticket.stage
-                              ? 'bg-orange-300'
-                              : st.step === ticket.stage
-                              ? 'bg-orange-500'
-                              : 'bg-slate-200'
-                          }`}
-                        />
-                        <span
-                          className={`block text-[11px] truncate ${
-                            st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-400'
-                          }`}
-                        >
-                          {st.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
 
                 {/* 2. Customer, Phone, Schedule & Service Package Details */}
                 <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 text-sm pt-3 border-t border-slate-100">
@@ -1095,112 +1048,11 @@ export function InternalQueueTab({
                   </div>
                 )}
 
-                {/* 4. Customer review (if any) */}
-                {review && (
-                  <div className="px-3.5 py-2.5 bg-amber-50/60 rounded-xl text-sm flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3.5 h-3.5 ${i < review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs font-medium text-slate-700">{review.rating}/5</span>
-                      </div>
-                      {review.comment && <p className="text-slate-700 text-xs truncate mt-0.5">&ldquo;{review.comment}&rdquo;</p>}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onNavigateTab?.('reviews')}
-                      className="text-xs font-semibold text-orange-600 hover:text-orange-700 shrink-0 cursor-pointer"
-                    >
-                      Reviews →
-                    </button>
-                  </div>
-                )}
-
-                {/* 5. Footer Action Bar */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100">
-                  {/* Left: bay, mechanic, quick links */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {ticket.assigned_bay && ticket.assigned_bay !== 'Bay Assignment Pending' ? (
-                      <span className={`${CHIP} bg-slate-100 text-slate-800`}>
-                        <Wrench className="w-3.5 h-3.5 text-slate-400" />
-                        {ticket.assigned_bay}
-                      </span>
-                    ) : !isPending && !isScheduled && !isCompleted && !isCancelled && !isMissed ? (
-                      <span className={`${CHIP} bg-amber-50 text-amber-800`}>
-                        <AlertTriangle className="w-3.5 h-3.5" />
-                        No bay yet
-                      </span>
-                    ) : null}
-
-                    {ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAssignMechanic(ticket)}
-                        className={`${CHIP} bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700 transition cursor-pointer`}
-                        title="Change mechanic"
-                      >
-                        <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                        {ticket.assigned_mechanic}
-                        <Edit className="w-3 h-3 text-slate-400" />
-                      </button>
-                    ) : !isCompleted && !isCancelled && !isMissed ? (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenAssignMechanic(ticket)}
-                        className={`${CHIP} border border-dashed border-slate-300 hover:border-orange-300 text-slate-500 hover:text-orange-700 transition cursor-pointer`}
-                        title="Assign a mechanic"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Mechanic
-                      </button>
-                    ) : null}
-
-                  </div>
-
-                  {/* Right: small tools, then the main action for this ticket */}
-                  <div className="flex items-center gap-2 justify-end sm:ml-auto">
-                    <MoreMenu
-                      items={[
-                        ...(onNavigateTab
-                          ? [{ label: 'Chat with customer', icon: MessageSquare, onClick: () => onNavigateTab('messages') }]
-                          : []),
-                        ...(ticket.motorcycles?.plate_number
-                          ? [
-                              {
-                                label: 'Previous visits',
-                                icon: History,
-                                onClick: () =>
-                                  setHistoryVehicle({
-                                    plate_number: ticket.motorcycles?.plate_number || 'NO PLATE',
-                                    model: ticket.motorcycles?.model || 'Motorcycle',
-                                    year_model: ticket.motorcycles?.year_model || '2024',
-                                    odometer: ticket.motorcycles?.odometer || '',
-                                    owner_name: customerName,
-                                    owner_phone: rawPhone || '',
-                                  }),
-                              },
-                            ]
-                          : []),
-                        ...(isActiveTicket && ticket.is_walk_in
-                          ? [{ label: 'Walk-in ticket slip', icon: Ticket, onClick: () => setClaimSlipTicket(ticket) }]
-                          : []),
-                        ...(isActiveTicket && onOpenJobOrderPrint
-                          ? [{ label: 'Print job order', icon: Printer, onClick: () => onOpenJobOrderPrint(ticket) }]
-                          : []),
-                        ...(isActiveTicket && canVoidTicket(currentRole)
-                          ? [{ label: 'Cancel ticket', icon: Trash2, onClick: () => setVoidTarget(ticket), danger: true }]
-                          : []),
-                      ]}
-                    />
-
+                {/* Small tools, then the main action */}
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                  <MoreMenu items={getMenuItems(ticket)} />
                   {isPending ? (
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                    <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto min-w-0">
                       <button
                         type="button"
                         disabled={isUpdating}
@@ -1219,8 +1071,8 @@ export function InternalQueueTab({
                         <span>Accept booking</span>
                       </button>
                     </div>
-                  ) : isScheduled ? (
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto min-w-0">
                       <button
                         type="button"
                         onClick={() => {
@@ -1243,72 +1095,7 @@ export function InternalQueueTab({
                         <span>{apptInfo?.isToday ? 'Check in' : 'Check in early'}</span>
                       </button>
                     </div>
-                  ) : !isCompleted && !isCancelled && !isMissed ? (
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      {/* Walk-in: reprint the claim slip */}
-                      {ticket.stage === 1 && (
-                        <button type="button" onClick={() => onOpenDispatch(ticket)} className={PRIMARY_BTN}>
-                          <Wrench className="w-4 h-4" />
-                          <span>Assign bay</span>
-                        </button>
-                      )}
-
-                      {ticket.stage >= 2 && ticket.stage < 4 && (
-                        <button
-                          type="button"
-                          disabled={isUpdating}
-                          onClick={() => handleQuickAdvanceStage(ticket, ticket.stage + 1)}
-                          className={PRIMARY_BTN}
-                        >
-                          <span>Move to stage {ticket.stage + 1}</span>
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      )}
-
-                      {ticket.stage === 4 && (
-                        <button type="button" onClick={() => onOpenStage5Billing(ticket)} className={PRIMARY_BTN}>
-                          <KeyRound className="w-4 h-4" />
-                          <span>Mark ready</span>
-                        </button>
-                      )}
-
-                      {ticket.stage === 5 && (
-                        <button type="button" onClick={() => onOpenStage5Billing(ticket)} className={PRIMARY_BTN}>
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span>Release</span>
-                        </button>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {isCompleted && (
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      {onOpenJobOrderPrint && (
-                        <button type="button" onClick={() => onOpenJobOrderPrint(ticket)} className={SECONDARY_BTN}>
-                          <Printer className="w-4 h-4 text-slate-400" />
-                          <span>Job order</span>
-                        </button>
-                      )}
-                      {onOpenReceiptPrint && (
-                        <button type="button" onClick={() => onOpenReceiptPrint(ticket)} className={SECONDARY_BTN}>
-                          <Printer className="w-4 h-4 text-slate-400" />
-                          <span>Gate pass</span>
-                        </button>
-                      )}
-                    </div>
                   )}
-
-                  {isMissed && (
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      <button type="button" onClick={() => setRescheduleTarget(ticket)} className={SECONDARY_BTN}>
-                        Reschedule
-                      </button>
-                      <button type="button" onClick={() => handleLateCheckIn(ticket)} className={PRIMARY_BTN}>
-                        Late check-in
-                      </button>
-                    </div>
-                  )}
-                  </div>
                 </div>
               </div>
             );
@@ -1423,7 +1210,7 @@ export function InternalQueueTab({
       {/* 2. In the shop: board by stage (default), cards, or list */}
       <section
         id="q-shop"
-        className="scroll-mt-28 bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated overflow-clip"
+        className="scroll-mt-28 bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated"
       >
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-200/80">
           <div className="flex items-center gap-3 min-w-0">
@@ -1434,34 +1221,11 @@ export function InternalQueueTab({
               <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">
                 In the shop <span className="text-slate-400 font-semibold">({sections.inShop.length})</span>
               </h2>
-              <p className="text-sm text-slate-500">Motorcycles being worked on, by repair stage</p>
+              <p className="text-sm text-slate-500">
+                {baysInUse} of {bayCount} bays in use
+                {sections.inShop.length > baysInUse ? ` · ${sections.inShop.length - baysInUse} waiting for a bay` : ''}
+              </p>
             </div>
-          </div>
-          <div className="flex items-center p-1 bg-slate-100 rounded-full shrink-0" role="group" aria-label="Layout">
-            {(
-              [
-                { id: 'board', label: 'Board', icon: Kanban },
-                { id: 'grid', label: 'Cards', icon: LayoutGrid },
-                { id: 'table', label: 'List', icon: List },
-              ] as const
-            ).map((opt) => {
-              const Icon = opt.icon;
-              const selected = viewLayout === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setViewLayout(opt.id)}
-                  aria-pressed={selected}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
-                    selected ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <Icon className="w-3.5 h-3.5" />
-                  {opt.label}
-                </button>
-              );
-            })}
           </div>
         </div>
 
@@ -1487,12 +1251,8 @@ export function InternalQueueTab({
               </button>
             )}
           </div>
-        ) : viewLayout === 'board' ? (
-          renderBoard(sections.inShop)
-        ) : viewLayout === 'table' ? (
-          renderTable(sections.inShop)
         ) : (
-          <div className="p-4 sm:p-5 bg-slate-50/60">{renderCardGrid(sections.inShop)}</div>
+          renderShopList(sections.inShop)
         )}
       </section>
 
@@ -1610,53 +1370,14 @@ export function InternalQueueTab({
       )}
 
 
-      {/* Soft Cancellation / Void Modal */}
+      {/* Decline a booking or cancel a ticket, with a reason */}
       {voidTarget && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <ScrollLock />
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div>
-              <h3 className="font-bold text-base text-slate-900">
-                {isPendingOnlineBooking(voidTarget) ? 'Decline Online Booking' : 'Cancel & Void Service Ticket'}
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Ticket <strong className="text-orange-600 font-mono">#{voidTarget.ticket_code}</strong> • {voidTarget.customer_name}
-              </p>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 block">
-                Reason for Cancellation
-              </label>
-              <textarea
-                rows={3}
-                value={voidReason}
-                onChange={(e) => setVoidReason(e.target.value)}
-                placeholder="e.g. Customer cancelled via call, no available parts in stock, customer duplicate booking..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition resize-none"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setVoidTarget(null)}
-                disabled={isVoiding}
-                className="px-4 py-2 text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
-              >
-                Keep Ticket
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmVoid}
-                disabled={isVoiding}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition cursor-pointer"
-              >
-                {isVoiding ? 'Cancelling...' : 'Confirm Cancellation'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CancelTicketModal
+          ticket={voidTarget}
+          currentStaffName={currentStaffName}
+          onClose={() => setVoidTarget(null)}
+          onDone={onRefresh}
+        />
       )}
 
       {/* Assisted Reschedule Modal */}

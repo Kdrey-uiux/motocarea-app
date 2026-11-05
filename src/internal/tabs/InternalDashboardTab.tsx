@@ -1,9 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../lib/supabase';
-import { broadcastTicketSync } from '../../lib/realtimeSync';
-import { recordAuditLog } from '../utils/databaseAuditLogger';
-import { isAwaitingArrival } from '../utils/ticketActions';
+import { acceptOnlineBooking, isAwaitingArrival, isPendingOnlineBooking } from '../utils/ticketActions';
 import { toast } from '../utils/toast';
 import { useNow } from '../hooks/useNow';
 import { InternalTicket, UserRole, InternalTab } from '../types/internal';
@@ -23,6 +21,7 @@ import {
   getDailyCapacityLimit
 } from '../../utils/workshopCapacity';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
+import CancelTicketModal from '../modals/CancelTicketModal';
 import PhoneRequestsCard from '../components/PhoneRequestsCard';
 import { normalizeBayNumber } from '../utils/bays';
 import { useBayCount, bayList } from '../../utils/workshopBays';
@@ -80,8 +79,6 @@ export interface WorkshopDashboardProps {
   tickets?: InternalTicket[];
   loading?: boolean;
   onRefresh?: () => void;
-  onOpenDispatch?: (ticket: InternalTicket) => void;
-  onOpenStage5Billing?: (ticket: InternalTicket) => void;
   setActiveTab?: (tab: InternalTab) => void;
   /** Opens the Queue on a specific view (e.g. pending online bookings) */
   onOpenQueueView?: (view: OperationalView) => void;
@@ -117,8 +114,6 @@ export function WorkshopDashboard({
   tickets = [],
   loading: _loading,
   onRefresh,
-  onOpenDispatch,
-  onOpenStage5Billing,
   setActiveTab,
   onOpenQueueView,
   currentRole,
@@ -134,6 +129,7 @@ export function WorkshopDashboard({
   const [volumeView, setVolumeView] = useState<'WEEKLY' | 'MONTHLY'>('WEEKLY');
   const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
   const [updatingTicketId, setUpdatingTicketId] = useState<string | null>(null);
+  const [declineTarget, setDeclineTarget] = useState<InternalTicket | null>(null);
 
   // Daily booking capacity (6 slots, closed Sundays)
   const todayDateStr = useMemo(() => {
@@ -209,17 +205,8 @@ export function WorkshopDashboard({
   }, [tickets]);
 
   // 2. Header Status Counters: In Queue & Scheduled Today
-  const inQueueCount = useMemo(() => {
-    return tickets.filter(
-      (t) =>
-        t.stage === 1 &&
-        t.status !== 'COMPLETED' &&
-        t.status !== 'CANCELLED' &&
-        t.status !== 'CANCELLED_BY_ADMIN' &&
-        t.status !== 'PENDING_CONFIRMATION' &&
-        !t.notes?.includes('[BOOKING:PENDING_CONFIRMATION]')
-    ).length;
-  }, [tickets]);
+  // Only motorcycles really at the shop (not bookings that haven't arrived, not missed ones)
+  const inQueueCount = useMemo(() => activeFloorTickets.filter((t) => t.stage === 1).length, [activeFloorTickets]);
 
   const scheduledTodayCount = useMemo(() => {
     return tickets.filter(
@@ -227,7 +214,9 @@ export function WorkshopDashboard({
         !t.is_walk_in &&
         isToday(t.dropoff_date || t.created_at) &&
         t.status !== 'CANCELLED' &&
-        t.status !== 'CANCELLED_BY_ADMIN'
+        t.status !== 'CANCELLED_BY_ADMIN' &&
+        t.status !== 'MISSED' &&
+        t.status !== 'NO_SHOW'
     ).length;
   }, [tickets]);
 
@@ -332,14 +321,25 @@ export function WorkshopDashboard({
     };
   }, [tickets, selectedPeriod, occupiedBaysCount, activeLiftsCount, maintenanceBaysCount, bayUtilizationPct]);
 
-  // Pending Online Booking Requests
-  const pendingRequestsCount = useMemo(() => {
-    return tickets.filter(
-      (t) =>
-        t.status === 'PENDING_CONFIRMATION' ||
-        Boolean(t.notes && t.notes.includes('[BOOKING:PENDING_CONFIRMATION]'))
-    ).length;
+  // Online booking requests, oldest first (they can be answered right here)
+  const pendingRequests = useMemo(() => {
+    return tickets
+      .filter((t) => isPendingOnlineBooking(t) && !['CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW', 'COMPLETED'].includes(t.status))
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
   }, [tickets]);
+  const pendingRequestsCount = pendingRequests.length;
+
+  const handleAcceptRequest = async (ticket: InternalTicket) => {
+    setUpdatingTicketId(ticket.id);
+    const result = await acceptOnlineBooking(ticket, currentUserName);
+    setUpdatingTicketId(null);
+    if (!result.success) {
+      toast.error('Error: ' + (result.error || 'Failed to accept the booking.'));
+      return;
+    }
+    toast.success(`#${ticket.ticket_code} accepted. Check it in when the rider arrives.`);
+    onRefresh?.();
+  };
 
   // Customer rating: same published numbers the public sees on the landing page
   const [reviewStats, setReviewStats] = useState<{ count: number; avg: string }>({ count: 0, avg: '0.0' });
@@ -489,59 +489,6 @@ export function WorkshopDashboard({
     );
   }, [activeFloorTickets, tickets]);
 
-  // Quick Advance Action
-  // Stage 1 → pick a bay first; 2-3 → next stage; 4 → ready for pickup; 5 → release at the counter
-  const handleQuickAdvance = async (ticket: InternalTicket) => {
-    if (ticket.stage >= 5) {
-      if (onOpenStage5Billing) {
-        onOpenStage5Billing(ticket);
-      } else {
-        handleNavigate('queue');
-      }
-      return;
-    }
-
-    if (ticket.stage === 1 || !ticket.assigned_bay) {
-      onOpenDispatch?.(ticket);
-      return;
-    }
-
-    {
-      try {
-        setUpdatingTicketId(ticket.id);
-        const nextStage = ticket.stage + 1;
-        const updates = { stage: nextStage, status: nextStage === 5 ? 'READY_FOR_PICKUP' : 'IN_PROGRESS' };
-        const { data: savedRows, error } = await db()
-          .from('service_tickets')
-          .update(updates)
-          .eq('id', ticket.id)
-          .select('id');
-
-        if (error) throw error;
-        if (!savedRows || savedRows.length === 0) throw new Error('The stage change was not saved.');
-
-        // Realtime cross-device broadcast
-        broadcastTicketSync({ id: ticket.id, ticket_code: ticket.ticket_code, ...updates });
-
-        await recordAuditLog({
-          ticketCode: ticket.ticket_code,
-          action: 'STAGE_CHANGE',
-          actor: currentUserName,
-          details: `Stage advanced from Stage ${ticket.stage} to Stage ${nextStage} from Workshop Dashboard`,
-          previousValue: `Stage ${ticket.stage}`,
-          newValue: `Stage ${nextStage}`,
-        });
-
-        if (onRefresh) onRefresh();
-      } catch (err) {
-        console.error('Failed to advance stage:', err);
-        toast.error(err instanceof Error ? err.message : 'Failed to advance stage.');
-      } finally {
-        setUpdatingTicketId(null);
-      }
-    }
-  };
-
   const hour = new Date(now).getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   const firstName = currentUserName.trim().split(/\s+/)[0] || 'there';
@@ -601,9 +548,9 @@ export function WorkshopDashboard({
         </button>
       </div>
 
-      {/* Pending online bookings */}
+      {/* Online booking requests: accept or decline right here */}
       {pendingRequestsCount > 0 && (
-        <div className={`${card} p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 animate-in fade-in duration-200`}>
+        <section className={`${card} p-4 sm:p-5 space-y-3 animate-in fade-in duration-200`}>
           <div className="flex items-center gap-3 min-w-0">
             {/* Same orange icon tile as the sidebar */}
             <div className="w-11 h-11 rounded-[12px] bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
@@ -613,22 +560,60 @@ export function WorkshopDashboard({
               <h3 className="font-display font-bold text-base text-slate-900">
                 {pendingRequestsCount} new booking request{pendingRequestsCount > 1 ? 's' : ''}
               </h3>
-              <p className="text-xs sm:text-sm text-slate-500">
-                {pendingRequestsCount > 1
-                  ? 'Riders are waiting for you to accept or decline their online bookings.'
-                  : 'A rider is waiting for you to accept or decline their online booking.'}
-              </p>
+              <p className="text-xs sm:text-sm text-slate-500">Accept or decline. Riders are waiting for your answer.</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => (onOpenQueueView ? onOpenQueueView('PENDING') : setActiveTab?.('queue'))}
-            className={`px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-full text-sm transition cursor-pointer self-start sm:self-auto ${orangeButtonShadow} active:scale-95 shrink-0 flex items-center gap-1.5`}
-          >
-            Review requests
-            <ArrowUpRight className="w-4 h-4" />
-          </button>
-        </div>
+
+          <ul className="divide-y divide-slate-100 border-t border-slate-100">
+            {pendingRequests.slice(0, 3).map((t) => (
+              <li key={t.id} className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-900 flex flex-wrap items-center gap-x-2">
+                    {t.motorcycles?.model || 'Motorcycle'}
+                    <span className="font-mono text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                      {t.motorcycles?.plate_number || 'No plate'}
+                    </span>
+                  </p>
+                  <p className="text-xs sm:text-sm text-slate-500">
+                    {t.customer_name || 'Rider'} · {t.service_type}
+                    {t.dropoff_date
+                      ? ` · ${new Date(`${t.dropoff_date}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+                      : ''}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 sm:flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={updatingTicketId === t.id}
+                    onClick={() => setDeclineTarget(t)}
+                    className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-rose-50 hover:border-rose-200 hover:text-rose-700 text-slate-700 text-sm font-semibold transition cursor-pointer disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    type="button"
+                    disabled={updatingTicketId === t.id}
+                    onClick={() => handleAcceptRequest(t)}
+                    className={`px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition cursor-pointer active:scale-95 disabled:opacity-50 ${orangeButtonShadow}`}
+                  >
+                    Accept
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {pendingRequestsCount > 3 && (
+            <button
+              type="button"
+              onClick={() => (onOpenQueueView ? onOpenQueueView('PENDING') : setActiveTab?.('queue'))}
+              className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 cursor-pointer transition"
+            >
+              See all {pendingRequestsCount} in the Queue
+              <ArrowUpRight className="w-4 h-4" />
+            </button>
+          )}
+        </section>
       )}
 
       {/* Owner: riders asking to change their mobile number (hidden when none) */}
@@ -906,14 +891,6 @@ export function WorkshopDashboard({
               {activeFloorTickets.slice(0, 4).map((t) => {
                 const elapsedStr = getElapsedTimeBadge(t.created_at).replace(' elapsed', '');
                 const stageName = ['Intake', 'Inspection', 'Repair', 'Testing', 'Ready'][Math.min(Math.max(t.stage, 1), 5) - 1];
-                const actionLabel =
-                  t.stage >= 5
-                    ? 'Release'
-                    : t.stage === 1 || !t.assigned_bay
-                    ? 'Assign bay'
-                    : t.stage === 4
-                    ? 'Mark ready'
-                    : 'Next stage';
 
                 return (
                   <div key={t.id} className="px-1 py-3.5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -937,24 +914,19 @@ export function WorkshopDashboard({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pl-14 sm:pl-0">
+                    <div className="shrink-0 pl-14 sm:pl-0">
                       <div className="text-xs sm:text-right leading-tight">
                         <span className="block font-medium text-slate-700 truncate max-w-[150px]">
                           {t.assigned_bay || 'No bay yet'} · {t.assigned_mechanic || 'No mechanic'}
                         </span>
-                        <span className="text-slate-400 flex items-center gap-1 sm:justify-end">
-                          <Clock className="w-3 h-3" />
-                          {elapsedStr} in the shop
-                        </span>
+                        {/* Only a walk-in's ticket starts when the motorcycle arrives */}
+                        {t.is_walk_in && (
+                          <span className="text-slate-400 flex items-center gap-1 sm:justify-end">
+                            <Clock className="w-3 h-3" />
+                            {elapsedStr} in the shop
+                          </span>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        disabled={updatingTicketId === t.id}
-                        onClick={() => handleQuickAdvance(t)}
-                        className="px-3.5 py-1.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-semibold text-xs sm:text-sm transition cursor-pointer active:scale-95 disabled:opacity-50 shrink-0 shadow-sm shadow-orange-500/25"
-                      >
-                        {actionLabel}
-                      </button>
                     </div>
                   </div>
                 );
@@ -1038,6 +1010,15 @@ export function WorkshopDashboard({
         )}
 
       </div>
+
+      {declineTarget && (
+        <CancelTicketModal
+          ticket={declineTarget}
+          currentStaffName={currentUserName}
+          onClose={() => setDeclineTarget(null)}
+          onDone={() => onRefresh?.()}
+        />
+      )}
 
       {/* New Walk-in Ticket Modal */}
       <NewWalkInTicketModal
