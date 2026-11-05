@@ -6,7 +6,8 @@ import {
   Bell, 
   Check,
   ChevronDown,
-  User,
+  Settings,
+  ArrowUpRight,
   CheckCheck,
   Stamp,
   Sun,
@@ -331,20 +332,28 @@ export default function InternalHeader({
                     </div>
                   </div>
 
-                  {/* Team is an owner-only page */}
-                  {currentRole === 'admin' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        setActiveTab?.('staff');
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
-                    >
-                      <User className="w-4 h-4 text-slate-400" />
-                      <span>Team</span>
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setActiveTab?.('settings');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition cursor-pointer"
+                  >
+                    <Settings className="w-4 h-4 text-slate-400" />
+                    <span>Settings</span>
+                  </button>
+
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setIsUserMenuOpen(false)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition"
+                  >
+                    <ArrowUpRight className="w-4 h-4 text-slate-400" />
+                    <span>View website</span>
+                  </a>
 
                   {onChangeTheme && (
                     <div className="px-3 pt-1.5 pb-2">

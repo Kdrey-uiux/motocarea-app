@@ -182,3 +182,15 @@ export function validatePlate(raw: string): FieldError {
   if (!isValidLTOPlate(plate)) return 'Not a valid plate. Examples: NDE 1234, AB 12345, or an MV file no.';
   return null;
 }
+
+/** The password rules, as a checklist for the rider and the console forms */
+export function passwordChecks(password: string): { id: string; label: string; valid: boolean }[] {
+  return [
+    { id: 'length', label: '8+ characters', valid: password.length >= 8 },
+    { id: 'uppercase', label: 'Uppercase (A-Z)', valid: /[A-Z]/.test(password) },
+    { id: 'lowercase', label: 'Lowercase (a-z)', valid: /[a-z]/.test(password) },
+    { id: 'number', label: 'Number (0-9)', valid: /[0-9]/.test(password) },
+    { id: 'special', label: 'Special symbol', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(password) },
+    { id: 'nospace', label: 'No spaces', valid: !/\s/.test(password) && password.length > 0 },
+  ];
+}

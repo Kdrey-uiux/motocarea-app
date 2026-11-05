@@ -47,6 +47,7 @@ import InternalAuditTab from './tabs/InternalAuditTab';
 import InternalMessagesTab from './tabs/InternalMessagesTab';
 import InternalFleetTab from './tabs/InternalFleetTab';
 import InternalHistoryTab from './tabs/InternalHistoryTab';
+import InternalSettingsTab from './tabs/InternalSettingsTab';
 import InternalServicesTab from './tabs/InternalServicesTab';
 
 /**
@@ -698,6 +699,16 @@ export default function InternalConsole() {
               tickets={tickets}
               currentStaffName={currentUserName}
               initialUserId={messagesFocusUserId}
+            />
+          )}
+
+          {activeTab === 'settings' && (
+            <InternalSettingsTab
+              currentRole={currentRole}
+              currentUserName={currentUserName}
+              email={session.email}
+              themePreference={themePreference}
+              onChangeTheme={setThemePreference}
             />
           )}
 

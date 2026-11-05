@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Star,
   History,
+  Settings,
   SignOutIcon,
   X,
   LucideIcon,
@@ -222,6 +223,10 @@ export default function InternalSidebar({
         { id: 'staff', label: 'Team', icon: Users },
         { id: 'audit', label: 'Activity Logs', icon: ShieldCheck },
       ],
+    },
+    {
+      title: 'Account',
+      items: [{ id: 'settings', label: 'Settings', icon: Settings }],
     },
   ];
   const groups = allGroups

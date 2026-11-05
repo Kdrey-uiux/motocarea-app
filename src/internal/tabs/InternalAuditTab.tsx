@@ -51,6 +51,7 @@ const ACTION_LABELS: Record<string, string> = {
   STAFF_DEACTIVATED: 'Turned off a staff account',
   PASSWORD_RESET_DISPATCHED: 'Sent a password reset',
   PASSWORD_RESET_SUCCESS: 'Password was reset',
+  PASSWORD_CHANGED: 'Changed their own password',
   EMAIL_VERIFIED_SUCCESS: 'Confirmed a staff email',
   REVIEW_SUBMITTED: 'Rider left a review',
   REVIEW_PUBLISHED: 'Showed a review on the website',

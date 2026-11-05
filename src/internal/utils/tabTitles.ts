@@ -11,6 +11,7 @@ export const INTERNAL_TAB_INFO: Record<InternalTab, { title: string; subtitle: s
   fleet: { title: 'Vehicles', subtitle: 'Customer motorcycles and the motorcycle model catalog.' },
   services: { title: 'Services', subtitle: 'Service packages customers can book.' },
   dashboard: { title: 'Dashboard', subtitle: 'Overview of today’s workshop activity.' },
+  settings: { title: 'Settings', subtitle: 'Your account, password and appearance.' },
   staff: { title: 'Team', subtitle: 'Owner and staff accounts.' },
   audit: { title: 'Activity Logs', shortTitle: 'Logs', subtitle: 'Who did what, and when.' },
 };
@@ -29,6 +30,7 @@ export const INTERNAL_TAB_SLUGS: Record<InternalTab, string> = {
   history: 'history',
   fleet: 'vehicles',
   services: 'services',
+  settings: 'settings',
   staff: 'team',
   audit: 'activity-logs',
 };

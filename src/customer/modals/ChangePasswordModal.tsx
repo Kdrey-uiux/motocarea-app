@@ -12,6 +12,7 @@ import {
   Check
 } from '../../components/icons';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
+import { passwordChecks } from '../../utils/validators';
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -32,14 +33,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
   });
 
   // Concise 6-Point Strict Password Criteria (Zero text-wrapping across all screen widths)
-  const passwordCriteria = useMemo(() => [
-    { id: 'length', label: '8+ characters', valid: newPassword.length >= 8 },
-    { id: 'uppercase', label: 'Uppercase (A-Z)', valid: /[A-Z]/.test(newPassword) },
-    { id: 'lowercase', label: 'Lowercase (a-z)', valid: /[a-z]/.test(newPassword) },
-    { id: 'number', label: 'Number (0-9)', valid: /[0-9]/.test(newPassword) },
-    { id: 'special', label: 'Special symbol', valid: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?~]/.test(newPassword) },
-    { id: 'nospace', label: 'No spaces', valid: !/\s/.test(newPassword) && newPassword.length > 0 },
-  ], [newPassword]);
+  const passwordCriteria = useMemo(() => passwordChecks(newPassword), [newPassword]);
 
   const passwordScore = useMemo(() => {
     return passwordCriteria.filter((c) => c.valid).length;

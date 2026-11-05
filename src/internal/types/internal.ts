@@ -10,7 +10,8 @@ export type InternalTab =
   | 'messages'
   | 'fleet'
   | 'history'
-  | 'services';
+  | 'services'
+  | 'settings';
 
 export interface BillingLineItem {
   id: string;
