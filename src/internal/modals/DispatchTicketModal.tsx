@@ -9,14 +9,12 @@ import { parseTicketNotes } from '../../utils/ticketNotesParser';
 import MechanicPicker from '../components/MechanicPicker';
 import {
   X,
-  Wrench,
   AlertTriangle,
   Loader2,
   History,
   Clock,
   CheckCircle,
   Check,
-  MessageSquareText,
 } from '../../components/icons';
 import VehicleHistoryModal from './VehicleHistoryModal';
 import { toast } from '../utils/toast';
@@ -62,9 +60,9 @@ function withFindings(notes: string | null | undefined, findings: string): strin
   return base ? `${base} | Mechanic Findings: ${clean}` : `Mechanic Findings: ${clean}`;
 }
 
-const sectionLabel = 'text-xs font-bold text-slate-800';
+const sectionLabel = 'text-sm font-semibold text-slate-800';
 const inputClass =
-  'w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition';
+  'w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
 export default function DispatchTicketModal({
   ticket,
@@ -246,66 +244,62 @@ export default function DispatchTicketModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
       <ScrollLock />
       <form
         onSubmit={handleSave}
-        className={`bg-white border border-slate-200 text-slate-800 w-full ${isAssignMode ? 'max-w-lg' : 'max-w-2xl'} rounded-3xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]`}
+        className={`bg-white text-slate-800 w-full ${isAssignMode ? 'max-w-lg' : 'max-w-2xl'} rounded-[1.75rem] shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200 max-h-[92vh]`}
       >
         {/* Header */}
-        <div className="px-5 sm:px-6 py-4 border-b border-slate-200 bg-slate-50 space-y-3 shrink-0">
+        <div className="px-5 sm:px-6 pt-5 pb-4 border-b border-slate-100 space-y-3 shrink-0">
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shadow-xs shrink-0">
-                <Wrench className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="font-bold text-base text-slate-900">{isAssignMode ? 'Assign a bay' : 'Update job'}</h2>
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold">
-                    #{ticket.ticket_code}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 truncate">
-                  {ticket.motorcycles?.model || 'Motorcycle'} •{' '}
-                  <span className="font-mono">{ticket.motorcycles?.plate_number || 'NO PLATE'}</span> •{' '}
-                  {ticket.customer_name || 'Rider Customer'}
-                  {ticket.motorcycles?.plate_number && (
-                    <button
-                      type="button"
-                      onClick={() => setShowHistoryModal(true)}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:underline cursor-pointer ml-2"
-                    >
-                      <History className="w-3 h-3" /> History
-                    </button>
-                  )}
-                </p>
-              </div>
+            <div className="min-w-0">
+              <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">
+                {isAssignMode ? 'Assign a bay' : 'Update job'}
+              </h2>
+              <p className="text-sm text-slate-500 break-words">
+                {ticket.motorcycles?.model || 'Motorcycle'}
+                <span className="font-mono"> · {ticket.motorcycles?.plate_number || 'No plate'}</span> ·{' '}
+                {ticket.customer_name || 'Rider Customer'}
+              </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
+              className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
               aria-label="Close"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex items-start gap-2 p-2.5 rounded-xl bg-white border border-slate-200 text-xs">
-            <MessageSquareText className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <span className="font-bold text-slate-700">Customer's report: </span>
-              <span className="text-slate-600">{customerReport.symptoms || 'No symptoms reported.'}</span>
-              <span className="block text-[11px] text-slate-400 mt-0.5">Service: {ticket.service_type}</span>
-            </div>
+          <div className="px-3.5 py-2.5 rounded-2xl bg-slate-50 text-sm">
+            <p className="text-slate-800 break-words">
+              <span className="text-slate-500">Service: </span>
+              {ticket.service_type}
+            </p>
+            {customerReport.symptoms && (
+              <p className="mt-0.5 text-slate-800 break-words">
+                <span className="text-slate-500">Rider&apos;s concern: </span>
+                {customerReport.symptoms}
+              </p>
+            )}
+            {ticket.motorcycles?.plate_number && (
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(true)}
+                className="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+              >
+                <History className="w-3.5 h-3.5" /> Previous visits
+              </button>
+            )}
           </div>
         </div>
 
         {/* Body (scrolls) */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 text-xs">
+        <div className="px-5 sm:px-6 py-5 overflow-y-auto space-y-5 text-sm">
           {errorMsg && (
-            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2">
+            <div className="p-3 bg-rose-50 text-rose-700 rounded-2xl flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
               <span className="leading-relaxed">{errorMsg}</span>
             </div>
@@ -372,12 +366,9 @@ export default function DispatchTicketModal({
           <section className="space-y-2">
             <div className="flex items-center justify-between">
               <span className={sectionLabel}>Bay</span>
-              <span className="text-[11px] text-slate-500">
-                Selected: <strong className="text-orange-600">{assignedBay || 'None'}</strong>
-              </span>
             </div>
             {isAssignMode && !hasFreeBay && (
-              <p className="p-2.5 rounded-xl bg-amber-50 text-amber-800 text-xs">
+              <p className="px-3.5 py-2.5 rounded-2xl bg-amber-50 text-amber-800 text-sm">
                 All bays are taken. Close this for now. The motorcycle stays in the Queue, waiting for a bay.
               </p>
             )}
@@ -399,7 +390,7 @@ export default function DispatchTicketModal({
                         ? `${b.id} is under maintenance`
                         : `${b.id}: available`
                     }
-                    className={`py-2 px-1 rounded-xl border text-center transition ${
+                    className={`py-2.5 px-1 rounded-2xl border text-center transition ${
                       isSelected
                         ? 'border-orange-500 bg-orange-500 text-white shadow-xs'
                         : occupant || inMaintenance
@@ -407,19 +398,19 @@ export default function DispatchTicketModal({
                         : 'border-slate-200 bg-white text-slate-800 hover:border-orange-300 cursor-pointer'
                     }`}
                   >
-                    <span className="block text-sm font-black leading-none">{String(b.num).padStart(2, '0')}</span>
+                    <span className="block font-display text-base font-bold leading-none">{String(b.num).padStart(2, '0')}</span>
                     <span
-                      className={`block text-[9px] mt-1 truncate ${
+                      className={`block text-[10px] mt-1 truncate ${
                         isSelected ? 'text-orange-100' : occupant ? 'text-slate-400' : 'text-slate-500'
                       }`}
                     >
-                      {occupant ? `#${occupant.ticketCode}` : inMaintenance ? 'Maintenance' : 'Available'}
+                      {occupant ? 'Taken' : inMaintenance ? 'Maintenance' : isSelected ? 'Selected' : 'Free'}
                     </span>
                   </button>
                 );
               })}
             </div>
-            <p className="text-[10px] text-slate-400">Grey bays are in use by another motorcycle or under maintenance.</p>
+            <p className="text-xs text-slate-400">Grey bays are taken or under maintenance.</p>
           </section>
 
           {/* 3. Mechanic & ETA */}
@@ -449,7 +440,7 @@ export default function DispatchTicketModal({
                     key={eta}
                     type="button"
                     onClick={() => setEstimatedPickup(eta)}
-                    className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition cursor-pointer ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium border transition cursor-pointer ${
                       estimatedPickup === eta
                         ? 'bg-orange-500 border-orange-500 text-white'
                         : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
@@ -479,8 +470,8 @@ export default function DispatchTicketModal({
         </div>
 
         {/* Footer (always visible) */}
-        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
-          <span className="text-[11px] text-slate-500 hidden sm:block">
+        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 flex items-center justify-between gap-2 shrink-0">
+          <span className="text-sm text-slate-500 hidden sm:block">
             {isAssignMode
               ? 'This starts the inspection.'
               : isMarkingReady
@@ -492,20 +483,18 @@ export default function DispatchTicketModal({
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2.5 text-slate-600 hover:text-slate-900 font-bold rounded-xl transition cursor-pointer text-xs"
+              className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving || !assignedBay}
-              className={`px-6 py-2.5 disabled:opacity-50 text-white font-bold rounded-xl transition flex items-center gap-2 text-xs shadow-xs cursor-pointer ${
-                isMarkingReady ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-orange-500 hover:bg-orange-600'
-              }`}
+              className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 transition flex items-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Saving...
+                  <Loader2 className="w-4 h-4 animate-spin" /> Saving…
                 </>
               ) : isAssignMode ? (
                 <>
@@ -513,7 +502,7 @@ export default function DispatchTicketModal({
                 </>
               ) : isMarkingReady ? (
                 <>
-                  <CheckCircle className="w-4 h-4" /> Mark Ready for Pickup
+                  <CheckCircle className="w-4 h-4" /> Mark ready
                 </>
               ) : (
                 <>

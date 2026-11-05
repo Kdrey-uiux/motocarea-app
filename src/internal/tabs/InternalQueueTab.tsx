@@ -1380,54 +1380,64 @@ export function InternalQueueTab({
         />
       )}
 
-      {/* Assisted Reschedule Modal */}
+      {/* Reschedule a booking for the rider */}
       {rescheduleTarget && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <ScrollLock />
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-[1.75rem] p-6 max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
             <div>
-              <h3 className="font-bold text-base text-slate-900">
-                Assisted Reschedule
-              </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Ticket <strong className="text-orange-600 font-mono">#{rescheduleTarget.ticket_code}</strong>
+              <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">Reschedule booking</h3>
+              <p className="text-sm text-slate-500">
+                <span className="font-mono">#{rescheduleTarget.ticket_code}</span>
+                {rescheduleTarget.customer_name ? ` · ${rescheduleTarget.customer_name}` : ''}
               </p>
             </div>
 
-            <div className="space-y-3 text-xs">
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 block">New Appointment Date</label>
-                <input
-                  type="date"
-                  value={rescheduleDate}
-                  onChange={(e) => setRescheduleDate(e.target.value)}
-                  min={todayDateStr}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition"
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label htmlFor="reschedule-date" className="text-sm font-semibold text-slate-800 block">
+                New date
+              </label>
+              <input
+                id="reschedule-date"
+                type="date"
+                value={rescheduleDate}
+                onChange={(e) => setRescheduleDate(e.target.value)}
+                min={todayDateStr}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+              />
+            </div>
 
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700 block">Time Slot</label>
-                <select
-                  value={rescheduleSlot}
-                  onChange={(e) => setRescheduleSlot(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 transition"
-                >
-                  {TIME_SLOTS.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.label} ({s.id})
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-1.5">
+              <span className="text-sm font-semibold text-slate-800 block">Arrival time</span>
+              <div className="space-y-1.5" role="group" aria-label="Arrival time">
+                {TIME_SLOTS.map((slot) => {
+                  const selected = rescheduleSlot === slot.id;
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => setRescheduleSlot(slot.id)}
+                      className={`w-full px-3.5 py-2.5 rounded-2xl border text-sm text-left flex items-center justify-between gap-2 transition cursor-pointer ${
+                        selected
+                          ? 'border-orange-500 bg-orange-50 font-semibold text-orange-700'
+                          : 'border-slate-200 bg-white font-medium text-slate-700 hover:border-slate-300'
+                      }`}
+                    >
+                      {slot.id}
+                      {selected && <Check className="w-4 h-4 shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setRescheduleTarget(null)}
                 disabled={isRescheduling}
-                className="px-4 py-2 text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
+                className={SECONDARY_BTN}
               >
                 Cancel
               </button>
@@ -1435,36 +1445,26 @@ export function InternalQueueTab({
                 type="button"
                 onClick={handleConfirmAssistedReschedule}
                 disabled={isRescheduling}
-                className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition cursor-pointer"
+                className={PRIMARY_BTN}
               >
-                {isRescheduling ? 'Rescheduling...' : 'Confirm Reschedule'}
+                {isRescheduling ? 'Saving…' : 'Reschedule'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Quick Assign Mechanic Modal */}
+      {/* Set the mechanic's name */}
       {assigningMechanicTicket && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
           <ScrollLock />
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-base text-slate-900">
-                  Assign Mechanic
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Ticket <strong className="text-orange-600 font-mono">#{assigningMechanicTicket.ticket_code}</strong> • {assigningMechanicTicket.motorcycles?.model || 'Motorcycle Unit'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAssigningMechanicTicket(null)}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          <div className="bg-white rounded-[1.75rem] p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div>
+              <h3 className="font-display text-lg font-bold tracking-tight text-slate-900">Mechanic</h3>
+              <p className="text-sm text-slate-500 break-words">
+                {assigningMechanicTicket.motorcycles?.model || 'Motorcycle'}
+                <span className="font-mono"> · {assigningMechanicTicket.ticket_code}</span>
+              </p>
             </div>
 
             {/* Mechanics don't have accounts: type the name */}
@@ -1476,8 +1476,8 @@ export function InternalQueueTab({
               }}
               className="space-y-1.5"
             >
-              <label htmlFor="assign-mechanic-name" className="text-xs font-bold text-slate-700 block">
-                Mechanic name
+              <label htmlFor="assign-mechanic-name" className="text-sm font-semibold text-slate-800 block">
+                Name
               </label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -1488,41 +1488,29 @@ export function InternalQueueTab({
                   value={selectedMechanicName}
                   onChange={(e) => setSelectedMechanicName(e.target.value)}
                   placeholder="e.g. Juan Dela Cruz"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-9 pr-3.5 py-2.5 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
                 />
               </div>
-              <p className="text-[11px] text-slate-400">Leave empty and save to remove the mechanic from this job.</p>
+              <p className="text-xs text-slate-400">Leave it empty and save to remove the mechanic.</p>
             </form>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedMechanicName('');
-                }}
-                disabled={isAssigningMechanic || !selectedMechanicName}
-                className="text-xs font-semibold text-slate-500 hover:text-rose-600 transition cursor-pointer disabled:opacity-40"
+                onClick={() => setAssigningMechanicTicket(null)}
+                disabled={isAssigningMechanic}
+                className={SECONDARY_BTN}
               >
-                Clear
+                Cancel
               </button>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAssigningMechanicTicket(null)}
-                  disabled={isAssigningMechanic}
-                  className="px-4 py-2 text-slate-600 hover:text-slate-900 text-xs font-bold cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  form="assign-mechanic-form"
-                  disabled={isAssigningMechanic}
-                  className="px-5 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
-                >
-                  {isAssigningMechanic ? 'Saving...' : 'Save'}
-                </button>
-              </div>
+              <button
+                type="submit"
+                form="assign-mechanic-form"
+                disabled={isAssigningMechanic}
+                className={PRIMARY_BTN}
+              >
+                {isAssigningMechanic ? 'Saving…' : 'Save'}
+              </button>
             </div>
           </div>
         </div>
