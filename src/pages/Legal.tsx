@@ -9,10 +9,11 @@ export default function Legal({ page }: { page: 'terms' | 'privacy' }) {
   const title = page === 'terms' ? 'Terms of Service' : 'Privacy Policy';
 
   useEffect(() => {
+    const previousTitle = document.title;
     document.title = `${title} | MotoCare`;
     window.scrollTo(0, 0);
     return () => {
-      document.title = 'MotoCare';
+      document.title = previousTitle;
     };
   }, [title]);
 
