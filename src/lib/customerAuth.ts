@@ -6,8 +6,10 @@ export type CustomerSessionCheck =
   | { status: 'workshop' }
   | { status: 'none' };
 
-export const WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE =
-  'This is a staff account, so it signs in on the staff page.';
+// The rider page never says an account is staff. That would confirm a correct password and
+// point out an account worth attacking, so these read like any other failed sign-in.
+export const WRONG_CREDENTIALS_MESSAGE = 'Wrong email or password.';
+export const GOOGLE_SIGN_IN_FAILED_MESSAGE = "We couldn't sign you in with this Google account.";
 
 /**
  * Verifies the stored customer login against Supabase (not just browser storage)

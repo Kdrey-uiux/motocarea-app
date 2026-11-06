@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { verifyCustomerSession, WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE } from '../lib/customerAuth';
+import { verifyCustomerSession, GOOGLE_SIGN_IN_FAILED_MESSAGE, WRONG_CREDENTIALS_MESSAGE } from '../lib/customerAuth';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import {
   LogIn,
@@ -315,7 +315,7 @@ export default function Login() {
           navigate('/dashboard', { replace: true });
         } else if (result.status === 'workshop' && isMounted && searchParams.get('oauth') === 'google') {
           // Came back from Google with an admin/staff email
-          setErrorMessage(WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE);
+          setErrorMessage(GOOGLE_SIGN_IN_FAILED_MESSAGE);
         }
       } catch (err) {
         console.error('Session check on login error:', err);
@@ -368,7 +368,7 @@ export default function Login() {
     const role = profile?.role?.toLowerCase();
     if (role === 'admin' || role === 'staff') {
       await supabase.auth.signOut({ scope: 'local' });
-      throw new Error(WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE);
+      throw new Error(WRONG_CREDENTIALS_MESSAGE);
     }
     navigate('/dashboard', { replace: true });
   };
@@ -539,7 +539,7 @@ export default function Login() {
         if (authError) {
           const msg = authError.message.toLowerCase();
           if (msg.includes('invalid login credentials')) {
-            throw new Error('Wrong email or password.');
+            throw new Error(WRONG_CREDENTIALS_MESSAGE);
           }
           if (msg.includes('email not confirmed')) {
             throw new Error('Please confirm your email address first before signing in.');
@@ -712,11 +712,6 @@ export default function Login() {
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span>{errorMessage}</span>
-                  {errorMessage === WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE && (
-                    <Link to="/internal/login" className="block mt-1 font-bold underline hover:text-rose-800">
-                      Go to staff sign-in →
-                    </Link>
-                  )}
                   {errorMessage.includes('already exists') && (
                     <button
                       type="button"
