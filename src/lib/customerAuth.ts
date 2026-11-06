@@ -7,7 +7,7 @@ export type CustomerSessionCheck =
   | { status: 'none' };
 
 export const WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE =
-  'This account cannot be used to sign in here. Please sign in with a customer account.';
+  'This is a staff account, so it signs in on the staff page.';
 
 /**
  * Verifies the stored customer login against Supabase (not just browser storage)

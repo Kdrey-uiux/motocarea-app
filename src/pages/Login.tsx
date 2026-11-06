@@ -106,6 +106,7 @@ export default function Login() {
     setSuccessMessage(null);
     setTouched((prev) => ({
       ...prev,
+      loginIdentifier: false,
       password: false,
       confirmPassword: false,
     }));
@@ -231,6 +232,7 @@ export default function Login() {
   const lastNameValidation = useMemo(() => validateLastName(lastName), [lastName]);
   const phoneValidation = useMemo(() => validatePhone(phone), [phone]);
   const emailValidation = useMemo(() => validateEmail(email), [email]);
+  const loginIdentifierValidation = useMemo(() => validateEmail(loginIdentifier), [loginIdentifier]);
 
   // Overall Form Validation for Register
   const isFormValid = useMemo(() => {
@@ -397,6 +399,15 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Sign in and forgot password: show what is missing first, before the security check is used up
+    if (mode !== 'register' && (!loginIdentifierValidation.isValid || (mode === 'signin' && !signInPassword))) {
+      setTouched((prev) => ({ ...prev, loginIdentifier: true, password: true }));
+      setErrorMessage(null);
+      setSuccessMessage(null);
+      return;
+    }
+
     if (CAPTCHA_ENABLED && !captchaToken) {
       setErrorMessage('Please finish the security check above the button.');
       return;
@@ -517,14 +528,7 @@ export default function Login() {
         setResendCooldown(60);
 
       } else if (mode === 'signin') {
-        const rawInput = loginIdentifier.trim();
-        if (!rawInput) {
-          throw new Error('Please enter your email address.');
-        }
-        if (!validateEmail(rawInput).isValid) {
-          throw new Error('Please enter a valid email address.');
-        }
-        const targetEmail = rawInput.toLowerCase();
+        const targetEmail = loginIdentifier.trim().toLowerCase();
 
         const { data: authData, error: authError } = await withAuthTimeout(supabase.auth.signInWithPassword({
           email: targetEmail,
@@ -535,7 +539,7 @@ export default function Login() {
         if (authError) {
           const msg = authError.message.toLowerCase();
           if (msg.includes('invalid login credentials')) {
-            throw new Error('Invalid credentials or password. Please verify your details.');
+            throw new Error('Wrong email or password.');
           }
           if (msg.includes('email not confirmed')) {
             throw new Error('Please confirm your email address first before signing in.');
@@ -548,14 +552,7 @@ export default function Login() {
         }
 
       } else if (mode === 'forgot_password') {
-        const rawInput = loginIdentifier.trim();
-        if (!rawInput) {
-          throw new Error('Please enter your email address.');
-        }
-        if (!validateEmail(rawInput).isValid) {
-          throw new Error('Please enter a valid email address.');
-        }
-        const recoveryEmail = rawInput.toLowerCase();
+        const recoveryEmail = loginIdentifier.trim().toLowerCase();
 
         const { error } = await withAuthTimeout(supabase.auth.resetPasswordForEmail(recoveryEmail, {
           redirectTo: getAuthRedirectUrl('/reset-password'),
@@ -711,10 +708,15 @@ export default function Login() {
 
             {/* Error Alert */}
             {errorMessage && (
-              <div className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-rose-700 text-xs font-medium animate-in fade-in">
+              <div role="alert" className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2 text-rose-700 text-xs font-medium animate-in fade-in">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <span>{errorMessage}</span>
+                  {errorMessage === WORKSHOP_ACCOUNT_ON_CUSTOMER_LOGIN_MESSAGE && (
+                    <Link to="/internal/login" className="block mt-1 font-bold underline hover:text-rose-800">
+                      Go to staff sign-in →
+                    </Link>
+                  )}
                   {errorMessage.includes('already exists') && (
                     <button
                       type="button"
@@ -873,12 +875,25 @@ export default function Login() {
                       type="email"
                       autoComplete="email"
                       value={loginIdentifier}
+                      aria-invalid={touched.loginIdentifier && !loginIdentifierValidation.isValid}
                       onBlur={() => setTouched((p) => ({ ...p, loginIdentifier: true }))}
-                      onChange={(e) => setLoginIdentifier(e.target.value)}
+                      onChange={(e) => {
+                        setLoginIdentifier(e.target.value);
+                        setErrorMessage(null);
+                      }}
                       placeholder=""
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 text-xs sm:text-sm transition"
+                      className={`w-full bg-slate-50 border rounded-xl pl-9 pr-3.5 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs sm:text-sm transition ${
+                        touched.loginIdentifier && !loginIdentifierValidation.isValid
+                          ? 'border-rose-300 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
+                          : 'border-slate-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10'
+                      }`}
                     />
                   </div>
+                  {touched.loginIdentifier && !loginIdentifierValidation.isValid && (
+                    <p className="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium leading-tight">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> {loginIdentifierValidation.error}
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -902,18 +917,21 @@ export default function Login() {
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                       value={mode === 'register' ? registerPassword : signInPassword}
+                      aria-invalid={mode === 'signin' && touched.password && !signInPassword}
                       onBlur={() => setTouched((p) => ({ ...p, password: true }))}
                       onChange={(e) => {
                         if (mode === 'register') {
                           setRegisterPassword(e.target.value);
                         } else {
                           setSignInPassword(e.target.value);
+                          setErrorMessage(null);
                         }
                       }}
                       placeholder=""
                       className={`w-full bg-slate-50 border rounded-xl pl-3.5 pr-10 py-2.5 text-slate-900 focus:outline-none focus:bg-white text-xs sm:text-sm transition ${
-                        mode === 'register' && touched.password && !isPasswordValid
+                        touched.password && (mode === 'register' ? !isPasswordValid : !signInPassword)
                           ? 'border-rose-300 bg-rose-50/20 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
                           : 'border-slate-200 focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10'
                       }`}
@@ -927,6 +945,11 @@ export default function Login() {
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
+                  {mode === 'signin' && touched.password && !signInPassword && (
+                    <p className="text-[11px] text-rose-500 mt-1 flex items-center gap-1 font-medium leading-tight">
+                      <AlertCircle className="w-3 h-3 shrink-0" /> Password is required.
+                    </p>
+                  )}
 
                   {/* Password Strength Meter & Interactive Checklist (Register Only) */}
                   {mode === 'register' && registerPassword.length > 0 && (
