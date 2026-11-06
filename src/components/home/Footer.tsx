@@ -1,8 +1,6 @@
-import { useState } from 'react';
-import { createPortal } from 'react-dom';
+import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Navigation } from 'lucide-react';
 import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL } from '../../utils/shopInfo';
-import LegalTermsModal from '../legal/LegalTermsModal';
 import MotoCareLogo from '../brand/MotoCareLogo';
 
 const LINKS = [
@@ -14,8 +12,6 @@ const LINKS = [
 ];
 
 export default function Footer() {
-  const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
-
   return (
     <footer className="bg-slate-950 text-slate-400 px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-10 text-sm">
@@ -93,30 +89,15 @@ export default function Footer() {
       <div className="relative z-10 max-w-7xl mx-auto mt-14 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
         <div>© 2026 MotoCare. All rights reserved.</div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setLegalTab('terms')}
-            className="px-2 py-1.5 rounded-md hover:text-orange-400 transition cursor-pointer"
-          >
+          <Link to="/terms" className="px-2 py-1.5 rounded-md hover:text-orange-400 transition">
             Terms
-          </button>
+          </Link>
           <span aria-hidden="true">·</span>
-          <button
-            type="button"
-            onClick={() => setLegalTab('privacy')}
-            className="px-2 py-1.5 rounded-md hover:text-orange-400 transition cursor-pointer"
-          >
+          <Link to="/privacy" className="px-2 py-1.5 rounded-md hover:text-orange-400 transition">
             Privacy Policy
-          </button>
+          </Link>
         </div>
       </div>
-
-      {/* Portal: the landing page's scroll effects would otherwise trap the fixed overlay */}
-      {legalTab &&
-        createPortal(
-          <LegalTermsModal key={legalTab} isOpen initialTab={legalTab} onClose={() => setLegalTab(null)} />,
-          document.body
-        )}
 
       {/* Big wordmark */}
       <div

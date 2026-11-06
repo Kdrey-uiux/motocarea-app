@@ -18,6 +18,7 @@ const CustomerDashboard = lazy(() => import('./customer/CustomerDashboard'));
 const InternalConsole = lazy(() => import('./internal/InternalConsole'));
 const InternalLogin = lazy(() => import('./internal/pages/InternalLogin'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const Legal = lazy(() => import('./pages/Legal'));
 
 // Shown for a moment while a page's code downloads: a plain white screen, so it
 // blends into the (white) page instead of flashing a dark loading screen
@@ -67,6 +68,8 @@ export default function App() {
             <Route path="/track/:ticketCode" element={<TrackStatus />} />
             <Route path="/walk-in" element={<WalkIn />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<Legal page="terms" />} />
+            <Route path="/privacy" element={<Legal page="privacy" />} />
             
             {/* Internal Enterprise Console (Shop Owner & Floor Staff) */}
             <Route path="/internal/login" element={<InternalLogin />} />
