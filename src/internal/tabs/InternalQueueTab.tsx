@@ -98,6 +98,8 @@ const SECONDARY_BTN =
   'px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer flex items-center gap-1.5';
 const ICON_BTN = 'w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer';
 
+const formatArrivalWindow = (windowText: string) => windowText.replace(/^0/, '').replace(/ - 0?/, ' – ');
+
 interface MoreMenuItem {
   label: string;
   icon: LucideIcon;
@@ -667,6 +669,15 @@ export function InternalQueueTab({
     const mechanic =
       ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? ticket.assigned_mechanic : null;
     const dropoff = ticket.dropoff_date ? new Date(`${ticket.dropoff_date}T00:00:00`) : null;
+    const whenText =
+      isScheduled && appt && !appt.isPast
+        ? appt.isToday
+          ? null
+          : appt.diffDays === 1
+            ? 'Tomorrow'
+            : `In ${appt.diffDays} days`
+        : appt?.label;
+    const scheduleText = [whenText, arrivalWindow && formatArrivalWindow(arrivalWindow)].filter(Boolean).join(' · ');
 
     const tileBase = 'w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-center shrink-0 leading-none';
     const tile = isInShop ? (
@@ -737,14 +748,9 @@ export function InternalQueueTab({
           </div>
         ) : (
           <div className="min-w-0 text-sm">
-            {appt && (
-              <p className="font-medium text-slate-800">
-                {appt.label}
-                {arrivalWindow && <span className="font-normal text-slate-500"> · {arrivalWindow}</span>}
-              </p>
-            )}
+            {scheduleText && <p className="font-medium text-slate-800">{scheduleText}</p>}
             {notes.symptoms && (
-              <p className="text-slate-600 truncate" title={notes.symptoms}>
+              <p className="mt-0.5 text-slate-600 truncate" title={notes.symptoms}>
                 {notes.symptoms}
               </p>
             )}
@@ -792,7 +798,16 @@ export function InternalQueueTab({
                 <span>Late check-in</span>
               </button>
             ) : isScheduled ? (
-              <button type="button" disabled={isUpdating} onClick={() => handleCheckInMotorcycle(ticket)} className={`${ROW_BTN} xl:min-w-[10rem]`}>
+              <button
+                type="button"
+                disabled={isUpdating}
+                onClick={() => handleCheckInMotorcycle(ticket)}
+                className={
+                  appt?.isToday
+                    ? `${ROW_BTN} xl:min-w-[10rem]`
+                    : `${SECONDARY_BTN} justify-center whitespace-nowrap disabled:opacity-50 hover:text-orange-700 hover:border-orange-200 hover:bg-orange-50 xl:min-w-[10rem]`
+                }
+              >
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{appt?.isToday ? 'Check in' : 'Check in early'}</span>
               </button>
