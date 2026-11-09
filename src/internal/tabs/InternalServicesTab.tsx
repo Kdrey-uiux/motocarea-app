@@ -187,7 +187,7 @@ export default function InternalServicesTab({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search service or task"
-              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
+              className="w-full bg-slate-50 focus:bg-white border border-slate-200 rounded-full pl-10 pr-4 py-2.5 text-base sm:text-sm text-slate-900 placeholder:not-italic placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
             />
           </div>
           {isOwner && (
@@ -202,7 +202,7 @@ export default function InternalServicesTab({
           )}
         </div>
 
-        <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none]">
+        <div className="flex flex-wrap items-center gap-1">
           {SERVICE_CATEGORIES.map((cat) => {
             const isCatActive = selectedCategory === cat.id;
             const count = cat.id === 'all' ? packages.length : packages.filter((p) => p.category === cat.id).length;
@@ -244,9 +244,9 @@ export default function InternalServicesTab({
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs text-slate-400">{categoryLabel(pkg.category)}</span>
+                    <span className="text-xs text-slate-400 min-w-0 truncate">{categoryLabel(pkg.category)}</span>
                     {pkg.tag && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-medium whitespace-nowrap">
+                      <span className="px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-medium whitespace-nowrap shrink-0">
                         {pkg.tag}
                       </span>
                     )}
@@ -260,7 +260,7 @@ export default function InternalServicesTab({
                   </span>
                 </div>
 
-                <p className="text-sm text-slate-600 leading-relaxed line-clamp-3">{pkg.description}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{pkg.description}</p>
 
                 {tasks.length > 0 && (
                   <div className="pt-3 border-t border-slate-100">

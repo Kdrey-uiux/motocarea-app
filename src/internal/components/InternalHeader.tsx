@@ -116,7 +116,7 @@ export default function InternalHeader({
                 <span className="hidden sm:inline">{INTERNAL_TAB_INFO[activeTab].title}</span>
               </h1>
               <p className="hidden sm:block text-xs text-slate-500 truncate">
-                {INTERNAL_TAB_INFO[activeTab].subtitle}
+                {(currentRole !== 'admin' && INTERNAL_TAB_INFO[activeTab].staffSubtitle) || INTERNAL_TAB_INFO[activeTab].subtitle}
               </p>
             </div>
           </div>
