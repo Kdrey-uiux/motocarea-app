@@ -65,17 +65,17 @@ function NavButton({
       type="button"
       onClick={() => onSelect(item.id)}
       aria-current={isActive ? 'page' : undefined}
-      className={`relative w-full h-10 pl-1.5 pr-2.5 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
-        isActive
-          ? 'bg-slate-500/[0.12] text-slate-900'
-          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-500/[0.07]'
+      className={`group relative w-full h-10 pl-1.5 pr-2.5 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
+        isActive ? 'bg-orange-50 text-orange-700' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-500/[0.07]'
       }`}
     >
       {/* iOS Settings style: the filled icon sits in a small rounded tile (orange when active) */}
       <span className="flex items-center gap-3 min-w-0">
         <span
           className={`w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0 transition-colors ${
-            isActive ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30' : 'bg-slate-100 text-slate-500'
+            isActive
+              ? 'bg-orange-500 text-white shadow-sm shadow-orange-500/30'
+              : 'bg-slate-100 text-slate-500 group-hover:bg-orange-50 group-hover:text-orange-500'
           }`}
         >
           <Icon className="w-[18px] h-[18px]" />
@@ -210,10 +210,10 @@ export default function InternalSidebar({
   const desktopGroups = groups.filter((group) => group.title !== 'Account');
 
   const renderNav = (onSelect: (tab: InternalTab) => void) => (
-    <nav className="flex flex-col gap-3 w-full">
+    <nav className="flex flex-col gap-1.5 [@media(min-height:780px)]:gap-3 [@media(min-height:860px)]:gap-5 w-full">
       {desktopGroups.map((group) => (
         <div key={group.title} className="space-y-0.5">
-          <p className="px-3 pb-1 text-xs font-medium text-slate-400">{group.title}</p>
+          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{group.title}</p>
           {group.items.map((item) => (
             <NavButton key={item.id} item={item} isActive={activeTab === item.id} onSelect={onSelect} />
           ))}
@@ -225,8 +225,8 @@ export default function InternalSidebar({
   const brand = (onClick: () => void) => (
     <button type="button" onClick={onClick} className="flex items-center gap-3 cursor-pointer text-left">
       <div>
-        <MotoCareLogo className="h-12 w-auto text-slate-900" />
-        <span className="text-xs text-slate-400 block mt-0.5">
+        <MotoCareLogo className="h-9 [@media(min-height:780px)]:h-12 w-auto text-slate-900" />
+        <span className="mt-1.5 inline-block px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[11px] font-semibold">
           {currentRole === 'admin' ? 'Owner console' : 'Staff console'}
         </span>
       </div>
@@ -243,7 +243,7 @@ export default function InternalSidebar({
       {/* 1. DESKTOP SIDEBAR */}
         <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-60 p-4 bg-white border border-slate-200/70 rounded-[1.75rem] card-elevated flex-col z-40">
           <div className="flex flex-col gap-4 w-full min-h-0">
-            <div className="px-1 pt-1">{brand(() => setActiveTab(homeTab))}</div>
+            <div className="px-1 pt-1 pb-2 [@media(min-height:780px)]:pb-3 border-b border-slate-100">{brand(() => setActiveTab(homeTab))}</div>
             <div className="overflow-y-auto no-scrollbar min-h-0">{renderNav(setActiveTab)}</div>
           </div>
           {onLogout && (
