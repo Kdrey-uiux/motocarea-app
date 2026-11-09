@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { 
   LogOut, 
   Menu,
-  PanelLeft, 
   Bell, 
   Check,
   ChevronDown,
@@ -29,9 +28,6 @@ interface InternalHeaderProps {
   onRefresh?: () => void;
   onLogout: () => void;
   onToggleMobileMenu: () => void;
-  /** Desktop: shrink the sidebar to icons, or open it again */
-  isSidebarCollapsed?: boolean;
-  onToggleSidebarCollapse?: () => void;
   currentRole: UserRole;
   currentUserName?: string;
   activeTab?: InternalTab;
@@ -50,8 +46,6 @@ interface InternalHeaderProps {
 export default function InternalHeader({
   onLogout,
   onToggleMobileMenu,
-  isSidebarCollapsed = false,
-  onToggleSidebarCollapse,
   currentRole,
   currentUserName = 'Workshop Personnel',
   activeTab = 'dashboard',
@@ -116,19 +110,6 @@ export default function InternalHeader({
             >
               <Menu className="w-5 h-5" />
             </button>
-            {onToggleSidebarCollapse && (
-              <button
-                type="button"
-                onClick={onToggleSidebarCollapse}
-                className="hidden lg:flex w-9 h-9 rounded-xl items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition cursor-pointer shrink-0"
-                aria-label={isSidebarCollapsed ? 'Show the full sidebar' : 'Collapse the sidebar'}
-                aria-pressed={isSidebarCollapsed}
-                title={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-              >
-                <PanelLeft className="w-5 h-5" />
-              </button>
-            )}
-
             <div className="min-w-0 pl-1">
               <h1 className="font-display text-base sm:text-xl font-bold text-slate-900 tracking-tight truncate leading-tight">
                 <span className="sm:hidden">{INTERNAL_TAB_INFO[activeTab].shortTitle ?? INTERNAL_TAB_INFO[activeTab].title}</span>

@@ -33,8 +33,6 @@ interface InternalSidebarProps {
   onLogout?: () => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
-  /** Desktop: slim icon-only rail instead of the full sidebar */
-  isCollapsed?: boolean;
 }
 
 interface NavItem {
@@ -55,39 +53,12 @@ function NavButton({
   item,
   isActive,
   onSelect,
-  collapsed = false,
 }: {
   item: NavItem;
   isActive: boolean;
   onSelect: (tab: InternalTab) => void;
-  /** Icon-only rail: the badge becomes a corner bubble and the label a hover tooltip */
-  collapsed?: boolean;
 }) {
   const Icon = item.icon;
-
-  if (collapsed) {
-    return (
-      <button
-        type="button"
-        onClick={() => onSelect(item.id)}
-        aria-current={isActive ? 'page' : undefined}
-        aria-label={item.label}
-        className={`group relative w-11 h-11 mx-auto rounded-2xl flex items-center justify-center transition-colors duration-150 cursor-pointer ${
-          isActive
-            ? 'bg-orange-500 text-white shadow-md shadow-orange-500/25'
-            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-500/[0.07]'
-        }`}
-      >
-        <Icon className="w-5 h-5" />
-        {/* Only counts that need attention show on the rail (not the bay count) */}
-        {item.badge !== undefined && item.badgeTone === 'alert' && (
-          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold leading-[18px] text-center tabular-nums ring-2 ring-white">
-            {item.badge}
-          </span>
-        )}
-      </button>
-    );
-  }
 
   return (
     <button
@@ -167,7 +138,6 @@ export default function InternalSidebar({
   onLogout,
   isMobileOpen,
   onCloseMobile,
-  isCollapsed = false,
 }: InternalSidebarProps) {
   const bayCount = useBayCount();
   // The page behind the phone drawer stays still
@@ -270,49 +240,7 @@ export default function InternalSidebar({
 
   return (
     <>
-      {/* 1. DESKTOP SIDEBAR: full (labels, groups) or a slim icon rail when collapsed */}
-      {isCollapsed ? (
-        <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-[4.75rem] py-5 px-2 bg-white border border-slate-200/70 rounded-[1.75rem] card-elevated flex-col items-center z-40">
-          <div className="flex flex-col items-center gap-5 w-full min-h-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab(homeTab)}
-              className="w-11 h-11 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center shadow-md shadow-orange-500/25 transition cursor-pointer shrink-0"
-              title={currentRole === 'admin' ? 'Owner console' : 'Staff console'}
-              aria-label="Go to dashboard"
-            >
-              <Wrench className="w-5 h-5" />
-            </button>
-            <nav className="flex flex-col items-center gap-3 w-full overflow-y-auto no-scrollbar min-h-0 pt-1">
-              {desktopGroups.map((group, i) => (
-                <div key={group.title} className={`flex flex-col gap-1.5 w-full ${i > 0 ? 'pt-3 border-t border-slate-100' : ''}`}>
-                  {group.items.map((item) => (
-                    <div key={item.id} title={item.badgeTone === 'info' ? `${item.label} · ${item.badge}` : item.label}>
-                      <NavButton item={item} isActive={activeTab === item.id} onSelect={setActiveTab} collapsed />
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </nav>
-          </div>
-          {onLogout && (
-            <div className="mt-auto pt-3 border-t border-slate-100 w-full flex flex-col items-center gap-1.5 shrink-0">
-              <div title={settingsItem.label}>
-                <NavButton item={settingsItem} isActive={activeTab === 'settings'} onSelect={setActiveTab} collapsed />
-              </div>
-              <button
-                type="button"
-                onClick={onLogout}
-                className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                title="Sign out"
-                aria-label="Sign out"
-              >
-                <SignOutIcon className="w-5 h-5" />
-              </button>
-            </div>
-          )}
-        </aside>
-      ) : (
+      {/* 1. DESKTOP SIDEBAR */}
         <aside className="hidden lg:flex fixed left-4 top-4 bottom-4 w-60 p-4 bg-white border border-slate-200/70 rounded-[1.75rem] card-elevated flex-col z-40">
           <div className="flex flex-col gap-4 w-full min-h-0">
             <div className="px-1 pt-1">{brand(() => setActiveTab(homeTab))}</div>
@@ -334,7 +262,6 @@ export default function InternalSidebar({
             </div>
           )}
         </aside>
-      )}
 
       {/* 2. PHONE / TABLET DRAWER (same design as the rider menu) */}
       {isMobileOpen && (

@@ -26,6 +26,8 @@ const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] 
 const INPUT =
   'w-full bg-slate-50 border border-slate-200 rounded-2xl pl-3.5 pr-11 py-2.5 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
+const CARD = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
+
 const OUTLINE_BTN =
   'w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer';
 
@@ -42,7 +44,7 @@ function SettingRow({
   children: ReactNode;
 }) {
   return (
-    <li className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+    <li className="px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
           <Icon className="w-[18px] h-[18px]" />
@@ -204,25 +206,23 @@ export default function InternalSettingsTab({
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
 
   return (
-    <div className="max-w-2xl mx-auto bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated overflow-hidden">
+    <div className="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 sm:gap-5 items-start">
       {/* Who is signed in */}
-      <div className="px-4 sm:px-6 py-5 flex items-center gap-4 border-b border-slate-100">
-        <span className="w-14 h-14 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-bold text-xl flex items-center justify-center shrink-0">
+      <section className={`${CARD} p-5 sm:p-6 flex xl:flex-col items-center xl:text-center gap-4`}>
+        <span className="w-14 h-14 xl:w-24 xl:h-24 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-bold text-xl xl:text-4xl flex items-center justify-center shrink-0">
           {currentUserName.trim().charAt(0).toUpperCase()}
         </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h2 className="font-display text-lg font-bold tracking-tight text-slate-900 break-words">{currentUserName}</h2>
-            <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[11px] font-semibold">
-              {isOwner ? 'Owner' : 'Staff'}
-            </span>
-          </div>
+        <div className="min-w-0 xl:w-full space-y-1">
+          <h2 className="font-display text-lg xl:text-xl font-bold tracking-tight text-slate-900 break-words">{currentUserName}</h2>
           <p className="text-sm text-slate-500 break-all">{email}</p>
-          {!isOwner && <p className="text-xs text-slate-400">To change your name or email, ask the shop owner.</p>}
+          <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold">
+            {isOwner ? 'Owner' : 'Staff'}
+          </span>
+          {!isOwner && <p className="pt-1 text-xs text-slate-400">To change your name or email, ask the shop owner.</p>}
         </div>
-      </div>
+      </section>
 
-      <ul className="divide-y divide-slate-100">
+      <ul className={`${CARD} divide-y divide-slate-100 overflow-hidden`}>
         <SettingRow icon={KeyRound} title="Password" hint="Change the password you sign in with.">
           <button type="button" onClick={() => setIsPasswordOpen(true)} className={OUTLINE_BTN}>
             Change

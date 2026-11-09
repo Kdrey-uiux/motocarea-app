@@ -10,7 +10,6 @@ import {
 } from './types/internal';
 import { getInternalSession, clearInternalSession } from './utils/internalAuth';
 
-const SIDEBAR_COLLAPSED_KEY = 'motocare_internal_sidebar_collapsed';
 import { canAccessTab } from './utils/permissions';
 import { normalizeBayNumber } from './utils/bays';
 import { internalTabFromSlug, internalTabPath } from './utils/tabTitles';
@@ -223,25 +222,6 @@ export default function InternalConsole() {
   // Sign out from the sidebar or the account menu asks first
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const closeLogoutConfirm = useCallback(() => setIsLogoutConfirmOpen(false), []);
-  // Desktop sidebar: full or a slim icon rail (remembered on this device)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    try {
-      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-  const toggleSidebarCollapsed = useCallback(() => {
-    setIsSidebarCollapsed((prev) => {
-      try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, prev ? '0' : '1');
-      } catch {
-        // Private mode: the choice just isn't remembered
-      }
-      return !prev;
-    });
-  }, []);
-
   // Live Notifications
   const [notifications, setNotifications] = useState<NotificationAlert[]>([
     {
@@ -584,19 +564,16 @@ export default function InternalConsole() {
         onLogout={() => setIsLogoutConfirmOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        isCollapsed={isSidebarCollapsed}
       />
 
       {/* Main Content Area (offset for the fixed desktop sidebar) */}
-      <div className={`${isSidebarCollapsed ? 'lg:pl-[6.25rem]' : 'lg:pl-[17rem]'} flex flex-col min-h-screen transition-[padding] duration-300`}>
+      <div className="lg:pl-[17rem] flex flex-col min-h-screen">
         {/* Floating Capsule Top Navbar */}
         <InternalHeader
           loading={loading}
           onRefresh={refreshTickets}
           onLogout={() => setIsLogoutConfirmOpen(true)}
           onToggleMobileMenu={() => setIsMobileSidebarOpen(true)}
-          isSidebarCollapsed={isSidebarCollapsed}
-          onToggleSidebarCollapse={toggleSidebarCollapsed}
           currentRole={currentRole}
           currentUserName={currentUserName}
           activeTab={activeTab}
