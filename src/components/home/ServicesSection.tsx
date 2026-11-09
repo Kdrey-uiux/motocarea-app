@@ -3,51 +3,13 @@ import { motion, useScroll, useTransform } from 'motion/react';
 import { Droplets, Disc, ShieldCheck, Activity, Sliders, Zap, Gauge, Layers } from 'lucide-react';
 import { Reveal, SectionPill } from './motion';
 import { staggerChild, staggerParent } from './motionVariants';
+import { useSiteContent } from '../../utils/siteContent';
 
-const SERVICES = [
-  {
-    icon: Droplets,
-    title: 'Oil Change & Inspection',
-    desc: 'Synthetic oil replacement, magnetic plug cleaning, strainer check, and a safety inspection.',
-  },
-  {
-    icon: Disc,
-    title: 'Brake System Service',
-    desc: 'Brake pad replacement, caliper overhaul, rotor inspection, and DOT 4 fluid bleeding.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Comprehensive PMS',
-    desc: 'Full preventive maintenance, valve clearance check, spark plug check, and chassis bolt torquing.',
-  },
-  {
-    icon: Activity,
-    title: 'FI & Throttle Body',
-    desc: 'Scanner diagnostics, fault code clearing, injector cleaning, and throttle body recalibration.',
-  },
-  {
-    icon: Sliders,
-    title: 'Custom Mods & Upgrades',
-    desc: 'Exhaust fitting, suspension upgrades, crash guards, handlebar setup, and accessories.',
-  },
-  {
-    icon: Zap,
-    title: 'Electrical & Diagnostics',
-    desc: 'Battery load testing, stator and regulator check, wiring repair, and starter circuit tests.',
-  },
-  {
-    icon: Gauge,
-    title: 'Tire & Wheel Service',
-    desc: 'Scratch-free tire mounting, wheel balancing, rim truing, and puncture repairs.',
-  },
-  {
-    icon: Layers,
-    title: 'CVT & Transmission Care',
-    desc: 'Drive belt inspection, pulley and roller cleaning, clutch bell deglazing, and regreasing.',
-  },
-];
+// One icon per card, in the same order as the cards in Website content
+const SERVICE_ICONS = [Droplets, Disc, ShieldCheck, Activity, Sliders, Zap, Gauge, Layers];
 
 export default function ServicesSection() {
+  const { services } = useSiteContent();
   // Scroll-linked: the gray sheet rises and grows to full size as it enters the screen
   const sheetRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: sheetRef, offset: ['start end', 'start 0.2'] });
@@ -88,23 +50,26 @@ export default function ServicesSection() {
             whileInView="show"
             viewport={{ once: true, margin: '0px 0px -10% 0px' }}
           >
-            {SERVICES.map((item) => (
+            {services.map((item, index) => {
+              const Icon = SERVICE_ICONS[index];
+              return (
               <motion.div
-                key={item.title}
+                key={index}
                 variants={staggerChild}
                 className="group bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/70 hover:border-orange-300 sm:hover:-translate-y-1 hover:shadow-lg hover:shadow-orange-500/5 transition-[transform,box-shadow,border-color] duration-300"
               >
                 <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-orange-50 flex items-center justify-center group-hover:bg-orange-500 transition-colors duration-300">
-                  <item.icon className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-orange-500 group-hover:text-white transition-colors duration-300" />
+                  <Icon className="w-[18px] h-[18px] sm:w-5 sm:h-5 text-orange-500 group-hover:text-white transition-colors duration-300" />
                 </div>
                 <h3 className="mt-3 sm:mt-5 font-display text-sm sm:text-lg font-bold tracking-tight text-slate-900 leading-snug">
                   {item.title}
                 </h3>
                 <p className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-slate-500 leading-relaxed line-clamp-3 sm:line-clamp-none">
-                  {item.desc}
+                  {item.description}
                 </p>
               </motion.div>
-            ))}
+              );
+            })}
           </motion.div>
         </div>
       </motion.div>

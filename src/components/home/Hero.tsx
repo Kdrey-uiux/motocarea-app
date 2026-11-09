@@ -3,12 +3,20 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { Search, ArrowRight, Bike, Sparkle } from 'lucide-react';
 import { EASE } from './motionVariants';
+import { useSiteContent } from '../../utils/siteContent';
 
 export default function Hero() {
   // The part after "MC-": 7KQ4P9 for online bookings, W-7KQ4P9 for walk-in tickets.
   // The tracking page works out which kind it is and asks walk-ins to verify.
   const [ticketDigits, setTicketDigits] = useState('');
   const navigate = useNavigate();
+  const content = useSiteContent();
+
+  // The last word is orange; the animated pill sits just before it
+  const headlineWords = content.heroHeadline.split(' ');
+  const lastWord = headlineWords[headlineWords.length - 1];
+  const wordBeforePill = headlineWords[headlineWords.length - 2] ?? '';
+  const leadingWords = headlineWords.slice(0, -2).join(' ');
 
   // Scroll-linked: as the page scrolls, the hero shrinks, lifts, blurs and fades while the next
   // section rises over it. The hero is sticky, so this follows the page scroll, not the hero's position.
@@ -75,7 +83,7 @@ export default function Hero() {
           {...rise(0.05)}
           className="text-[11px] sm:text-xs font-medium uppercase tracking-[0.18em] text-slate-500"
         >
-          <span className="hidden sm:inline">Motorcycle workshop · </span>Santa Maria, Bulacan
+          <span className="hidden sm:inline">Motorcycle workshop · </span>{content.heroLocation}
         </motion.p>
 
         <motion.h1
@@ -83,9 +91,9 @@ export default function Hero() {
           className="relative mt-4 sm:mt-5 text-[2.6rem] leading-[1.02] sm:text-6xl lg:text-7xl xl:text-[5.5rem] font-extrabold tracking-[-0.035em] text-slate-900"
         >
           <Sparkle className="hidden sm:block absolute -top-4 left-[12%] w-6 h-6 text-orange-400 fill-orange-400" aria-hidden="true" />
-          Your Motorcycle Deserves{' '}
+          {leadingWords}{' '}
           <span className="whitespace-nowrap">
-            Expert
+            {wordBeforePill}
             {/* Animated "ride" pill: a bike rolling across, like a switch turning on */}
             <span
               aria-hidden="true"
@@ -102,14 +110,14 @@ export default function Hero() {
             </span>
           </span>
           <span className="sr-only"> </span>
-          <span className="text-orange-500">Care</span>
+          <span className="text-orange-500">{lastWord}</span>
         </motion.h1>
 
         <motion.p
           {...rise(0.3)}
           className="mt-5 sm:mt-7 text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl mx-auto"
         >
-          Book a service online, follow every repair stage live, and ride out knowing exactly what was done.
+          {content.heroDescription}
         </motion.p>
 
         {/* Main actions */}

@@ -16,7 +16,7 @@ import {
   MapPin,
   Navigation,
 } from 'lucide-react';
-import { SHOP_INFO, SHOP_DIRECTIONS_URL } from '../utils/shopInfo';
+import { useShopInfo } from '../utils/shopInfo';
 import MotoCareLogo from './brand/MotoCareLogo';
 
 // Landing page sections (icons show in the mobile menu)
@@ -29,6 +29,7 @@ const NAV_LINKS = [
 ];
 
 export default function Navbar() {
+  const shop = useShopInfo();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -158,13 +159,13 @@ export default function Navbar() {
 
               {/* Shop location */}
               <a
-                href={SHOP_DIRECTIONS_URL}
+                href={shop.directionsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-white rounded-3xl border border-slate-200/70 px-4 py-3.5 hover:border-orange-200 transition group"
               >
                 <MapPin className="w-5 h-5 text-orange-500 shrink-0" />
-                <span className="flex-1 min-w-0 text-sm text-slate-600 leading-snug">{SHOP_INFO.address}</span>
+                <span className="flex-1 min-w-0 text-sm text-slate-600 leading-snug">{shop.address}</span>
                 <span className="text-sm font-semibold text-orange-600 flex items-center gap-1 shrink-0">
                   Directions
                   <Navigation className="w-3.5 h-3.5" />

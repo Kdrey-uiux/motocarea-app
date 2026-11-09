@@ -19,7 +19,7 @@ import {
   Navigation,
   Phone,
 } from '../../components/icons';
-import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL, SHOP_MAP_EMBED_URL } from '../../utils/shopInfo';
+import { useShopInfo } from '../../utils/shopInfo';
 import { getTicketDisplayDate } from '../../utils/ticketDates';
 import {
   getNextService,
@@ -53,6 +53,7 @@ export default function OverviewTab({
   onRescheduleClick,
   onRefreshData,
 }: OverviewTabProps) {
+  const shop = useShopInfo();
   // Support switching between multiple active booked motorcycles
   const [selectedTicketId, setSelectedTicketId] = useState<string>(
     activeTickets.length > 0 ? activeTickets[0].id : ''
@@ -1013,8 +1014,8 @@ export default function OverviewTab({
       >
         <div className="lg:col-span-7 h-52 sm:h-64 lg:h-auto lg:min-h-[260px] bg-slate-100">
           <iframe
-            title={`Map of ${SHOP_INFO.name}`}
-            src={SHOP_MAP_EMBED_URL}
+            title={`Map of ${shop.name}`}
+            src={shop.mapEmbedUrl}
             className="w-full h-full border-0"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"
@@ -1031,21 +1032,21 @@ export default function OverviewTab({
             <div className="space-y-2 text-sm text-slate-600">
               <p className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                <span>{SHOP_INFO.address}</span>
+                <span>{shop.address}</span>
               </p>
               <p className="flex items-start gap-2">
                 <Clock className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                <span>{SHOP_INFO.hours}</span>
+                <span>{shop.hours}</span>
               </p>
               <p className="flex items-start gap-2">
                 <Phone className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                <span className="select-all">{SHOP_INFO.phone}</span>
+                <span className="select-all">{shop.phone}</span>
               </p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <a
-              href={SHOP_DIRECTIONS_URL}
+              href={shop.directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition active:scale-95"
@@ -1054,7 +1055,7 @@ export default function OverviewTab({
               Get directions
             </a>
             <a
-              href={SHOP_MAPS_URL}
+              href={shop.mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-sm font-semibold transition"

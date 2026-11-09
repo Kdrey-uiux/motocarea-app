@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Navigation } from 'lucide-react';
-import { SHOP_INFO, SHOP_DIRECTIONS_URL, SHOP_MAPS_URL } from '../../utils/shopInfo';
+import { useShopInfo } from '../../utils/shopInfo';
 import MotoCareLogo from '../brand/MotoCareLogo';
 
 const LINKS = [
@@ -12,6 +12,7 @@ const LINKS = [
 ];
 
 export default function Footer() {
+  const shop = useShopInfo();
   return (
     <footer className="bg-slate-950 text-slate-400 px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20 overflow-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-4 gap-10 text-sm">
@@ -43,26 +44,28 @@ export default function Footer() {
           <div className="space-y-3">
             {/* Opens the shop in Google Maps */}
             <a
-              href={SHOP_MAPS_URL}
+              href={shop.mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-start gap-2.5 hover:text-orange-400 transition"
               title="Open in Google Maps"
             >
               <MapPin className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
-              <span className="underline decoration-white/20 underline-offset-4">{SHOP_INFO.address}</span>
+              <span className="underline decoration-white/20 underline-offset-4">{shop.address}</span>
             </a>
             <div className="flex items-center gap-2.5">
               <Phone className="w-4 h-4 text-orange-400 shrink-0" />
-              <span>+63 985 245 5897</span>
+              <span>{shop.phone}</span>
             </div>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Mail className="w-4 h-4 text-orange-400 shrink-0" />
-              <span className="break-all">support@motocare.ph</span>
-            </div>
+            {shop.email && (
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Mail className="w-4 h-4 text-orange-400 shrink-0" />
+                <span className="break-all">{shop.email}</span>
+              </div>
+            )}
           </div>
           <a
-            href={SHOP_DIRECTIONS_URL}
+            href={shop.directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition active:scale-95"
@@ -76,11 +79,15 @@ export default function Footer() {
         <div className="space-y-4">
           <h4 className="text-white font-semibold">Business Hours</h4>
           <p className="leading-relaxed">
-            Monday – Saturday
+            {shop.openDays}
             <br />
-            <strong className="text-white font-semibold">8:00 AM – 6:00 PM</strong>
-            <br />
-            Sunday: Closed
+            <strong className="text-white font-semibold">{shop.openHours}</strong>
+            {shop.closedDays && (
+              <>
+                <br />
+                {shop.closedDays}: Closed
+              </>
+            )}
           </p>
         </div>
       </div>

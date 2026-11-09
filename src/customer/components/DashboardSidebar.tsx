@@ -10,7 +10,7 @@ import {
   MapPin,
   Navigation,
 } from '../../components/icons';
-import { SHOP_INFO, SHOP_DIRECTIONS_URL } from '../../utils/shopInfo';
+import { useShopInfo } from '../../utils/shopInfo';
 import MotoCareLogo from '../../components/brand/MotoCareLogo';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 
@@ -33,6 +33,7 @@ export default function DashboardSidebar({
   setIsMobileMenuOpen,
   isSidebarCollapsed,
 }: DashboardSidebarProps) {
+  const shop = useShopInfo();
   // The page behind the phone drawer stays still (desktop never opens it)
   useLockBodyScroll(isMobileMenuOpen);
   const navItems = [
@@ -130,7 +131,7 @@ export default function DashboardSidebar({
 
           {/* Shop location */}
           <a
-            href={SHOP_DIRECTIONS_URL}
+            href={shop.directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-start gap-3 bg-white rounded-2xl border border-slate-200/70 px-3.5 py-3 hover:border-orange-200 transition shrink-0"
@@ -138,7 +139,7 @@ export default function DashboardSidebar({
             <MapPin className="w-[18px] h-[18px] text-orange-500 shrink-0 mt-0.5" />
             {/* Address gets the full width; the directions link sits under it */}
             <span className="flex-1 min-w-0">
-              <span className="block text-sm text-slate-700 leading-snug">{SHOP_INFO.address}</span>
+              <span className="block text-sm text-slate-700 leading-snug">{shop.address}</span>
               <span className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-orange-600">
                 Get directions
                 <Navigation className="w-3 h-3" />

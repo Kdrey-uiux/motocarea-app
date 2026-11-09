@@ -1,20 +1,34 @@
+import { useMemo } from 'react';
+import { DEFAULT_SITE_CONTENT, useSiteContent } from './siteContent';
+
+const SHOP_NAME = 'MotoCare Motorcycle Workshop';
+// The exact pin of the shop building; used until the owner changes the address
+const DEFAULT_MAPS_QUERY = '14.8152686,120.9882518';
+
 /**
- * Shop location and contact details shown to customers.
+ * Shop location and contact details shown to customers, live from Website content.
  */
-export const SHOP_INFO = {
-  name: 'MotoCare Motorcycle Workshop',
-  address: 'Cay Ban Ban St, Parada, Santa Maria, 3022 Bulacan',
-  /** What Google Maps searches for: an exact address, a place name, or "14.8183,120.9563" coordinates */
-  mapsQuery: '14.8152686,120.9882518', // exact pin of the shop building (Garahe Motoworks on Google Maps)
-  phone: '+63 985 245 5897',
-  hours: 'Monday – Saturday, 8:00 AM – 6:00 PM · Closed Sunday',
-};
-
-/** Opens the shop in Google Maps (app on phones, website on computers) */
-export const SHOP_MAPS_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(SHOP_INFO.mapsQuery)}`;
-
-/** Turn-by-turn directions from wherever the customer is to the shop */
-export const SHOP_DIRECTIONS_URL = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(SHOP_INFO.mapsQuery)}`;
-
-/** Small map preview that needs no API key */
-export const SHOP_MAP_EMBED_URL = `https://www.google.com/maps?q=${encodeURIComponent(SHOP_INFO.mapsQuery)}&z=17&output=embed`;
+export function useShopInfo() {
+  const content = useSiteContent();
+  return useMemo(() => {
+    const mapsQuery = encodeURIComponent(
+      content.address === DEFAULT_SITE_CONTENT.address ? DEFAULT_MAPS_QUERY : content.address
+    );
+    return {
+      name: SHOP_NAME,
+      address: content.address,
+      phone: content.phone,
+      email: content.email,
+      openDays: content.openDays,
+      openHours: content.openHours,
+      closedDays: content.closedDays,
+      hours: `${content.openDays}, ${content.openHours}${content.closedDays ? ` · Closed ${content.closedDays}` : ''}`,
+      // Opens the shop in Google Maps (app on phones, website on computers)
+      mapsUrl: `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`,
+      // Turn-by-turn directions from wherever the customer is to the shop
+      directionsUrl: `https://www.google.com/maps/dir/?api=1&destination=${mapsQuery}`,
+      // Small map preview that needs no API key
+      mapEmbedUrl: `https://www.google.com/maps?q=${mapsQuery}&z=17&output=embed`,
+    };
+  }, [content]);
+}

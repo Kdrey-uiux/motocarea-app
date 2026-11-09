@@ -44,6 +44,12 @@ export const SHARED_SETTINGS = {
     storageKey: 'motocare_workshop_bays',
     event: 'motocare_workshop_bays_updated',
   },
+  /** Website text the owner can edit (owner only, migration 22) */
+  siteContent: {
+    key: 'site_content',
+    storageKey: 'motocare_site_content',
+    event: 'motocare_site_content_updated',
+  },
 } satisfies Record<string, SharedSettingDef>;
 
 const SETTINGS_BY_KEY: Record<string, SharedSettingDef> = Object.fromEntries(
@@ -69,6 +75,20 @@ export function readSharedSetting<T>(setting: SharedSettingDef, fallback: T): T 
   } catch {
     return fallback;
   }
+}
+
+/** Puts a value back on this device only, e.g. after a save was refused (null clears it) */
+export function setSharedSettingCache(setting: SharedSettingDef, value: unknown): void {
+  if (value !== null) {
+    applyToCache(setting, value);
+    return;
+  }
+  try {
+    localStorage.removeItem(setting.storageKey);
+  } catch {
+    // ignore (private mode)
+  }
+  window.dispatchEvent(new Event(setting.event));
 }
 
 /**

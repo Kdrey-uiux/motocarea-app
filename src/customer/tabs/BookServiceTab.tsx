@@ -813,7 +813,7 @@ export default function BookServiceTab({
         <p className="text-xs text-slate-500 sm:text-right shrink-0">
           Open Monday to Saturday
           <br className="hidden sm:block" />
-          <span className="sm:hidden"> · </span>6 bookings a day · Pay cash at the counter
+          <span className="sm:hidden"> · </span>{dailyCapacity} bookings a day · Pay cash at the counter
         </p>
       </div>
 

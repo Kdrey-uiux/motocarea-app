@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { motion, useScroll, useTransform, type MotionValue } from 'motion/react';
+import { useBayCount } from '../../utils/workshopBays';
 
 const LINES = ['Book online.', 'Track every stage.', 'Ride out with confidence.'];
 
@@ -18,6 +19,7 @@ function ScrubLine({ text, progress, index }: { text: string; progress: MotionVa
 
 /** Full-width orange band whose lines light up one after another as you scroll */
 export default function StatementBand() {
+  const bayCount = useBayCount();
   const sectionRef = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start 0.85', 'end 0.55'] });
   const factsOpacity = useTransform(scrollYProgress, [0.75, 1], [0, 1]);
@@ -31,7 +33,7 @@ export default function StatementBand() {
           ))}
         </h2>
         <motion.p style={{ opacity: factsOpacity }} className="mt-6 sm:mt-8 text-sm sm:text-lg text-orange-50/90">
-          Open Monday to Saturday · 6 bookings a day · Pay cash at the counter
+          Open Monday to Saturday · {bayCount} bookings a day · Pay cash at the counter
         </motion.p>
       </div>
     </section>

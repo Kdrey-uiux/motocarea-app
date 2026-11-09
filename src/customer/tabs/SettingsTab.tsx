@@ -4,7 +4,7 @@ import { MessageSquare, ChevronRight } from '../../components/icons';
 import { TabType } from '../../types/dashboard';
 import { TIME_SLOTS } from '../../utils/bookingLifecycle';
 import { useBayCount } from '../../utils/workshopBays';
-import { SHOP_INFO } from '../../utils/shopInfo';
+import { useShopInfo } from '../../utils/shopInfo';
 import LegalTermsModal from '../../components/legal/LegalTermsModal';
 import type { ThemePreference } from '../../utils/theme';
 
@@ -72,6 +72,7 @@ export default function SettingsTab({
   themePreference = 'system',
   onChangeTheme,
 }: SettingsTabProps) {
+  const shop = useShopInfo();
   const dailyCapacity = useBayCount();
   const [activeSection, setActiveSection] = useState<SettingsSection>('warranty');
   const [legalTab, setLegalTab] = useState<'terms' | 'privacy' | null>(null);
@@ -240,9 +241,9 @@ export default function SettingsTab({
               </Rule>
               <li className="pt-3.5">
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  <span className="font-semibold text-slate-700">Shop hours:</span> {SHOP_INFO.hours}
+                  <span className="font-semibold text-slate-700">Shop hours:</span> {shop.hours}
                   <br />
-                  {SHOP_INFO.address} · {SHOP_INFO.phone}
+                  {shop.address} · {shop.phone}
                 </p>
               </li>
             </SectionCard>

@@ -7,7 +7,8 @@ import { ScrollLock } from '../../hooks/useLockBodyScroll';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { toast } from '../utils/toast';
 import { UserRole } from '../types/internal';
-import { ArrowUpRight, Check, Eye, EyeOff, Globe, KeyRound, Loader2, Monitor, Moon, Sun } from '../../components/icons';
+import WebsiteContentModal from '../modals/WebsiteContentModal';
+import { ArrowUpRight, Check, Edit, Eye, EyeOff, Globe, KeyRound, Loader2, Monitor, Moon, Sun } from '../../components/icons';
 
 interface InternalSettingsTabProps {
   currentRole: UserRole;
@@ -204,6 +205,7 @@ export default function InternalSettingsTab({
 }: InternalSettingsTabProps) {
   const isOwner = currentRole === 'admin';
   const [isPasswordOpen, setIsPasswordOpen] = useState(false);
+  const [isWebsiteOpen, setIsWebsiteOpen] = useState(false);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 sm:gap-5 items-start">
@@ -253,6 +255,14 @@ export default function InternalSettingsTab({
           </div>
         </SettingRow>
 
+        {isOwner && (
+          <SettingRow icon={Edit} title="Website content" hint="Shop details, home headline and service cards.">
+            <button type="button" onClick={() => setIsWebsiteOpen(true)} className={OUTLINE_BTN}>
+              Edit
+            </button>
+          </SettingRow>
+        )}
+
         <SettingRow icon={Globe} title="Customer website" hint="See the public page riders visit.">
           <a href="/" target="_blank" rel="noopener noreferrer" className={OUTLINE_BTN}>
             View website
@@ -261,6 +271,7 @@ export default function InternalSettingsTab({
         </SettingRow>
       </ul>
 
+      {isWebsiteOpen && <WebsiteContentModal currentUserName={currentUserName} onClose={() => setIsWebsiteOpen(false)} />}
       {isPasswordOpen && <ChangePasswordModal currentUserName={currentUserName} onClose={() => setIsPasswordOpen(false)} />}
     </div>
   );

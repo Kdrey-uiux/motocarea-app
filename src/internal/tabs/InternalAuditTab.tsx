@@ -59,6 +59,7 @@ const ACTION_LABELS: Record<string, string> = {
   REVIEW_REPLIED: 'Replied to a review',
   REVIEW_REPLY_REMOVED: 'Removed a review reply',
   SERVICE_UPDATED: 'Edited a service',
+  WEBSITE_UPDATED: 'Edited the website content',
   PHONE_CHANGE_APPROVED: 'Changed a rider’s mobile number',
   PHONE_CHANGE_DECLINED: 'Declined a number change',
 };

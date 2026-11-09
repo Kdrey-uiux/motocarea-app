@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { ShieldCheck } from 'lucide-react';
-import { SHOP_INFO } from '../../utils/shopInfo';
+import { useShopInfo } from '../../utils/shopInfo';
 
 /** The wording of the Terms and the Privacy Policy, shown in the sign-up modal and on /terms and /privacy */
 export const LEGAL_UPDATED = 'October 2026';
@@ -134,6 +134,7 @@ export function TermsContent() {
 }
 
 export function PrivacyContent() {
+  const shop = useShopInfo();
   return (
     <div className="space-y-7">
       <Summary title="In short">
@@ -143,7 +144,7 @@ export function PrivacyContent() {
 
       <Section n={1} title="Who we are">
         <p>
-          {SHOP_INFO.name}, {SHOP_INFO.address}, is responsible for your personal information (the personal
+          {shop.name}, {shop.address}, is responsible for your personal information (the personal
           information controller under RA 10173). Our Data Protection Officer is the shop owner; see “Contact us”
           below.
         </p>
@@ -248,9 +249,9 @@ export function PrivacyContent() {
       <Section n={9} title="Contact us">
         <p>For privacy questions or to use any of your rights, contact our Data Protection Officer:</p>
         <div className="rounded-xl bg-slate-50 p-3.5 space-y-0.5">
-          <p className="font-semibold text-slate-900">{SHOP_INFO.name} · Data Protection Officer</p>
-          <p>{SHOP_INFO.address}</p>
-          <p>Phone: {SHOP_INFO.phone}, or use “Message the shop” in your dashboard.</p>
+          <p className="font-semibold text-slate-900">{shop.name} · Data Protection Officer</p>
+          <p>{shop.address}</p>
+          <p>Phone: {shop.phone}, or use “Message the shop” in your dashboard.</p>
         </div>
       </Section>
     </div>

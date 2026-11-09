@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import MotoCareLogo from '../brand/MotoCareLogo';
-import { SHOP_INFO } from '../../utils/shopInfo';
+import { useShopInfo } from '../../utils/shopInfo';
 import { formatPrintDate, printDocument } from '../../utils/printDocument';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
@@ -11,8 +11,6 @@ import { ScrollLock } from '../../hooks/useLockBodyScroll';
  * certified record, walk-in ticket): one letterhead, one field style, one signature style.
  * Print a document with printDocument() from utils/printDocument.ts.
  */
-
-const SHOP_EMAIL = 'support@motocare.ph';
 
 /**
  * Mounts a document at the end of <body>. Hidden on screen; while it is mounted, printing
@@ -60,6 +58,7 @@ export function PrintDocument({
   compact = false,
 }: PrintDocumentProps) {
   const issued = issuedAt ?? new Date();
+  const shop = useShopInfo();
 
   return (
     <div className={`print-doc ${compact ? 'print-doc--compact' : ''}`}>
@@ -69,9 +68,10 @@ export function PrintDocument({
           <div>
             <MotoCareLogo className="print-doc__wordmark" />
             <div className="print-doc__shop">Motorcycle Workshop</div>
-            <div className="print-doc__contact">{SHOP_INFO.address}</div>
+            <div className="print-doc__contact">{shop.address}</div>
             <div className="print-doc__contact">
-              {SHOP_INFO.phone} · {SHOP_EMAIL}
+              {shop.phone}
+              {shop.email && ` · ${shop.email}`}
             </div>
           </div>
         </div>
@@ -98,7 +98,7 @@ export function PrintDocument({
         {footnote && <div className="print-doc__footnote">{footnote}</div>}
         <div className="print-doc__footer-line">
           <span>
-            {SHOP_INFO.hours}
+            {shop.hours}
           </span>
           <span>Printed {formatPrintDate(new Date())} · MotoCare Workshop System</span>
         </div>
