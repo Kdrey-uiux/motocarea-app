@@ -23,7 +23,6 @@ import {
   Printer, 
   Copy, 
   Check, 
-  Phone, 
   Trash2, 
   Plus, 
   User,
@@ -31,14 +30,11 @@ import {
   CheckCircle2,
   History,
   MessageSquare,
-  Clock,
-  Calendar,
   UserCheck,
   Edit,
   X,
   MoreHorizontal,
   CalendarClock,
-  BellRing,
   type LucideIcon,
 } from '../../components/icons';
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
@@ -88,24 +84,9 @@ export interface InternalQueueTabProps {
   initialView?: OperationalView;
 }
 
-export type OperationalView = 'ACTIVE' | 'SCHEDULED' | 'PENDING' | 'READY_RELEASE' | 'COMPLETED' | 'MISSED';
+type QueueTab = 'todo' | 'shop' | 'upcoming';
 
-/** One status pill style for every ticket: neutral pill, colored dot */
-function StatusPill({ label, tone }: { label: string; tone: 'stage' | 'waiting' | 'done' | 'missed' | 'void' }) {
-  const dot = {
-    stage: 'bg-orange-500',
-    waiting: 'bg-amber-400',
-    done: 'bg-emerald-500',
-    missed: 'bg-rose-500',
-    void: 'bg-slate-400',
-  }[tone];
-  return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-xs font-medium whitespace-nowrap">
-      <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
-      {label}
-    </span>
-  );
-}
+export type OperationalView = 'ACTIVE' | 'SCHEDULED' | 'PENDING' | 'READY_RELEASE' | 'COMPLETED' | 'MISSED';
 
 // Shared button looks (same as the staff Dashboard)
 const PRIMARY_BTN =
@@ -190,7 +171,6 @@ export function InternalQueueTab({
   initialView,
 }: InternalQueueTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Modals state
@@ -208,15 +188,18 @@ export function InternalQueueTab({
   const [rescheduleSlot, setRescheduleSlot] = useState(TIME_SLOTS[0]?.id || 'slot-1');
   const [isRescheduling, setIsRescheduling] = useState(false);
 
+  // One list at a time. Until a tab is picked: what needs doing, or else the shop floor.
+  const [chosenTab, setChosenTab] = useState<QueueTab | null>(
+    initialView === 'READY_RELEASE' ? 'shop' : initialView === 'PENDING' ? 'todo' : null
+  );
+
   // Coming from the Dashboard: go straight to what was tapped
   const focusedViewRef = useRef<OperationalView | undefined>(undefined);
   useEffect(() => {
     if (!initialView || focusedViewRef.current === initialView) return;
     focusedViewRef.current = initialView;
     const readyTicket = tickets.find((t) => t.status === 'READY_FOR_PICKUP');
-    const target = document.getElementById(
-      initialView === 'READY_RELEASE' && readyTicket ? `ticket-${readyTicket.id}` : 'q-needs'
-    );
+    const target = initialView === 'READY_RELEASE' && readyTicket ? document.getElementById(`ticket-${readyTicket.id}`) : null;
     if (!target) return;
     target.scrollIntoView({ behavior: 'smooth', block: 'center' });
     target.classList.add('ring-4', 'ring-orange-300');
@@ -318,19 +301,10 @@ export function InternalQueueTab({
     return { label: target.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), isToday: false, isPast: false, diffDays };
   };
 
-  const formatBookingCreatedDate = (createdAtStr?: string | null) => {
-    if (!createdAtStr) return 'N/A';
-    const d = new Date(createdAtStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2000);
+    toast.success(`${code} copied.`);
   };
-
-
 
   // Search across every section
   const matchesSearch = useCallback(
@@ -619,7 +593,21 @@ export function InternalQueueTab({
     const phone = ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A'
       ? ticket.customer_phone
       : notes.phone;
+    const isMissed = ticket.status === 'MISSED' || ticket.status === 'NO_SHOW';
     return [
+      ...(isScheduledBooking(ticket) || isMissed
+        ? [
+            {
+              label: 'Reschedule',
+              icon: CalendarClock,
+              onClick: () => {
+                setRescheduleTarget(ticket);
+                setRescheduleDate(isMissed ? '' : ticket.dropoff_date || '');
+                setRescheduleSlot(ticket.dropoff_window || TIME_SLOTS[0]?.id || 'slot-1');
+              },
+            },
+          ]
+        : []),
       ...(isActive && ticket.stage >= 2
         ? [{ label: 'Update job', icon: Edit, onClick: () => onOpenDispatch(ticket) }]
         : []),
@@ -650,329 +638,227 @@ export function InternalQueueTab({
       ...(isActive && onOpenJobOrderPrint
         ? [{ label: 'Print job order', icon: Printer, onClick: () => onOpenJobOrderPrint(ticket) }]
         : []),
+      { label: 'Copy ticket number', icon: Copy, onClick: () => handleCopyCode(ticket.ticket_code) },
       ...(isActive && canVoidTicket(currentRole)
         ? [{ label: 'Cancel ticket', icon: Trash2, onClick: () => setVoidTarget(ticket), danger: true }]
         : []),
     ];
   };
 
-  // ---- Renderers shared by every section (cards, board by stage, history list) ----
-  // In the shop: one line per motorcycle, so a 3-bay shop never shows empty columns
-  const renderShopList = (list: InternalTicket[]) => (
-    <ul className="divide-y divide-slate-100">
-      {list.map((ticket) => {
-        const action = getNextAction(ticket);
-        const ActionIcon = action.icon;
-        const notes = parseTicketNotes(ticket.notes);
-        const customerName = ticket.customer_name || notes.customerName || 'Rider Customer';
-        const rawPhone =
-          ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A'
-            ? ticket.customer_phone
-            : notes.phone;
-        const bayNumber = normalizeBayNumber(ticket.assigned_bay === 'Bay Assignment Pending' ? null : ticket.assigned_bay);
-        const mechanic =
-          ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? ticket.assigned_mechanic : null;
+  // Every ticket looks the same: where it is, what it is, how far along, and the next step
+  const renderTicketRow = (ticket: InternalTicket) => {
+    const isPending = isPendingOnlineBooking(ticket);
+    const isMissed = ticket.status === 'MISSED' || ticket.status === 'NO_SHOW';
+    const isScheduled = !isPending && !isMissed && isScheduledBooking(ticket);
+    const isInShop = !isPending && !isMissed && !isScheduled;
+    const isUpdating = updatingId === ticket.id;
 
-        return (
-          <li
-            key={ticket.id}
-            id={`ticket-${ticket.id}`}
-            className="scroll-mt-28 px-4 sm:px-6 py-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] xl:items-center gap-3 xl:gap-6 transition"
-          >
-            {/* Bay, motorcycle, customer */}
-            <div className="flex items-start gap-3 min-w-0">
-              {bayNumber ? (
-                <span className="w-12 h-12 rounded-2xl bg-orange-500 text-white flex flex-col items-center justify-center shrink-0 leading-none shadow-sm shadow-orange-500/25">
-                  <span className="text-[10px] font-medium text-orange-100">Bay</span>
-                  <span className="font-display text-lg font-bold">{String(bayNumber).padStart(2, '0')}</span>
-                </span>
-              ) : (
-                <span className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-800 flex items-center justify-center text-center text-[11px] font-semibold leading-tight shrink-0">
-                  No
-                  <br />
-                  bay
-                </span>
+    const notes = parseTicketNotes(ticket.notes);
+    const customerName = ticket.customer_name || notes.customerName || 'Rider Customer';
+    const rawPhone =
+      ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A'
+        ? ticket.customer_phone
+        : notes.phone;
+    const arrivalWindow = ticket.dropoff_window || notes.arrivalWindow || null;
+    const appt = formatAppointmentDate(ticket.dropoff_date);
+    const bayNumber = normalizeBayNumber(ticket.assigned_bay === 'Bay Assignment Pending' ? null : ticket.assigned_bay);
+    const mechanic =
+      ticket.assigned_mechanic && ticket.assigned_mechanic !== 'Queued for Assignment' ? ticket.assigned_mechanic : null;
+    const dropoff = ticket.dropoff_date ? new Date(`${ticket.dropoff_date}T00:00:00`) : null;
+
+    const tileBase = 'w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-center shrink-0 leading-none';
+    const tile = isInShop ? (
+      bayNumber ? (
+        <span className={`${tileBase} bg-orange-500 text-white shadow-sm shadow-orange-500/25`}>
+          <span className="text-[10px] font-medium text-orange-100">Bay</span>
+          <span className="font-display text-lg font-bold">{String(bayNumber).padStart(2, '0')}</span>
+        </span>
+      ) : (
+        <span className={`${tileBase} bg-amber-50 text-amber-800 text-[11px] font-semibold leading-tight`}>No bay</span>
+      )
+    ) : isPending ? (
+      <span className={`${tileBase} bg-amber-50 text-amber-800 text-xs font-semibold`}>New</span>
+    ) : isMissed ? (
+      <span className={`${tileBase} bg-rose-50 text-rose-700 text-[11px] font-semibold`}>Missed</span>
+    ) : appt?.isToday ? (
+      <span className={`${tileBase} bg-orange-50 text-orange-700 text-xs font-semibold`}>Today</span>
+    ) : (
+      <span className={`${tileBase} bg-slate-100 text-slate-700`}>
+        <span className="text-[10px] font-medium text-slate-500">
+          {dropoff?.toLocaleDateString('en-US', { month: 'short' })}
+        </span>
+        <span className="font-display text-lg font-bold">{dropoff?.getDate()}</span>
+      </span>
+    );
+
+    const nextAction = isInShop ? getNextAction(ticket) : null;
+    const NextIcon = nextAction?.icon;
+
+    return (
+      <li
+        key={ticket.id}
+        id={`ticket-${ticket.id}`}
+        className="scroll-mt-28 px-4 sm:px-6 py-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] xl:items-center gap-3 xl:gap-6 transition"
+      >
+        <div className="flex items-start gap-3 min-w-0">
+          {tile}
+          <div className="min-w-0">
+            <p className="font-semibold text-slate-900 leading-snug">
+              {ticket.motorcycles?.model || 'Motorcycle'}
+              <span className="ml-2 inline-block align-middle font-mono text-[11px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                {ticket.motorcycles?.plate_number || 'No plate'}
+              </span>
+            </p>
+            <p className="mt-0.5 text-sm text-slate-500 break-words">
+              {customerName} · {ticket.service_type || 'General service'}
+            </p>
+            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
+              <span className="font-mono">{ticket.ticket_code}</span>
+              {ticket.is_walk_in && <span>Walk-in · {getElapsedText(ticket.created_at)}</span>}
+              {rawPhone && (
+                <a href={`tel:${rawPhone}`} className="font-mono hover:text-orange-600 transition" title="Call the customer">
+                  {formatPhoneNumber(rawPhone)}
+                </a>
               )}
-              <div className="min-w-0">
-                <p className="font-semibold text-slate-900 leading-snug">
-                  {ticket.motorcycles?.model || 'Motorcycle'}
-                  <span className="ml-2 inline-block align-middle font-mono text-[11px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                    {ticket.motorcycles?.plate_number || 'No plate'}
-                  </span>
-                </p>
-                <p className="mt-0.5 text-sm text-slate-500 break-words">
-                  {customerName} · {ticket.service_type || 'General service'}
-                </p>
-                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
-                  <span className="font-mono">{ticket.ticket_code}</span>
-                  {/* Only a walk-in's ticket starts when the motorcycle arrives */}
-                  {ticket.is_walk_in && <span>Walk-in · {getElapsedText(ticket.created_at)}</span>}
-                  {rawPhone && (
-                    <a href={`tel:${rawPhone}`} className="font-mono hover:text-orange-600 transition" title="Call the customer">
-                      {formatPhoneNumber(rawPhone)}
-                    </a>
-                  )}
-                </p>
+            </p>
+          </div>
+        </div>
+
+        {isInShop ? (
+          <div className="grid grid-cols-5 gap-1 min-w-0" aria-label={`Stage ${ticket.stage} of 5: ${stageName(ticket.stage)}`}>
+            {SERVICE_STAGES.map((st) => (
+              <div key={st.step} className="space-y-1 min-w-0">
+                <div
+                  className={`h-1.5 rounded-full ${
+                    st.step < ticket.stage ? 'bg-orange-300' : st.step === ticket.stage ? 'bg-orange-500' : 'bg-slate-200'
+                  }`}
+                />
+                <span className={`block text-[11px] truncate ${st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                  {st.name}
+                </span>
               </div>
-            </div>
+            ))}
+          </div>
+        ) : (
+          <div className="min-w-0 text-sm">
+            {appt && (
+              <p className="font-medium text-slate-800">
+                {appt.label}
+                {arrivalWindow && <span className="font-normal text-slate-500"> · {arrivalWindow}</span>}
+              </p>
+            )}
+            {notes.symptoms && (
+              <p className="text-slate-500 truncate" title={notes.symptoms}>
+                {notes.symptoms}
+              </p>
+            )}
+          </div>
+        )}
 
-            {/* Where it is in the 5 stages (what the rider sees) */}
-            <div className="grid grid-cols-5 gap-1 min-w-0" aria-label={`Stage ${ticket.stage} of 5: ${stageName(ticket.stage)}`}>
-              {SERVICE_STAGES.map((st) => (
-                <div key={st.step} className="space-y-1 min-w-0">
-                  <div
-                    className={`h-1.5 rounded-full ${
-                      st.step < ticket.stage ? 'bg-orange-300' : st.step === ticket.stage ? 'bg-orange-500' : 'bg-slate-200'
-                    }`}
-                  />
-                  <span className={`block text-[11px] truncate ${st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
-                    {st.name}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            {/* Mechanic, then the one next step */}
-            <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-between xl:justify-end gap-2">
+          {isInShop ? (
+            <button
+              type="button"
+              onClick={() => handleOpenAssignMechanic(ticket)}
+              className={`${CHIP} max-w-[10rem] transition cursor-pointer ${
+                mechanic
+                  ? 'bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700'
+                  : 'border border-dashed border-slate-300 hover:border-orange-300 text-slate-500 hover:text-orange-700'
+              }`}
+              title={mechanic ? 'Change mechanic' : 'Assign a mechanic'}
+            >
+              {mechanic ? <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <Plus className="w-3.5 h-3.5 shrink-0" />}
+              <span className="truncate">{mechanic || 'Mechanic'}</span>
+            </button>
+          ) : (
+            <span />
+          )}
+          <div className="flex items-center gap-2 ml-auto xl:ml-0">
+            <MoreMenu items={getMenuItems(ticket)} />
+            {isPending && (
               <button
                 type="button"
-                onClick={() => handleOpenAssignMechanic(ticket)}
-                className={`${CHIP} max-w-[10rem] transition cursor-pointer ${
-                  mechanic
-                    ? 'bg-slate-100 hover:bg-orange-50 text-slate-800 hover:text-orange-700'
-                    : 'border border-dashed border-slate-300 hover:border-orange-300 text-slate-500 hover:text-orange-700'
-                }`}
-                title={mechanic ? 'Change mechanic' : 'Assign a mechanic'}
+                disabled={isUpdating}
+                onClick={() => setVoidTarget(ticket)}
+                className={`${SECONDARY_BTN} hover:text-rose-700 hover:border-rose-200 hover:bg-rose-50`}
               >
-                {mechanic ? <UserCheck className="w-3.5 h-3.5 text-slate-400 shrink-0" /> : <Plus className="w-3.5 h-3.5 shrink-0" />}
-                <span className="truncate">{mechanic || 'Mechanic'}</span>
+                Decline
               </button>
-              <div className="flex items-center gap-2 ml-auto xl:ml-0">
-                <MoreMenu items={getMenuItems(ticket)} />
-                <button
-                  type="button"
-                  disabled={updatingId === ticket.id}
-                  onClick={action.run}
-                  className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}
-                >
-                  <ActionIcon className="w-4 h-4" />
-                  <span>{action.label}</span>
+            )}
+            {isPending ? (
+              <button type="button" disabled={isUpdating} onClick={() => handleConfirmBooking(ticket)} className={`${PRIMARY_BTN} justify-center whitespace-nowrap`}>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Accept</span>
+              </button>
+            ) : isMissed ? (
+              <button type="button" disabled={isUpdating} onClick={() => handleLateCheckIn(ticket)} className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Late check-in</span>
+              </button>
+            ) : isScheduled ? (
+              <button type="button" disabled={isUpdating} onClick={() => handleCheckInMotorcycle(ticket)} className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}>
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{appt?.isToday ? 'Check in' : 'Check in early'}</span>
+              </button>
+            ) : (
+              nextAction &&
+              NextIcon && (
+                <button type="button" disabled={isUpdating} onClick={nextAction.run} className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}>
+                  <NextIcon className="w-4 h-4" />
+                  <span>{nextAction.label}</span>
                 </button>
-              </div>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
-
-  const renderTicketCard = (ticket: InternalTicket) => {
-            const isPending = isPendingOnlineBooking(ticket);
-            const isMissed = ticket.status === 'MISSED' || ticket.status === 'NO_SHOW';
-            const isScheduled = isScheduledBooking(ticket);
-            const isUpdating = updatingId === ticket.id;
-            const apptInfo = formatAppointmentDate(ticket.dropoff_date);
-            const bookedDate = formatBookingCreatedDate(ticket.created_at);
-
-            // Sanitized Notes & Customer Data
-            const parsedNotes = parseTicketNotes(ticket.notes);
-            const rawPhone = (ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A')
-              ? ticket.customer_phone
-              : parsedNotes.phone;
-            const displayPhone = rawPhone ? formatPhoneNumber(rawPhone) : null;
-            const customerName = ticket.customer_name || parsedNotes.customerName || 'Rider Customer';
-            const arrivalWindow = ticket.dropoff_window || parsedNotes.arrivalWindow || null;
-            const symptoms = parsedNotes.symptoms || null;
-
-            return (
-              <div
-                key={ticket.id}
-                id={`ticket-${ticket.id}`}
-                className={`scroll-mt-28 bg-white border hover:border-slate-300 rounded-2xl sm:rounded-[1.5rem] p-5 card-elevated space-y-4 transition ${
-                  isPending ? 'border-orange-300 ring-4 ring-orange-100' : 'border-slate-200/70'
-                }`}
-              >
-                {/* 1. Header: ticket number, motorcycle, plate, time, status */}
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 flex-wrap">
-                      <span className="font-mono font-semibold text-slate-700">{ticket.ticket_code}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCode(ticket.ticket_code)}
-                        className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
-                        title="Copy ticket number"
-                        aria-label="Copy ticket number"
-                      >
-                        {copiedCode === ticket.ticket_code ? (
-                          <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                      <span className="text-slate-300">·</span>
-                      {isScheduled && apptInfo ? (
-                        <span className="inline-flex items-center gap-1 font-medium text-slate-700">
-                          <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                          {apptInfo.label}
-                        </span>
-                      ) : (
-                        <span>Booked {bookedDate}</span>
-                      )}
-                      {ticket.is_walk_in && (
-                        <>
-                          <span className="text-slate-300">·</span>
-                          <span>Walk-in</span>
-                        </>
-                      )}
-                    </div>
-
-                    <h3
-                      className="mt-1 font-display text-base sm:text-[1.05rem] font-bold tracking-tight text-slate-900 leading-snug line-clamp-2"
-                      title={ticket.motorcycles?.model || undefined}
-                    >
-                      {ticket.motorcycles?.model || 'Motorcycle'}
-                      <span className="ml-2 inline-block align-middle font-mono text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md whitespace-nowrap">
-                        {ticket.motorcycles?.plate_number || 'No plate'}
-                      </span>
-                    </h3>
-                  </div>
-
-                  <div className="shrink-0">
-                    {isPending ? (
-                      <StatusPill label="New request" tone="waiting" />
-                    ) : isMissed ? (
-                      <StatusPill label="Missed today" tone="missed" />
-                    ) : (
-                      <StatusPill label="Scheduled" tone="waiting" />
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. Customer, Phone, Schedule & Service Package Details */}
-                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2 text-sm pt-3 border-t border-slate-100">
-                  <div className="min-w-0">
-                    <span className="block text-xs text-slate-400">Customer</span>
-                    <span className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-slate-900 truncate">{customerName}</span>
-                      {displayPhone && (
-                        <a
-                          href={`tel:${rawPhone}`}
-                          className="inline-flex items-center gap-1 text-slate-500 hover:text-orange-600 font-mono text-xs transition"
-                          title="Call the customer"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          {displayPhone}
-                        </a>
-                      )}
-                    </span>
-                  </div>
-                  <div className="min-w-0">
-                    <span className="block text-xs text-slate-400">Service</span>
-                    <span className="font-medium text-slate-900 block truncate">{ticket.service_type || 'General service'}</span>
-                    {arrivalWindow && (
-                      <span className="text-xs text-slate-500 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        Arrives {arrivalWindow}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* 3. What the rider reported */}
-                {symptoms && (
-                  <div className="px-3.5 py-2.5 bg-slate-50 rounded-xl text-sm">
-                    <span className="block text-xs text-slate-400">Rider&apos;s concern</span>
-                    <p className="text-slate-800 leading-relaxed">{symptoms}</p>
-                  </div>
-                )}
-
-                {/* Small tools, then the main action */}
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                  <MoreMenu items={getMenuItems(ticket)} />
-                  {isPending ? (
-                    <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto min-w-0">
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => setVoidTarget(ticket)}
-                        className={`${SECONDARY_BTN} hover:text-rose-700 hover:border-rose-200 hover:bg-rose-50`}
-                      >
-                        Decline
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => handleConfirmBooking(ticket)}
-                        className={PRIMARY_BTN}
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Accept booking</span>
-                      </button>
-                    </div>
-                  ) : isMissed ? (
-                    <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRescheduleTarget(ticket);
-                          setRescheduleDate('');
-                          setRescheduleSlot(ticket.dropoff_window || TIME_SLOTS[0]?.id || 'slot-1');
-                        }}
-                        className={SECONDARY_BTN}
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => handleLateCheckIn(ticket)}
-                        className={PRIMARY_BTN}
-                        title="The rider arrived after the time slot"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>Late check-in</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-wrap items-center justify-end gap-2 self-end sm:self-auto min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRescheduleTarget(ticket);
-                          setRescheduleDate(ticket.dropoff_date || '');
-                          setRescheduleSlot(ticket.dropoff_window || TIME_SLOTS[0]?.id || 'slot-1');
-                        }}
-                        className={SECONDARY_BTN}
-                      >
-                        Reschedule
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => handleCheckInMotorcycle(ticket)}
-                        className={PRIMARY_BTN}
-                        title="The rider is here with the motorcycle"
-                      >
-                        <CheckCircle2 className="w-4 h-4" />
-                        <span>{apptInfo?.isToday ? 'Check in' : 'Check in early'}</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
+              )
+            )}
+          </div>
+        </div>
+      </li>
+    );
   };
 
-  const renderCardGrid = (list: InternalTicket[]) => (
-    <div className={`grid gap-4 ${list.length === 1 ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-2'}`}>
-      {list.map((ticket) => renderTicketCard(ticket))}
-    </div>
-  );
+  const isSearching = searchQuery.trim().length > 0;
+  const activeTab: QueueTab = chosenTab ?? (sections.needsAction.length > 0 ? 'todo' : 'shop');
+  const tabs: { id: QueueTab; label: string; list: InternalTicket[]; title: string; hint: string; emptyTitle: string; emptyHint: string }[] = [
+    {
+      id: 'todo',
+      label: 'To do',
+      list: sections.needsAction,
+      title: 'To do',
+      hint:
+        [
+          sections.pending.length > 0 && `${sections.pending.length} to accept or decline`,
+          sections.arrivingToday.length > 0 && `${sections.arrivingToday.length} arriving today`,
+          sections.missedToday.length > 0 && `${sections.missedToday.length} missed today`,
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Nothing to do right now',
+      emptyTitle: 'All caught up',
+      emptyHint: 'New booking requests and riders arriving today show up here.',
+    },
+    {
+      id: 'shop',
+      label: 'In the shop',
+      list: sections.inShop,
+      title: 'In the shop',
+      hint: `${baysInUse} of ${bayCount} bays in use${sections.inShop.length > baysInUse ? ` · ${sections.inShop.length - baysInUse} waiting for a bay` : ''}`,
+      emptyTitle: 'No motorcycles in the shop',
+      emptyHint: 'Walk-ins and checked-in bookings show up here.',
+    },
+    {
+      id: 'upcoming',
+      label: 'Upcoming',
+      list: sections.upcoming,
+      title: 'Upcoming',
+      hint: 'Accepted bookings, earliest first',
+      emptyTitle: 'No upcoming bookings',
+      emptyHint: 'Bookings you accept for later dates show up here.',
+    },
+  ];
+  const currentTab = tabs.find((tab) => tab.id === activeTab) ?? tabs[0];
+  const shownTickets = isSearching ? [...sections.needsAction, ...sections.inShop, ...sections.upcoming] : currentTab.list;
 
   return (
     <div className="space-y-5">
-      {/* Toolbar: one search for every section, the day's summary, and New walk-in */}
+      {/* Toolbar: search, New walk-in, and the three lists */}
       <div className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated p-3 sm:p-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="relative flex-1 min-w-0">
@@ -1000,146 +886,64 @@ export function InternalQueueTab({
             <span>New walk-in</span>
           </button>
         </div>
-        {/* Day summary: tap a pill to jump to that section */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {[
-            { id: 'q-needs', label: 'Needs action', count: sections.needsAction.length, alert: sections.needsAction.length > 0 },
-            { id: 'q-shop', label: 'In the shop', count: sections.inShop.length, alert: false },
-            { id: 'q-upcoming', label: 'Upcoming', count: sections.upcoming.length, alert: false },
-          ].map((pill) => (
-            <button
-              key={pill.id}
-              type="button"
-              disabled={pill.count === 0}
-              onClick={() => document.getElementById(pill.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className={`inline-flex items-center gap-2 pl-3 pr-1.5 py-1 rounded-full text-sm transition ${
-                pill.alert
-                  ? 'bg-orange-50 text-orange-800 hover:bg-orange-100 cursor-pointer'
-                  : pill.count > 0
-                  ? 'bg-slate-100 text-slate-700 hover:bg-slate-200/70 cursor-pointer'
-                  : 'bg-slate-50 text-slate-400 cursor-default'
-              }`}
-            >
-              {pill.label}
-              <span
-                className={`min-w-[22px] px-1.5 rounded-full text-xs font-semibold leading-5 text-center tabular-nums ${
-                  pill.alert ? 'bg-orange-500 text-white' : 'bg-white text-slate-600'
-                }`}
-              >
-                {pill.count}
-              </span>
-            </button>
-          ))}
-        </div>
+        {/* One list at a time */}
+        {!isSearching && (
+          <div className="mt-3 grid grid-cols-3 gap-1 p-1 rounded-full bg-slate-100" role="tablist" aria-label="Queue">
+            {tabs.map((tab) => {
+              const isActive = tab.id === activeTab;
+              const needsAttention = tab.id === 'todo' && tab.list.length > 0;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setChosenTab(tab.id)}
+                  className={`flex items-center justify-center gap-1.5 px-1 py-2 rounded-full text-xs sm:text-sm font-semibold transition cursor-pointer ${
+                    isActive ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span className="truncate">{tab.label}</span>
+                  <span
+                    className={`min-w-[20px] px-1 rounded-full text-[11px] font-semibold leading-5 text-center tabular-nums shrink-0 ${
+                      needsAttention ? 'bg-orange-500 text-white' : 'bg-slate-200/70 text-slate-600 max-[359px]:hidden'
+                    }`}
+                  >
+                    {tab.list.length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {searchQuery.trim() && totalShown === 0 && (
-        <div className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated px-6 py-12 text-center">
-          <h3 className="font-display text-base font-bold text-slate-900">No tickets match your search</h3>
-          <p className="text-sm text-slate-500 mt-1">Try another plate, name, or ticket number.</p>
-        </div>
-      )}
-
-      {/* 1. Needs your action: new booking requests + riders arriving today */}
-      {sections.needsAction.length > 0 && (
-        <section
-          id="q-needs"
-          className="scroll-mt-28 rounded-2xl sm:rounded-[1.75rem] border border-slate-200/70 bg-white card-elevated p-4 sm:p-5 space-y-4"
-        >
-          <div className="flex items-start gap-3 px-1">
-            <span className="w-10 h-10 rounded-[12px] bg-orange-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-orange-500/30">
-              <BellRing className="w-5 h-5" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">
-                Needs your action <span className="text-orange-600">({sections.needsAction.length})</span>
-              </h2>
-              <p className="text-sm text-slate-500">
-                {[
-                  sections.pending.length > 0 &&
-                    `${sections.pending.length} new booking request${sections.pending.length === 1 ? '' : 's'} to accept or decline`,
-                  sections.arrivingToday.length > 0 &&
-                    `${sections.arrivingToday.length} rider${sections.arrivingToday.length === 1 ? '' : 's'} arriving today to check in`,
-                  sections.missedToday.length > 0 && `${sections.missedToday.length} missed today`,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-            </div>
-          </div>
-          {renderCardGrid(sections.needsAction)}
-        </section>
-      )}
-
-      {/* 2. In the shop: board by stage (default), cards, or list */}
-      <section
-        id="q-shop"
-        className="scroll-mt-28 bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 py-4 border-b border-slate-200/80">
-          <div className="flex items-center gap-3 min-w-0">
-            <span className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
-              <Wrench className="w-5 h-5" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">
-                In the shop <span className="text-slate-400 font-semibold">({sections.inShop.length})</span>
-              </h2>
-              <p className="text-sm text-slate-500">
-                {baysInUse} of {bayCount} bays in use
-                {sections.inShop.length > baysInUse ? ` · ${sections.inShop.length - baysInUse} waiting for a bay` : ''}
-              </p>
-            </div>
-          </div>
+      <section className="bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated">
+        <div className="px-5 sm:px-6 py-4 border-b border-slate-100">
+          <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">
+            {isSearching ? 'Search results' : currentTab.title}
+          </h2>
+          <p className="text-sm text-slate-500">
+            {isSearching ? `${totalShown} ${totalShown === 1 ? 'ticket' : 'tickets'} found` : currentTab.hint}
+          </p>
         </div>
 
-        {sections.inShop.length === 0 ? (
+        {shownTickets.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center mx-auto">
               <MotorcycleIcon className="w-6 h-6 text-orange-500" />
             </div>
             <h3 className="font-display text-base font-bold text-slate-900 mt-4">
-              {searchQuery.trim() ? 'No match in the shop' : 'No motorcycles in the shop'}
+              {isSearching ? 'No tickets match your search' : currentTab.emptyTitle}
             </h3>
             <p className="text-sm text-slate-500 mt-1">
-              {searchQuery.trim()
-                ? 'Try another plate, name, or ticket number.'
-                : sections.arrivingToday.length > 0
-                ? 'Check in a rider above when they arrive, or start a walk-in.'
-                : 'Walk-ins and checked-in bookings show up here.'}
+              {isSearching ? 'Try another plate, name, or ticket number.' : currentTab.emptyHint}
             </p>
-            {!searchQuery.trim() && (
-              <button type="button" onClick={() => setIsWalkInModalOpen(true)} className={`mt-5 mx-auto ${PRIMARY_BTN}`}>
-                <Plus className="w-4 h-4" />
-                <span>New walk-in</span>
-              </button>
-            )}
           </div>
         ) : (
-          renderShopList(sections.inShop)
+          <ul className="divide-y divide-slate-100">{shownTickets.map(renderTicketRow)}</ul>
         )}
       </section>
-
-      {/* 3. Upcoming: accepted bookings for the next days */}
-      {sections.upcoming.length > 0 && (
-        <section
-          id="q-upcoming"
-          className="scroll-mt-28 bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated p-4 sm:p-5 space-y-4"
-        >
-          <div className="flex items-start gap-3 px-1">
-            <span className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-              <CalendarClock className="w-5 h-5" />
-            </span>
-            <div className="min-w-0">
-              <h2 className="font-display text-lg font-bold tracking-tight text-slate-900">
-                Upcoming <span className="text-slate-400 font-semibold">({sections.upcoming.length})</span>
-              </h2>
-              <p className="text-sm text-slate-500">Accepted bookings for the next days, earliest first</p>
-            </div>
-          </div>
-          {renderCardGrid(sections.upcoming)}
-        </section>
-      )}
 
       {/* Walk-in Claim Slip */}
       <WalkInClaimSlipModal
