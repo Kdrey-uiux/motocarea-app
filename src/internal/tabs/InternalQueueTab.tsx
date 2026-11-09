@@ -21,7 +21,8 @@ import {
   Wrench, 
   ChevronRight, 
   Printer, 
-  Copy, 
+  Copy,
+  Phone,
   Check, 
   Trash2, 
   Plus, 
@@ -640,7 +641,10 @@ export function InternalQueueTab({
       ...(isActive && onOpenJobOrderPrint
         ? [{ label: 'Print job order', icon: Printer, onClick: () => onOpenJobOrderPrint(ticket) }]
         : []),
-      { label: 'Copy ticket number', icon: Copy, onClick: () => handleCopyCode(ticket.ticket_code) },
+      ...(phone
+        ? [{ label: `Call ${formatPhoneNumber(phone)}`, icon: Phone, onClick: () => { window.location.href = `tel:${phone}`; } }]
+        : []),
+      { label: `Copy ${ticket.ticket_code}`, icon: Copy, onClick: () => handleCopyCode(ticket.ticket_code) },
       ...(isActive && canVoidTicket(currentRole)
         ? [{ label: 'Cancel ticket', icon: Trash2, onClick: () => setVoidTarget(ticket), danger: true }]
         : []),
@@ -657,10 +661,6 @@ export function InternalQueueTab({
 
     const notes = parseTicketNotes(ticket.notes);
     const customerName = ticket.customer_name || notes.customerName || 'Rider Customer';
-    const rawPhone =
-      ticket.customer_phone && !ticket.customer_phone.includes(',') && ticket.customer_phone !== 'N/A'
-        ? ticket.customer_phone
-        : notes.phone;
     const arrivalWindow = ticket.dropoff_window || notes.arrivalWindow || null;
     const appt = formatAppointmentDate(ticket.dropoff_date);
     const bayNumber = normalizeBayNumber(ticket.assigned_bay === 'Bay Assignment Pending' ? null : ticket.assigned_bay);
@@ -705,23 +705,17 @@ export function InternalQueueTab({
         <div className="flex items-start gap-3 min-w-0">
           {tile}
           <div className="min-w-0">
-            <p className="font-semibold text-slate-900 leading-snug">
+            <p className="font-semibold text-slate-900 leading-snug truncate" title={ticket.motorcycles?.model || undefined}>
               {ticket.motorcycles?.model || 'Motorcycle'}
-              <span className="ml-2 inline-block align-middle text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md whitespace-nowrap">
-                {ticket.motorcycles?.plate_number || 'No plate'}
-              </span>
             </p>
-            <p className="mt-1 text-sm text-slate-600 break-words">
-              {customerName} · {ticket.service_type || 'General service'}
+            <p className="mt-0.5 text-sm text-slate-700 truncate">
+              <span className="font-medium">{ticket.motorcycles?.plate_number || 'No plate'}</span>
+              <span className="text-slate-400"> · </span>
+              {customerName}
             </p>
-            <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
-              <span>{ticket.ticket_code}</span>
-              {ticket.is_walk_in && <span>Walk-in · {getElapsedText(ticket.created_at)}</span>}
-              {rawPhone && (
-                <a href={`tel:${rawPhone}`} className="hover:text-orange-600 transition" title="Call the customer">
-                  {formatPhoneNumber(rawPhone)}
-                </a>
-              )}
+            <p className="mt-0.5 text-sm text-slate-500 truncate" title={ticket.service_type || undefined}>
+              {ticket.service_type || 'General service'}
+              {ticket.is_walk_in && ` · Walk-in, ${getElapsedText(ticket.created_at)}`}
             </p>
           </div>
         </div>
