@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Calendar, CircleX, Clock, Info, Layers, LayoutGrid, Loader2, Mail, MapPin, Phone, X } from '../../components/icons';
+import { Calendar, CircleX, Clock, Info, Layers, LayoutGrid, Loader2, Mail, MapPin, Phone, RefreshCw, X } from '../../components/icons';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 import {
   DEFAULT_SITE_CONTENT,
@@ -105,10 +105,24 @@ export default function WebsiteContentModal({
   const [section, setSection] = useState<Section>('shop');
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [savedContent] = useState<SiteContent>(getSiteContent);
+  const [askDiscard, setAskDiscard] = useState(false);
+  const [restored, setRestored] = useState(false);
+
+  const hasChanges = JSON.stringify(content) !== JSON.stringify(savedContent);
+  const isOriginal = JSON.stringify(content) === JSON.stringify(DEFAULT_SITE_CONTENT);
+
+  // Closing with unsaved edits asks first, so a misclick can't lose them
+  const requestClose = () => {
+    if (hasChanges) setAskDiscard(true);
+    else onClose();
+  };
 
   const update = (patch: Partial<SiteContent>) => {
     setContent((prev) => ({ ...prev, ...patch }));
     setErrorMsg(null);
+    setRestored(false);
+    setAskDiscard(false);
   };
 
   const updateCard = (index: number, patch: Partial<SiteContent['services'][number]>) => {
@@ -117,6 +131,8 @@ export default function WebsiteContentModal({
       services: prev.services.map((card, i) => (i === index ? { ...card, ...patch } : card)),
     }));
     setErrorMsg(null);
+    setRestored(false);
+    setAskDiscard(false);
   };
 
   const headlineWords = content.heroHeadline.trim().split(/\s+/).filter(Boolean);
@@ -175,7 +191,7 @@ export default function WebsiteContentModal({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={requestClose}
               className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition cursor-pointer shrink-0"
               aria-label="Close"
             >
@@ -364,38 +380,69 @@ export default function WebsiteContentModal({
           )}
         </div>
 
-        <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setContent(DEFAULT_SITE_CONTENT);
-              setErrorMsg(null);
-            }}
-            disabled={saving}
-            className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition cursor-pointer"
-          >
-            Use original text
-          </button>
-          <div className="flex items-center gap-2 ml-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={saving}
-              className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {saving ? 'Saving…' : 'Save'}
-            </button>
+        {askDiscard ? (
+          <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
+            <p className="text-sm font-medium text-slate-800">Discard your changes?</p>
+            <div className="grid grid-cols-2 sm:flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setAskDiscard(false)}
+                className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition cursor-pointer"
+              >
+                Discard
+              </button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="px-5 sm:px-6 py-3.5 border-t border-slate-100 shrink-0 space-y-2">
+            {restored && hasChanges && (
+              <p role="status" className="text-xs text-slate-500">
+                Original text is back in the form. Press Save to apply it.
+              </p>
+            )}
+            <div className="flex flex-col-reverse sm:flex-row sm:items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setContent(DEFAULT_SITE_CONTENT);
+                  setErrorMsg(null);
+                  setRestored(true);
+                }}
+                disabled={saving || isOriginal}
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+                Reset to original
+              </button>
+              <div className="grid grid-cols-2 sm:flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={requestClose}
+                  disabled={saving}
+                  className="px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !hasChanges}
+                  className="px-5 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                >
+                  {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body
