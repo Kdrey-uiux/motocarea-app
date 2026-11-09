@@ -16,6 +16,7 @@ import {
   CalendarSync
 } from '../../components/icons';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
+import { autoReplyText } from '../../utils/systemMessages';
 
 interface MessagesModalProps {
   isOpen: boolean;
@@ -25,7 +26,8 @@ interface MessagesModalProps {
   onRescheduleTicket?: (ticketCode: string) => void;
 }
 
-// Short label on the chip; the full sentence goes into the message box
+// Short label on the chip; the full sentence goes into the message box.
+// The database answers these exact sentences: keep them the same as migration 23.
 const QUICK_MESSAGES = [
   { label: 'Repair status', text: 'Hi, may I know the status of my motorcycle?' },
   { label: 'Pickup time', text: 'Hi, what time can I pick up my motorcycle?' },
@@ -195,6 +197,11 @@ export default function MessagesModal({
   };
 
   const renderMessageContent = (text: string) => {
+    const autoText = autoReplyText(text);
+    if (autoText !== null) {
+      return <span className="whitespace-pre-line">{autoText}</span>;
+    }
+
     if (text.startsWith('[HARDCOPY_REQUEST]')) {
       try {
         const data = JSON.parse(text.replace('[HARDCOPY_REQUEST]', '').trim());
@@ -349,7 +356,7 @@ export default function MessagesModal({
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               </div>
               <span className="text-[11px] text-slate-500 font-medium block">
-                Santa Maria Hub • Service Advisor On Duty
+                Staff reply during shop hours
               </span>
             </div>
           </div>
@@ -386,7 +393,7 @@ export default function MessagesModal({
               </div>
               <div className="pt-2 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Typical response time: under 5 minutes</span>
+                <span>Tap a quick question below</span>
               </div>
             </div>
           ) : (
@@ -412,7 +419,7 @@ export default function MessagesModal({
 
                   <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                     <div className="text-[11px] text-slate-400 mb-0.5 px-1.5 font-medium">
-                      {isMe ? 'You' : 'Advisor'} • {timeFormatted}
+                      {isMe ? 'You' : autoReplyText(msg.message) !== null ? 'MotoCare · Automatic reply' : 'Advisor'} • {timeFormatted}
                     </div>
                     <div
                       className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${

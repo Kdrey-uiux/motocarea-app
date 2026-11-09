@@ -17,7 +17,7 @@ import {
   Phone,
 } from '../../components/icons';
 import { toast } from '../utils/toast';
-import { isSystemMessage, summarizeMessage } from '../../utils/systemMessages';
+import { findWaitingMessage, isSystemMessage, summarizeMessage } from '../../utils/systemMessages';
 
 interface InternalMessagesTabProps {
   tickets: InternalTicket[];
@@ -361,7 +361,7 @@ export default function InternalMessagesTab({
             listedConversations.map((c) => {
               const isSelected = selectedUserId === c.userId;
               const lastIsSystem = isSystemMessage(c.latestMessage);
-              const lastFromCustomer = c.messages[c.messages.length - 1]?.sender_role === 'customer';
+              const lastFromCustomer = findWaitingMessage([...c.messages].reverse()) !== null;
               return (
                 <button
                   key={c.userId}

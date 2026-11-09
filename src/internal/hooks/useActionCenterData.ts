@@ -5,7 +5,7 @@ import { HardcopyRequest } from '../../lib/hardcopyService';
 import { isPendingOnlineBooking } from '../utils/ticketActions';
 import { fetchAllReviews, getReviewStatus, ModeratedReview } from '../utils/reviewModeration';
 import { InternalTicket } from '../types/internal';
-import { SYSTEM_MESSAGE } from '../../utils/systemMessages';
+import { findWaitingMessage } from '../../utils/systemMessages';
 
 export interface WaitingConversation {
   userId: string;
@@ -85,13 +85,13 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
       .limit(500)
       .then(async ({ data, error }) => {
         if (error || !data) return;
-        const latestByUser = new Map<string, (typeof data)[number]>();
+        const chatByUser = new Map<string, typeof data>();
         data.forEach((m) => {
-          if (!m.user_id || latestByUser.has(m.user_id) || SYSTEM_MESSAGE.test(m.message || '')) return;
-          latestByUser.set(m.user_id, m);
+          if (!m.user_id) return;
+          chatByUser.set(m.user_id, [...(chatByUser.get(m.user_id) ?? []), m]);
         });
 
-        const waiting = Array.from(latestByUser.values()).filter((m) => m.sender_role === 'customer');
+        const waiting = Array.from(chatByUser.values()).flatMap((chat) => findWaitingMessage(chat) ?? []);
         const missingNames = waiting.map((m) => m.user_id).filter((id) => !ticketByUser.get(id)?.customer_name);
         const names = new Map<string, string>();
         if (missingNames.length > 0) {

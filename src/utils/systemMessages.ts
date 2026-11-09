@@ -10,6 +10,44 @@ export function isSystemMessage(text?: string | null): boolean {
   return SYSTEM_MESSAGE.test(text || '');
 }
 
+const AUTO_ANSWERED = '[AUTO_REPLY]';
+const AUTO_RECEIVED = '[AUTO_RECEIVED]';
+
+/** The text of an automatic chat reply, or null when the message is something else */
+export function autoReplyText(text?: string | null): string | null {
+  const raw = text || '';
+  const tag = raw.startsWith(AUTO_ANSWERED) ? AUTO_ANSWERED : raw.startsWith(AUTO_RECEIVED) ? AUTO_RECEIVED : null;
+  if (!tag) return null;
+  try {
+    const data = JSON.parse(raw.slice(tag.length).trim());
+    return typeof data.message === 'string' ? data.message : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The rider message still waiting for the shop, or null. Pass the chat newest first.
+ * A quick question the system fully answered does not count; an "[AUTO_RECEIVED]" one still does.
+ */
+export function findWaitingMessage<T extends { sender_role: string; message: string }>(newestFirst: T[]): T | null {
+  let answeredByAuto = false;
+  for (const msg of newestFirst) {
+    if ((msg.message || '').startsWith(AUTO_ANSWERED)) {
+      answeredByAuto = true;
+    } else if (isSystemMessage(msg.message)) {
+      continue;
+    } else if (msg.sender_role !== 'customer') {
+      return null;
+    } else if (answeredByAuto) {
+      answeredByAuto = false;
+    } else {
+      return msg;
+    }
+  }
+  return null;
+}
+
 export function summarizeMessage(text?: string | null): string {
   const raw = text || '';
   const tag = raw.match(SYSTEM_MESSAGE)?.[0];
@@ -25,6 +63,9 @@ export function summarizeMessage(text?: string | null): string {
   const code = str('ticketCode') ? `#${str('ticketCode')}` : '';
 
   switch (tag) {
+    case AUTO_ANSWERED:
+    case AUTO_RECEIVED:
+      return `Automatic reply: ${str('message')}`;
     case '[MISSED_BOOKING_NOTICE]':
       return `Auto notice: booking ${code} was missed (not checked in).`;
     case '[BOOKING_REMINDER]':
