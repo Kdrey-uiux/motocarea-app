@@ -25,6 +25,15 @@ interface MessagesModalProps {
   onRescheduleTicket?: (ticketCode: string) => void;
 }
 
+// Short label on the chip; the full sentence goes into the message box
+const QUICK_MESSAGES = [
+  { label: 'Repair status', text: 'Hi, may I know the status of my motorcycle?' },
+  { label: 'Pickup time', text: 'Hi, what time can I pick up my motorcycle?' },
+  { label: 'Cost estimate', text: 'Hi, may I get a cost estimate for my repair?' },
+  { label: 'Running late', text: 'Hi, I may be late for my appointment. Can I still come in?' },
+  { label: 'Change my booking', text: 'Hi, I need help changing my booking.' },
+];
+
 function formatMessageTimestamp(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
@@ -422,10 +431,26 @@ export default function MessagesModal({
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Quick messages */}
+        <div className="px-3.5 pt-3 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 shrink-0" role="group" aria-label="Quick messages">
+          {QUICK_MESSAGES.map((quick) => (
+            <button
+              key={quick.label}
+              type="button"
+              disabled={sending || loading}
+              onClick={() => setInputText(quick.text)}
+              className="px-3 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700 text-xs text-slate-600 whitespace-nowrap transition cursor-pointer disabled:opacity-50"
+              title="Put this in the message box"
+            >
+              {quick.label}
+            </button>
+          ))}
+        </div>
+
         {/* Input Footer Bar */}
         <form
           onSubmit={handleSendMessage}
-          className="p-3.5 bg-white border-t border-slate-100 flex items-center gap-2 shrink-0"
+          className="px-3.5 pt-2.5 pb-3.5 bg-white flex items-center gap-2 shrink-0"
         >
           <input
             type="text"
