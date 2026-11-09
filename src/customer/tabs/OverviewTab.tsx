@@ -773,7 +773,7 @@ export default function OverviewTab({
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       >
         {/* Bottom Left: Genuine Service History Table (NO HARDCODED ROWS) */}
-        <div className="lg:col-span-8 lg:self-start bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-6 card-elevated space-y-4">
+        <div className="lg:col-span-12 lg:order-last bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-4 sm:p-6 card-elevated space-y-4">
           <div className="flex items-center justify-between gap-3 pb-2 border-b border-slate-100">
             <div className="min-w-0">
               <h3 className="text-sm sm:text-base font-bold text-slate-900">
@@ -850,7 +850,7 @@ export default function OverviewTab({
                         <div className="w-7 h-7 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs shrink-0">
                           <Wrench className="w-3.5 h-3.5" />
                         </div>
-                        <span className="truncate max-w-[180px] sm:max-w-xs">{item.service_type}</span>
+                        <span className="truncate max-w-[180px] sm:max-w-xs lg:max-w-lg">{item.service_type}</span>
                       </td>
                       <td className="py-3.5 text-slate-500 whitespace-nowrap">
                         {getTicketDisplayDate(item).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -889,9 +889,9 @@ export default function OverviewTab({
         </div>
 
         {/* Bottom Right: Real Fleet Status & Next Service Milestone (NO FAKE SPECIALISTS) */}
-        <div className="lg:col-span-4 flex flex-col justify-between gap-5">
+        <div className="lg:col-span-12 grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* Sub-Card 1: Next Service Milestone */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated space-y-3">
+          <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated space-y-3">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
                 <Clock className="w-4 h-4" />
@@ -956,7 +956,7 @@ export default function OverviewTab({
           </div>
 
           {/* Sub-Card 2: Registered Garage Fleet Summary */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated space-y-3">
+          <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-2xl sm:rounded-[1.75rem] p-3.5 sm:p-5 card-elevated space-y-3">
             <div>
               <h4 className="text-xs font-bold text-slate-900">My Garage Fleet</h4>
               <p className="text-[11px] text-slate-400">Registered motorcycles ({motorcycles.length})</p>
@@ -974,7 +974,7 @@ export default function OverviewTab({
                 </button>
               </div>
             )}
-            <div className="space-y-2 pt-1 lg:max-h-36 lg:overflow-y-auto lg:pr-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
               {motorcycles.map((bike) => (
                 <div
                   key={bike.id}
@@ -984,8 +984,8 @@ export default function OverviewTab({
                     <Bike className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
                     <div className="min-w-0">
                       <span className="font-bold text-slate-800 block text-xs">{bike.model}</span>
-                      <span className="text-[10px] text-slate-400 font-mono">{bike.plate_number}</span>
-                      <span className="text-[10px] text-slate-500 block">
+                      <span className="text-[11px] font-medium text-slate-500 block">{bike.plate_number}</span>
+                      <span className="text-[11px] text-slate-500 block">
                         Next PMS: {nextServiceShort(getNextService(bike, serviceHistory))}
                       </span>
                     </div>
