@@ -226,6 +226,18 @@ export function InternalQueueTab({
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, [now]);
 
+  const riderRecords = useMemo(() => {
+    const records = new Map<string, { visits: number; missed: number }>();
+    for (const t of tickets) {
+      if (!t.user_id) continue;
+      const record = records.get(t.user_id) ?? { visits: 0, missed: 0 };
+      if (t.status === 'COMPLETED') record.visits += 1;
+      if (t.status === 'MISSED' || t.status === 'NO_SHOW') record.missed += 1;
+      records.set(t.user_id, record);
+    }
+    return records;
+  }, [tickets]);
+
   // Mechanics are names only (no accounts); shared list managed in Team
 
 
@@ -677,6 +689,8 @@ export function InternalQueueTab({
             ? 'Tomorrow'
             : `In ${appt.diffDays} days`
         : appt?.label;
+    const isToDoRow = isPending || isMissed || (isScheduled && !!appt?.isToday);
+    const riderRecord = isToDoRow && ticket.user_id ? riderRecords.get(ticket.user_id) : undefined;
     const scheduleText = [whenText, arrivalWindow && formatArrivalWindow(arrivalWindow)].filter(Boolean).join(' · ');
 
     const tileBase = 'w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-center shrink-0 leading-none';
@@ -724,9 +738,15 @@ export function InternalQueueTab({
               <span className="text-slate-400"> · </span>
               {customerName}
             </p>
-            <p className="mt-0.5 text-sm text-slate-500 truncate" title={ticket.service_type || undefined}>
-              {ticket.service_type || 'General service'}
-              {ticket.is_walk_in && ` · Walk-in, ${getElapsedText(ticket.created_at)}`}
+            <p className="mt-0.5 flex text-sm text-slate-500">
+              <span className="truncate" title={ticket.service_type || undefined}>
+                {ticket.service_type || 'General service'}
+              </span>
+              {ticket.is_walk_in && (
+                <span className="shrink-0 whitespace-nowrap">
+                  &nbsp;· Walk-in<span className="hidden sm:inline">, {getElapsedText(ticket.created_at)}</span>
+                </span>
+              )}
             </p>
           </div>
         </div>
@@ -752,6 +772,13 @@ export function InternalQueueTab({
             {notes.symptoms && (
               <p className="mt-0.5 text-slate-600 truncate" title={notes.symptoms}>
                 {notes.symptoms}
+              </p>
+            )}
+            {riderRecord && riderRecord.visits > 0 && (
+              <p className="mt-0.5 text-slate-500 truncate">
+                <span className="font-medium text-emerald-700">Returning customer</span>
+                {` · ${riderRecord.visits} ${riderRecord.visits === 1 ? 'visit' : 'visits'} · `}
+                <span className={riderRecord.missed > 0 ? 'font-medium text-rose-700' : undefined}>{riderRecord.missed} missed</span>
               </p>
             )}
           </div>
