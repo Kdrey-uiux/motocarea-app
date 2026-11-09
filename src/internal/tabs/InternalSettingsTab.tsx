@@ -27,7 +27,7 @@ const THEME_OPTIONS: { id: ThemePreference; label: string; icon: typeof Sun }[] 
 const INPUT =
   'w-full bg-slate-50 border border-slate-200 rounded-2xl pl-3.5 pr-11 py-2.5 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
 
-const CARD = 'bg-white border border-slate-200/70 rounded-2xl sm:rounded-[1.75rem] card-elevated';
+const CARD = 'bg-white/70 backdrop-blur-xl border border-white/60 rounded-2xl sm:rounded-[1.75rem] card-elevated';
 
 const OUTLINE_BTN =
   'w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer';
@@ -208,34 +208,46 @@ export default function InternalSettingsTab({
   const [isWebsiteOpen, setIsWebsiteOpen] = useState(false);
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 sm:gap-5 items-start">
-      {/* Who is signed in */}
+    <div className="relative isolate space-y-4 sm:space-y-5">
+      {/* Soft blurred colors behind the frosted cards */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+        <span className="absolute top-0 left-[8%] w-40 h-40 sm:w-80 sm:h-80 rounded-full bg-orange-400/30 blur-3xl" />
+        <span className="absolute top-32 right-[6%] w-40 h-40 sm:w-96 sm:h-96 rounded-full bg-amber-300/30 blur-3xl" />
+        <span className="absolute bottom-0 left-1/3 w-40 h-40 sm:w-80 sm:h-80 rounded-full bg-rose-300/20 blur-3xl" />
+      </div>
+
+      {/* Who is signed in: the full-width header of the page */}
       <section className={`${CARD} overflow-hidden`}>
-        <div aria-hidden="true" className="h-20 bg-gradient-to-r from-orange-500 via-orange-400 to-amber-400" />
-        <div className="px-5 sm:px-6 pb-6 -mt-11 text-center">
-          <span className="mx-auto w-[5.5rem] h-[5.5rem] rounded-full border-4 border-white bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-display font-bold text-3xl flex items-center justify-center shadow-md shadow-orange-500/25">
+        <div aria-hidden="true" className="relative h-20 sm:h-24 overflow-hidden bg-gradient-to-r from-orange-500 via-orange-400 to-amber-400">
+          <span className="absolute -top-10 right-[12%] w-44 h-44 rounded-full blur-2xl" style={{ backgroundColor: 'rgba(254, 249, 195, 0.3)' }} />
+          <span className="absolute -bottom-16 left-[30%] w-52 h-52 rounded-full blur-2xl" style={{ backgroundColor: 'rgba(253, 230, 138, 0.4)' }} />
+        </div>
+        <div className="px-5 sm:px-7 pb-5 flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-5 text-center sm:text-left">
+          <span className="relative z-10 -mt-12 w-24 h-24 rounded-full border-4 border-white bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-display font-bold text-3xl flex items-center justify-center shadow-md shadow-orange-500/25 shrink-0">
             {currentUserName.trim().charAt(0).toUpperCase()}
           </span>
-          <h2 className="mt-3 font-display text-xl font-bold tracking-tight text-slate-900 break-words">{currentUserName}</h2>
-          <p className="mt-0.5 text-sm text-slate-500 break-all">{email}</p>
-          <span className="mt-3 inline-block px-3 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold">
+          <div className="min-w-0 flex-1 sm:pt-3">
+            <h2 className="font-display text-xl sm:text-2xl font-bold tracking-tight text-slate-900 break-words">{currentUserName}</h2>
+            <p className="text-sm text-slate-500 break-all">{email}</p>
+            {!isOwner && <p className="mt-1 text-xs text-slate-400">To change your name or email, ask the shop owner.</p>}
+          </div>
+          <span className="sm:mt-4 px-3 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold shrink-0">
             {isOwner ? 'Shop owner' : 'Staff'}
           </span>
-          {!isOwner && <p className="mt-3 text-xs text-slate-400">To change your name or email, ask the shop owner.</p>}
         </div>
       </section>
 
-      <div className="space-y-4 sm:space-y-5 min-w-0">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-5 items-stretch">
       <section className={`${CARD} overflow-hidden`}>
         <h3 className="px-4 sm:px-6 pt-4 pb-1 text-xs font-semibold text-slate-400">Account</h3>
       <ul className="divide-y divide-slate-100">
-        <SettingRow icon={KeyRound} title="Password" hint="Change the password you sign in with.">
+        <SettingRow icon={KeyRound} title="Password" hint="Change your sign-in password.">
           <button type="button" onClick={() => setIsPasswordOpen(true)} className={OUTLINE_BTN}>
             Change
           </button>
         </SettingRow>
 
-        <SettingRow icon={Sun} title="Appearance" hint="For this console on this device.">
+        <SettingRow icon={Sun} title="Appearance" hint="Light or dark mode.">
           <div className="grid grid-cols-3 gap-0.5 p-1 rounded-full bg-slate-100" role="radiogroup" aria-label="Appearance">
             {THEME_OPTIONS.map((option) => {
               const Icon = option.icon;
@@ -247,11 +259,11 @@ export default function InternalSettingsTab({
                   role="radio"
                   aria-checked={isActive}
                   onClick={() => onChangeTheme(option.id)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 px-3 xl:px-2.5 2xl:px-3 py-1.5 rounded-full text-sm font-medium transition cursor-pointer ${
                     isActive ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
-                  <Icon className="w-3.5 h-3.5" />
+                  <Icon className="w-3.5 h-3.5 xl:hidden 2xl:block" />
                   {option.label}
                 </button>
               );
@@ -266,14 +278,14 @@ export default function InternalSettingsTab({
         <h3 className="px-4 sm:px-6 pt-4 pb-1 text-xs font-semibold text-slate-400">Website</h3>
       <ul className="divide-y divide-slate-100">
         {isOwner && (
-          <SettingRow icon={Edit} title="Website content" hint="Shop details, home headline and service cards.">
+          <SettingRow icon={Edit} title="Website content" hint="Shop details, headline and services.">
             <button type="button" onClick={() => setIsWebsiteOpen(true)} className={OUTLINE_BTN}>
               Edit
             </button>
           </SettingRow>
         )}
 
-        <SettingRow icon={Globe} title="Customer website" hint="See the public page riders visit.">
+        <SettingRow icon={Globe} title="Customer website" hint="See what riders see.">
           <a href="/" target="_blank" rel="noopener noreferrer" className={OUTLINE_BTN}>
             View website
             <ArrowUpRight className="w-4 h-4 text-slate-400" />
