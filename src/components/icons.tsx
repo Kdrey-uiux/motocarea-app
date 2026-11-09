@@ -44,6 +44,7 @@ import {
   ListBullets,
   CircleNotch,
   Lock as PhLock,
+  Globe as PhGlobe,
   SignOut,
   Envelope,
   List as PhList,
@@ -148,6 +149,7 @@ export const LayoutGrid = fill(SquaresFour, 'LayoutGrid');
 export const List = bold(ListBullets, 'List');
 export const Loader2 = bold(CircleNotch, 'Loader2');
 export const Lock = fill(PhLock, 'Lock');
+export const Globe = fill(PhGlobe, 'Globe');
 export const LogOut = bold(SignOut, 'LogOut');
 export const Mail = fill(Envelope, 'Mail');
 export const Menu = bold(PhList, 'Menu');

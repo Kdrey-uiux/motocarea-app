@@ -94,7 +94,7 @@ function NavButton({
       type="button"
       onClick={() => onSelect(item.id)}
       aria-current={isActive ? 'page' : undefined}
-      className={`relative w-full h-11 pl-1.5 pr-2.5 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
+      className={`relative w-full h-10 pl-1.5 pr-2.5 rounded-xl flex items-center justify-between gap-2 transition-colors duration-150 cursor-pointer ${
         isActive
           ? 'bg-slate-500/[0.12] text-slate-900'
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-500/[0.07]'
@@ -235,9 +235,13 @@ export default function InternalSidebar({
 
   const homeTab: InternalTab = 'dashboard';
 
+  // On desktop, Settings sits at the bottom with Sign out, leaving the top for daily work
+  const settingsItem: NavItem = { id: 'settings', label: 'Settings', icon: Settings };
+  const desktopGroups = groups.filter((group) => group.title !== 'Account');
+
   const renderNav = (onSelect: (tab: InternalTab) => void) => (
-    <nav className="flex flex-col gap-5 w-full">
-      {groups.map((group) => (
+    <nav className="flex flex-col gap-3 w-full">
+      {desktopGroups.map((group) => (
         <div key={group.title} className="space-y-0.5">
           <p className="px-3 pb-1 text-xs font-medium text-slate-400">{group.title}</p>
           {group.items.map((item) => (
@@ -280,7 +284,7 @@ export default function InternalSidebar({
               <Wrench className="w-5 h-5" />
             </button>
             <nav className="flex flex-col items-center gap-3 w-full overflow-y-auto no-scrollbar min-h-0 pt-1">
-              {groups.map((group, i) => (
+              {desktopGroups.map((group, i) => (
                 <div key={group.title} className={`flex flex-col gap-1.5 w-full ${i > 0 ? 'pt-3 border-t border-slate-100' : ''}`}>
                   {group.items.map((item) => (
                     <div key={item.id} title={item.badgeTone === 'info' ? `${item.label} · ${item.badge}` : item.label}>
@@ -292,7 +296,10 @@ export default function InternalSidebar({
             </nav>
           </div>
           {onLogout && (
-            <div className="mt-auto pt-3 border-t border-slate-100 w-full flex justify-center shrink-0">
+            <div className="mt-auto pt-3 border-t border-slate-100 w-full flex flex-col items-center gap-1.5 shrink-0">
+              <div title={settingsItem.label}>
+                <NavButton item={settingsItem} isActive={activeTab === 'settings'} onSelect={setActiveTab} collapsed />
+              </div>
               <button
                 type="button"
                 onClick={onLogout}
@@ -312,11 +319,12 @@ export default function InternalSidebar({
             <div className="overflow-y-auto no-scrollbar min-h-0">{renderNav(setActiveTab)}</div>
           </div>
           {onLogout && (
-            <div className="mt-auto pt-3 border-t border-slate-100 shrink-0">
+            <div className="mt-auto pt-3 border-t border-slate-100 shrink-0 space-y-0.5">
+              <NavButton item={settingsItem} isActive={activeTab === 'settings'} onSelect={setActiveTab} />
               <button
                 type="button"
                 onClick={onLogout}
-                className="group w-full h-11 pl-1.5 pr-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                className="group w-full h-10 pl-1.5 pr-2.5 rounded-xl flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
               >
                 <span className="w-8 h-8 rounded-[10px] bg-slate-100 text-slate-500 group-hover:bg-rose-100 group-hover:text-rose-600 flex items-center justify-center shrink-0 transition-colors">
                   <SignOutIcon className="w-[18px] h-[18px]" />
