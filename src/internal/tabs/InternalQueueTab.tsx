@@ -91,6 +91,8 @@ export type OperationalView = 'ACTIVE' | 'SCHEDULED' | 'PENDING' | 'READY_RELEAS
 // Shared button looks (same as the staff Dashboard)
 const PRIMARY_BTN =
   'px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/30 transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5';
+const ROW_BTN =
+  'px-4 py-2 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition cursor-pointer active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap';
 const SECONDARY_BTN =
   'px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition cursor-pointer flex items-center gap-1.5';
 const ICON_BTN = 'w-9 h-9 rounded-full flex items-center justify-center transition cursor-pointer';
@@ -669,8 +671,8 @@ export function InternalQueueTab({
     const tileBase = 'w-12 h-12 rounded-2xl flex flex-col items-center justify-center text-center shrink-0 leading-none';
     const tile = isInShop ? (
       bayNumber ? (
-        <span className={`${tileBase} bg-orange-500 text-white shadow-sm shadow-orange-500/25`}>
-          <span className="text-[10px] font-medium text-orange-100">Bay</span>
+        <span className={`${tileBase} bg-orange-50 text-orange-700`}>
+          <span className="text-[10px] font-medium text-orange-600">Bay</span>
           <span className="font-display text-lg font-bold">{String(bayNumber).padStart(2, '0')}</span>
         </span>
       ) : (
@@ -698,25 +700,25 @@ export function InternalQueueTab({
       <li
         key={ticket.id}
         id={`ticket-${ticket.id}`}
-        className="scroll-mt-28 px-4 sm:px-6 py-4 grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] xl:items-center gap-3 xl:gap-6 transition"
+        className="scroll-mt-28 px-4 sm:px-6 py-5 grid grid-cols-1 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_auto] xl:items-center gap-3.5 xl:gap-8 transition"
       >
         <div className="flex items-start gap-3 min-w-0">
           {tile}
           <div className="min-w-0">
             <p className="font-semibold text-slate-900 leading-snug">
               {ticket.motorcycles?.model || 'Motorcycle'}
-              <span className="ml-2 inline-block align-middle font-mono text-[11px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+              <span className="ml-2 inline-block align-middle text-xs font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md whitespace-nowrap">
                 {ticket.motorcycles?.plate_number || 'No plate'}
               </span>
             </p>
-            <p className="mt-0.5 text-sm text-slate-500 break-words">
+            <p className="mt-1 text-sm text-slate-600 break-words">
               {customerName} · {ticket.service_type || 'General service'}
             </p>
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-slate-400">
-              <span className="font-mono">{ticket.ticket_code}</span>
+            <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+              <span>{ticket.ticket_code}</span>
               {ticket.is_walk_in && <span>Walk-in · {getElapsedText(ticket.created_at)}</span>}
               {rawPhone && (
-                <a href={`tel:${rawPhone}`} className="font-mono hover:text-orange-600 transition" title="Call the customer">
+                <a href={`tel:${rawPhone}`} className="hover:text-orange-600 transition" title="Call the customer">
                   {formatPhoneNumber(rawPhone)}
                 </a>
               )}
@@ -729,11 +731,11 @@ export function InternalQueueTab({
             {SERVICE_STAGES.map((st) => (
               <div key={st.step} className="space-y-1 min-w-0">
                 <div
-                  className={`h-1.5 rounded-full ${
-                    st.step < ticket.stage ? 'bg-orange-300' : st.step === ticket.stage ? 'bg-orange-500' : 'bg-slate-200'
+                  className={`h-2 rounded-full ${
+                    st.step < ticket.stage ? 'bg-orange-200' : st.step === ticket.stage ? 'bg-orange-500' : 'bg-slate-100'
                   }`}
                 />
-                <span className={`block text-[11px] truncate ${st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-400'}`}>
+                <span className={`block text-xs truncate ${st.step === ticket.stage ? 'text-slate-900 font-semibold' : 'text-slate-500'}`}>
                   {st.name}
                 </span>
               </div>
@@ -748,7 +750,7 @@ export function InternalQueueTab({
               </p>
             )}
             {notes.symptoms && (
-              <p className="text-slate-500 truncate" title={notes.symptoms}>
+              <p className="text-slate-600 truncate" title={notes.symptoms}>
                 {notes.symptoms}
               </p>
             )}
@@ -786,24 +788,24 @@ export function InternalQueueTab({
               </button>
             )}
             {isPending ? (
-              <button type="button" disabled={isUpdating} onClick={() => handleConfirmBooking(ticket)} className={`${PRIMARY_BTN} justify-center whitespace-nowrap`}>
+              <button type="button" disabled={isUpdating} onClick={() => handleConfirmBooking(ticket)} className={ROW_BTN}>
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Accept</span>
               </button>
             ) : isMissed ? (
-              <button type="button" disabled={isUpdating} onClick={() => handleLateCheckIn(ticket)} className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}>
+              <button type="button" disabled={isUpdating} onClick={() => handleLateCheckIn(ticket)} className={`${ROW_BTN} xl:min-w-[10rem]`}>
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Late check-in</span>
               </button>
             ) : isScheduled ? (
-              <button type="button" disabled={isUpdating} onClick={() => handleCheckInMotorcycle(ticket)} className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}>
+              <button type="button" disabled={isUpdating} onClick={() => handleCheckInMotorcycle(ticket)} className={`${ROW_BTN} xl:min-w-[10rem]`}>
                 <CheckCircle2 className="w-4 h-4" />
                 <span>{appt?.isToday ? 'Check in' : 'Check in early'}</span>
               </button>
             ) : (
               nextAction &&
               NextIcon && (
-                <button type="button" disabled={isUpdating} onClick={nextAction.run} className={`${PRIMARY_BTN} justify-center whitespace-nowrap xl:min-w-[10.5rem]`}>
+                <button type="button" disabled={isUpdating} onClick={nextAction.run} className={`${ROW_BTN} xl:min-w-[10rem]`}>
                   <NextIcon className="w-4 h-4" />
                   <span>{nextAction.label}</span>
                 </button>
