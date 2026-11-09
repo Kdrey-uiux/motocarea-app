@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { Loader2, X } from '../../components/icons';
+import { Calendar, CircleX, Clock, Info, Layers, LayoutGrid, Loader2, Mail, MapPin, Phone, X } from '../../components/icons';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 import {
   DEFAULT_SITE_CONTENT,
@@ -14,25 +14,49 @@ import { toast } from '../utils/toast';
 
 type Section = 'shop' | 'home' | 'services';
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'shop', label: 'Shop details' },
-  { id: 'home', label: 'Home page' },
-  { id: 'services', label: 'Services' },
+const SECTIONS: { id: Section; label: string; icon: typeof MapPin }[] = [
+  { id: 'shop', label: 'Shop details', icon: MapPin },
+  { id: 'home', label: 'Home page', icon: LayoutGrid },
+  { id: 'services', label: 'Services', icon: Layers },
 ];
 
 const INPUT =
   'w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition';
+const INPUT_WITH_ICON = INPUT.replace('px-3.5', 'pl-10 pr-3.5');
 
-function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: ReactNode }) {
+function Field({
+  id,
+  label,
+  hint,
+  icon: Icon,
+  children,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  icon?: typeof MapPin;
+  children: ReactNode;
+}) {
   return (
     <div className="space-y-1.5 min-w-0">
       <label htmlFor={id} className="text-sm font-semibold text-slate-800 block">
         {label}
       </label>
-      {children}
+      {Icon ? (
+        <div className="relative">
+          <Icon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+          {children}
+        </div>
+      ) : (
+        children
+      )}
       {hint && <p className="text-xs text-slate-400">{hint}</p>}
     </div>
   );
+}
+
+function GroupLabel({ children }: { children: ReactNode }) {
+  return <p className="text-xs font-semibold text-slate-400 pt-1">{children}</p>;
 }
 
 /** What is wrong with the form, and which section to show for it */
@@ -94,6 +118,10 @@ export default function WebsiteContentModal({
     }));
     setErrorMsg(null);
   };
+
+  const headlineWords = content.heroHeadline.trim().split(/\s+/).filter(Boolean);
+  const headlineLast = headlineWords[headlineWords.length - 1] ?? 'Headline';
+  const headlineLead = headlineWords.slice(0, -1).join(' ');
 
   const handleSave = async () => {
     const problem = findProblem(content);
@@ -165,10 +193,11 @@ export default function WebsiteContentModal({
                   role="tab"
                   aria-selected={isActive}
                   onClick={() => setSection(item.id)}
-                  className={`px-1 py-1.5 rounded-full text-xs sm:text-sm font-medium transition cursor-pointer ${
+                  className={`flex items-center justify-center gap-1.5 px-1 py-2 rounded-full text-xs sm:text-sm font-medium transition cursor-pointer ${
                     isActive ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-900'
                   }`}
                 >
+                  <item.icon className="hidden min-[400px]:block w-3.5 h-3.5 shrink-0" />
                   {item.label}
                 </button>
               );
@@ -185,71 +214,74 @@ export default function WebsiteContentModal({
 
           {section === 'shop' && (
             <>
-              <Field id="site-address" label="Address">
+              <GroupLabel>Contact</GroupLabel>
+              <Field id="site-address" label="Address" icon={MapPin}>
                 <input
                   id="site-address"
                   type="text"
                   maxLength={SITE_LIMITS.address}
                   value={content.address}
                   onChange={(e) => update({ address: e.target.value })}
-                  className={INPUT}
+                  className={INPUT_WITH_ICON}
                 />
               </Field>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field id="site-phone" label="Phone">
+                <Field id="site-phone" label="Phone" icon={Phone}>
                   <input
                     id="site-phone"
                     type="tel"
                     maxLength={SITE_LIMITS.phone}
                     value={content.phone}
                     onChange={(e) => update({ phone: e.target.value })}
-                    className={INPUT}
+                    className={INPUT_WITH_ICON}
                   />
                 </Field>
-                <Field id="site-email" label="Email (optional)">
+                <Field id="site-email" label="Email (optional)" icon={Mail}>
                   <input
                     id="site-email"
                     type="email"
                     maxLength={SITE_LIMITS.email}
                     value={content.email}
                     onChange={(e) => update({ email: e.target.value })}
-                    className={INPUT}
+                    className={INPUT_WITH_ICON}
                   />
                 </Field>
               </div>
+              <GroupLabel>Business hours</GroupLabel>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Field id="site-days" label="Open days">
+                <Field id="site-days" label="Open days" icon={Calendar}>
                   <input
                     id="site-days"
                     type="text"
                     maxLength={SITE_LIMITS.openDays}
                     value={content.openDays}
                     onChange={(e) => update({ openDays: e.target.value })}
-                    className={INPUT}
+                    className={INPUT_WITH_ICON}
                   />
                 </Field>
-                <Field id="site-hours" label="Open hours">
+                <Field id="site-hours" label="Open hours" icon={Clock}>
                   <input
                     id="site-hours"
                     type="text"
                     maxLength={SITE_LIMITS.openHours}
                     value={content.openHours}
                     onChange={(e) => update({ openHours: e.target.value })}
-                    className={INPUT}
+                    className={INPUT_WITH_ICON}
                   />
                 </Field>
-                <Field id="site-closed" label="Closed on">
+                <Field id="site-closed" label="Closed on" icon={CircleX}>
                   <input
                     id="site-closed"
                     type="text"
                     maxLength={SITE_LIMITS.closedDays}
                     value={content.closedDays}
                     onChange={(e) => update({ closedDays: e.target.value })}
-                    className={INPUT}
+                    className={INPUT_WITH_ICON}
                   />
                 </Field>
               </div>
-              <p className="px-3.5 py-2.5 rounded-2xl bg-slate-50 text-xs text-slate-500">
+              <p className="px-3.5 py-2.5 rounded-2xl bg-orange-50/70 text-xs text-slate-600 flex items-start gap-2">
+                <Info className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-px" />
                 This only changes what riders read. Booking days and arrival times stay the same.
               </p>
             </>
@@ -257,6 +289,15 @@ export default function WebsiteContentModal({
 
           {section === 'home' && (
             <>
+              <div className="rounded-2xl border border-slate-200/70 bg-gradient-to-b from-orange-50/60 to-transparent px-4 py-5 text-center">
+                <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-slate-500 break-words">{content.heroLocation || 'Location'}</p>
+                <p className="mt-2 font-display text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 leading-tight break-words">
+                  {headlineLead}
+                  {headlineLead && ' '}
+                  <span className="text-orange-500">{headlineLast}</span>
+                </p>
+                <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto break-words">{content.heroDescription || 'Description'}</p>
+              </div>
               <Field id="site-location" label="Location above the headline">
                 <input
                   id="site-location"
@@ -291,10 +332,12 @@ export default function WebsiteContentModal({
           )}
 
           {section === 'services' && (
-            <ul className="space-y-3">
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {content.services.map((card, index) => (
-                <li key={index} className="p-3.5 rounded-2xl border border-slate-200/70 space-y-3">
-                  <p className="text-xs font-semibold text-slate-400">Card {index + 1}</p>
+                <li key={index} className="p-3.5 rounded-2xl border border-slate-200/70 space-y-3 min-w-0">
+                  <span className="inline-flex w-6 h-6 rounded-lg bg-orange-50 text-orange-600 text-xs font-bold items-center justify-center">
+                    {index + 1}
+                  </span>
                   <Field id={`site-card-title-${index}`} label="Name">
                     <input
                       id={`site-card-title-${index}`}

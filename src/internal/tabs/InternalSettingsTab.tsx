@@ -45,7 +45,7 @@ function SettingRow({
   children: ReactNode;
 }) {
   return (
-    <li className="px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+    <li className="px-4 sm:px-6 py-4 hover:bg-slate-50/60 transition-colors flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <span className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0">
           <Icon className="w-[18px] h-[18px]" />
@@ -210,21 +210,25 @@ export default function InternalSettingsTab({
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[20rem_minmax(0,1fr)] gap-4 sm:gap-5 items-start">
       {/* Who is signed in */}
-      <section className={`${CARD} p-5 sm:p-6 flex xl:flex-col items-center xl:text-center gap-4`}>
-        <span className="w-14 h-14 xl:w-24 xl:h-24 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-bold text-xl xl:text-4xl flex items-center justify-center shrink-0">
-          {currentUserName.trim().charAt(0).toUpperCase()}
-        </span>
-        <div className="min-w-0 xl:w-full space-y-1">
-          <h2 className="font-display text-lg xl:text-xl font-bold tracking-tight text-slate-900 break-words">{currentUserName}</h2>
-          <p className="text-sm text-slate-500 break-all">{email}</p>
-          <span className="inline-block px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold">
-            {isOwner ? 'Owner' : 'Staff'}
+      <section className={`${CARD} overflow-hidden`}>
+        <div aria-hidden="true" className="h-20 bg-gradient-to-r from-orange-500 via-orange-400 to-amber-400" />
+        <div className="px-5 sm:px-6 pb-6 -mt-11 text-center">
+          <span className="mx-auto w-[5.5rem] h-[5.5rem] rounded-full border-4 border-white bg-gradient-to-tr from-orange-500 to-amber-400 text-white font-display font-bold text-3xl flex items-center justify-center shadow-md shadow-orange-500/25">
+            {currentUserName.trim().charAt(0).toUpperCase()}
           </span>
-          {!isOwner && <p className="pt-1 text-xs text-slate-400">To change your name or email, ask the shop owner.</p>}
+          <h2 className="mt-3 font-display text-xl font-bold tracking-tight text-slate-900 break-words">{currentUserName}</h2>
+          <p className="mt-0.5 text-sm text-slate-500 break-all">{email}</p>
+          <span className="mt-3 inline-block px-3 py-1 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold">
+            {isOwner ? 'Shop owner' : 'Staff'}
+          </span>
+          {!isOwner && <p className="mt-3 text-xs text-slate-400">To change your name or email, ask the shop owner.</p>}
         </div>
       </section>
 
-      <ul className={`${CARD} divide-y divide-slate-100 overflow-hidden`}>
+      <div className="space-y-4 sm:space-y-5 min-w-0">
+      <section className={`${CARD} overflow-hidden`}>
+        <h3 className="px-4 sm:px-6 pt-4 pb-1 text-xs font-semibold text-slate-400">Account</h3>
+      <ul className="divide-y divide-slate-100">
         <SettingRow icon={KeyRound} title="Password" hint="Change the password you sign in with.">
           <button type="button" onClick={() => setIsPasswordOpen(true)} className={OUTLINE_BTN}>
             Change
@@ -255,6 +259,12 @@ export default function InternalSettingsTab({
           </div>
         </SettingRow>
 
+      </ul>
+      </section>
+
+      <section className={`${CARD} overflow-hidden`}>
+        <h3 className="px-4 sm:px-6 pt-4 pb-1 text-xs font-semibold text-slate-400">Website</h3>
+      <ul className="divide-y divide-slate-100">
         {isOwner && (
           <SettingRow icon={Edit} title="Website content" hint="Shop details, home headline and service cards.">
             <button type="button" onClick={() => setIsWebsiteOpen(true)} className={OUTLINE_BTN}>
@@ -270,6 +280,8 @@ export default function InternalSettingsTab({
           </a>
         </SettingRow>
       </ul>
+      </section>
+      </div>
 
       {isWebsiteOpen && <WebsiteContentModal currentUserName={currentUserName} onClose={() => setIsWebsiteOpen(false)} />}
       {isPasswordOpen && <ChangePasswordModal currentUserName={currentUserName} onClose={() => setIsPasswordOpen(false)} />}
