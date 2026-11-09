@@ -69,6 +69,19 @@ function ChangePasswordModal({ currentUserName, onClose }: { currentUserName: st
 
   const checks = passwordChecks(newPassword);
   const isValid = checks.every((c) => c.valid);
+  const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
+  const showMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
+
+  const eyeButton = (
+    <button
+      type="button"
+      onClick={() => setShowPassword((s) => !s)}
+      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+      aria-label={showPassword ? 'Hide passwords' : 'Show passwords'}
+    >
+      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+    </button>
+  );
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -131,45 +144,44 @@ function ChangePasswordModal({ currentUserName, onClose }: { currentUserName: st
               }}
               className={INPUT}
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword((s) => !s)}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-              aria-label={showPassword ? 'Hide passwords' : 'Show passwords'}
-            >
-              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
+            {eyeButton}
           </div>
         </div>
 
-        <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
+        <div className="space-y-1.5">
+          <label htmlFor="settings-confirm-password" className="text-sm font-semibold text-slate-800 block">
+            Confirm password
+          </label>
+          <div className="relative">
+            <input
+              id="settings-confirm-password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              value={confirmPassword}
+              aria-invalid={showMismatch}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setErrorMsg(null);
+              }}
+              className={`${INPUT} ${showMismatch ? '!border-rose-300 focus:!border-rose-500 focus:!ring-rose-500/10' : ''}`}
+            />
+            {eyeButton}
+          </div>
+          {showMismatch && <p className="text-xs font-medium text-rose-600">Passwords do not match.</p>}
+          {passwordsMatch && <p className="text-xs font-medium text-emerald-600">Passwords match.</p>}
+        </div>
+
+        <ul className="grid grid-cols-2 gap-x-3 gap-y-1 px-3.5 py-3 rounded-2xl bg-slate-50">
           {checks.map((check) => (
             <li
               key={check.id}
-              className={`flex items-center gap-1.5 text-xs ${check.valid ? 'text-emerald-600 font-medium' : 'text-slate-400'}`}
+              className={`flex items-center gap-1.5 text-xs ${check.valid ? 'text-emerald-600 font-medium' : 'text-slate-500'}`}
             >
               <Check className={`w-3.5 h-3.5 shrink-0 ${check.valid ? '' : 'opacity-40'}`} />
               {check.label}
             </li>
           ))}
         </ul>
-
-        <div className="space-y-1.5">
-          <label htmlFor="settings-confirm-password" className="text-sm font-semibold text-slate-800 block">
-            Type it again
-          </label>
-          <input
-            id="settings-confirm-password"
-            type={showPassword ? 'text' : 'password'}
-            autoComplete="new-password"
-            value={confirmPassword}
-            onChange={(e) => {
-              setConfirmPassword(e.target.value);
-              setErrorMsg(null);
-            }}
-            className={INPUT}
-          />
-        </div>
 
         <div className="flex justify-end gap-2 pt-1">
           <button
