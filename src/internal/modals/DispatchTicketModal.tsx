@@ -17,7 +17,7 @@ import {
 } from '../../components/icons';
 import VehicleHistoryModal from './VehicleHistoryModal';
 import { toast } from '../utils/toast';
-import { normalizeBayNumber } from '../utils/bays';
+import { normalizeBayNumber, occupiesBay } from '../utils/bays';
 import { useBayCount, bayList } from '../../utils/workshopBays';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
@@ -117,13 +117,7 @@ export default function DispatchTicketModal({
     allTickets
       .filter(
         (t) =>
-          t.id !== ticket?.id &&
-          t.status !== 'COMPLETED' &&
-          t.status !== 'CANCELLED' &&
-          t.status !== 'CANCELLED_BY_ADMIN' &&
-          t.status !== 'MISSED' &&
-          t.status !== 'NO_SHOW' &&
-          t.assigned_bay
+          t.id !== ticket?.id && occupiesBay(t)
       )
       .forEach((t) => {
         const bayNum = normalizeBayNumber(t.assigned_bay);

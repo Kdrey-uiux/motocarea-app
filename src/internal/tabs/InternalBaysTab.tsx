@@ -5,7 +5,7 @@ import { readSharedSetting, saveSharedSetting, SHARED_SETTINGS } from '../../lib
 import { isAwaitingArrival } from '../utils/ticketActions';
 import { Wrench, Plus, X, ShieldAlert, ArrowRight, Clock, UserCheck, Power, Trash2, Loader2 } from '../../components/icons';
 import { toast } from '../utils/toast';
-import { normalizeBayNumber } from '../utils/bays';
+import { normalizeBayNumber, occupiesBay } from '../utils/bays';
 import { SERVICE_STAGES } from '../../utils/serviceStages';
 import { useNow } from '../hooks/useNow';
 import { useBayCount, saveBayCount, bayLabel, MAX_BAYS, MIN_BAYS } from '../../utils/workshopBays';
@@ -28,7 +28,6 @@ interface InternalBaysTabProps {
 // A motorcycle this long on a bay gets an amber time badge
 const LONG_JOB_MINUTES = 180;
 
-const ACTIVE_STATUSES_EXCLUDED = ['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'];
 
 /** A floor bay: id "bay-4", number "04", label "Bay 04" */
 const makeBay = (num: number) => ({ id: `bay-${num}`, bayNumber: String(num).padStart(2, '0'), name: bayLabel(num) });
@@ -48,7 +47,7 @@ export default function InternalBaysTab({
   const floorBays = useMemo(() => {
     const closing = new Set<number>();
     for (const t of tickets) {
-      if (ACTIVE_STATUSES_EXCLUDED.includes(t.status)) continue;
+      if (!occupiesBay(t)) continue;
       const num = normalizeBayNumber(t.assigned_bay);
       if (num && num > bayCount && num <= MAX_BAYS) closing.add(num);
     }
@@ -80,8 +79,7 @@ export default function InternalBaysTab({
     const occupant = !maintenanceBays[bayId]
       ? tickets.find(
           (t) =>
-            !['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'].includes(t.status) &&
-            normalizeBayNumber(t.assigned_bay) === bayNum
+            occupiesBay(t) && normalizeBayNumber(t.assigned_bay) === bayNum
         )
       : undefined;
     if (occupant) {
@@ -104,14 +102,7 @@ export default function InternalBaysTab({
       const bayNumInt = parseInt(staticBay.bayNumber, 10);
 
       const matchingTicket = tickets.find(
-        (t) =>
-          t.status !== 'COMPLETED' &&
-          t.status !== 'CANCELLED' &&
-          t.status !== 'CANCELLED_BY_ADMIN' &&
-          t.status !== 'MISSED' &&
-          t.status !== 'NO_SHOW' &&
-          t.assigned_bay &&
-          normalizeBayNumber(t.assigned_bay) === bayNumInt
+        (t) => occupiesBay(t) && normalizeBayNumber(t.assigned_bay) === bayNumInt
       );
 
       if (isUnderMaintenance) {

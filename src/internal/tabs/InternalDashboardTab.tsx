@@ -23,7 +23,7 @@ import {
 import NewWalkInTicketModal from '../modals/NewWalkInTicketModal';
 import CancelTicketModal from '../modals/CancelTicketModal';
 import PhoneRequestsCard from '../components/PhoneRequestsCard';
-import { normalizeBayNumber } from '../utils/bays';
+import { normalizeBayNumber, occupiesBay } from '../utils/bays';
 import { useBayCount, bayList } from '../../utils/workshopBays';
 
 // ============================================================================
@@ -238,8 +238,7 @@ export function WorkshopDashboard({
       }
 
       const ticket = activeFloorTickets.find((t) => {
-        if (!t.assigned_bay) return false;
-        return normalizeBayNumber(t.assigned_bay) === bay.bayNumber;
+        return occupiesBay(t) && normalizeBayNumber(t.assigned_bay) === bay.bayNumber;
       });
 
       if (ticket) {

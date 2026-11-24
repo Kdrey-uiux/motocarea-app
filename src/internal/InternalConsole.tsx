@@ -11,7 +11,7 @@ import {
 import { getInternalSession, clearInternalSession } from './utils/internalAuth';
 
 import { canAccessTab } from './utils/permissions';
-import { normalizeBayNumber } from './utils/bays';
+import { normalizeBayNumber, occupiesBay } from './utils/bays';
 import { internalTabFromSlug, internalTabPath } from './utils/tabTitles';
 import { fetchDatabaseStaffMembers } from './utils/databaseStaffManager';
 import { runMissedBookingScanInBackground } from '../utils/bookingLifecycle';
@@ -475,15 +475,7 @@ export default function InternalConsole() {
   const occupiedBaysCount = useMemo(() => {
     const bays = new Set<number>();
     tickets
-      .filter(
-        (t) =>
-          t.status !== 'COMPLETED' &&
-          t.status !== 'CANCELLED' &&
-          t.status !== 'CANCELLED_BY_ADMIN' &&
-          t.status !== 'MISSED' &&
-          t.status !== 'NO_SHOW' &&
-          t.assigned_bay
-      )
+      .filter(occupiesBay)
       .forEach((t) => {
         const bayNum = normalizeBayNumber(t.assigned_bay);
         if (bayNum) bays.add(bayNum);
