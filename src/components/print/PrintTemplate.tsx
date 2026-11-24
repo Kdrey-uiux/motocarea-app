@@ -147,10 +147,13 @@ export function PrintChecklist({
   items,
   columns = ['OK', 'Needs work'],
   checked = false,
+  remarks,
 }: {
   items: string[];
   columns?: string[];
   checked?: boolean;
+  /** Printed in the Remarks column of every row (left blank for handwriting when omitted) */
+  remarks?: string;
 }) {
   return (
     <table className="print-doc__table">
@@ -180,7 +183,7 @@ export function PrintChecklist({
                 )}
               </td>
             ))}
-            <td />
+            <td>{remarks}</td>
           </tr>
         ))}
       </tbody>

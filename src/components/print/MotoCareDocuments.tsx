@@ -178,6 +178,7 @@ export function JobOrderDocument({ ticket }: { ticket: InternalTicket }) {
    ------------------------------------------------------------------------- */
 export function GatePassDocument({ ticket }: { ticket: InternalTicket }) {
   const releasedAt = ticket.paid_at ? new Date(ticket.paid_at) : new Date();
+  const isReleased = ticket.status === 'COMPLETED';
 
   return (
     <PrintDocument
@@ -227,7 +228,8 @@ export function GatePassDocument({ ticket }: { ticket: InternalTicket }) {
         {/* Release needs all 3 ticked (Stage5BillingModal), so a released ticket prints them done */}
         <PrintChecklist
           columns={['Done']}
-          checked={ticket.status === 'COMPLETED'}
+          checked={isReleased}
+          remarks={isReleased ? `Checked by ${clean(ticket.released_by) || 'staff'} at release` : undefined}
           items={[
             'The work is finished and checked',
             'Keys and belongings are with the rider',
