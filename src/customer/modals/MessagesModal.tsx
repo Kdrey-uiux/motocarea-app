@@ -106,6 +106,7 @@ export default function MessagesModal({
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -168,6 +169,7 @@ export default function MessagesModal({
     if (!cleanText || !userId || sending) return;
 
     setSending(true);
+    setSendError(null);
     setInputText('');
 
     try {
@@ -191,6 +193,9 @@ export default function MessagesModal({
     } catch (err: unknown) {
       console.error('Failed to send message:', err);
       setInputText(cleanText);
+      // The database explains limits such as "sending messages too fast"
+      const reason = (err as { message?: string })?.message;
+      setSendError(reason || 'Your message was not sent. Check your internet and try again.');
     } finally {
       setSending(false);
     }
@@ -438,6 +443,12 @@ export default function MessagesModal({
           <div ref={messagesEndRef} />
         </div>
 
+        {sendError && (
+          <p role="alert" className="px-3.5 pt-2.5 bg-white border-t border-slate-100 text-xs text-rose-600 shrink-0">
+            {sendError}
+          </p>
+        )}
+
         {/* Quick messages */}
         <div className="px-3.5 pt-3 bg-white border-t border-slate-100 flex flex-wrap gap-1.5 shrink-0" role="group" aria-label="Quick messages">
           {QUICK_MESSAGES.map((quick) => (
@@ -463,6 +474,7 @@ export default function MessagesModal({
             type="text"
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
+            maxLength={2000}
             placeholder="Type your message to workshop..."
             className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-base sm:text-xs text-slate-800 focus:outline-none focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10 transition"
             disabled={sending || loading}

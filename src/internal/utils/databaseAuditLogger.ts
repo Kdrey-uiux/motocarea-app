@@ -1,7 +1,7 @@
 import { AuditLogEntry } from '../types/internal';
 import { db } from '../../lib/supabase';
+import { AUDIT_CACHE_KEY as AUDIT_STORAGE_KEY } from './internalAuth';
 
-const AUDIT_STORAGE_KEY = 'motocare_internal_audit_logs';
 const AUDIT_REALTIME_CHANNEL = 'motocare_audit_realtime';
 
 /** Row shape of public.audit_logs (migration 05) */
@@ -35,7 +35,7 @@ if (typeof window !== 'undefined') {
 
 function getLocalAuditLogs(): AuditLogEntry[] {
   try {
-    const raw = localStorage.getItem(AUDIT_STORAGE_KEY);
+    const raw = sessionStorage.getItem(AUDIT_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -69,7 +69,7 @@ export async function fetchAuditLogs(): Promise<AuditLogEntry[]> {
         previousValue: d.previous_value || undefined,
         newValue: d.new_value || undefined,
       }));
-      localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(dbLogs));
+      sessionStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(dbLogs));
       return dbLogs;
     }
   } catch {
@@ -118,7 +118,7 @@ export async function recordAuditLog(entry: {
   const current = getLocalAuditLogs();
   const updated = [newLog, ...current].slice(0, 300);
   try {
-    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(updated));
+    sessionStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(updated));
   } catch {
     // ignore
   }

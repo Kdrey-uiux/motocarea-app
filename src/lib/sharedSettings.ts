@@ -125,22 +125,15 @@ export async function reloadSharedSetting(setting: SharedSettingDef): Promise<vo
   if (data && data.value !== undefined) applyToCache(setting, data.value);
 }
 
-let syncStarted = false;
+const applyRow = (row: { key?: string; value?: unknown } | null | undefined) => {
+  const setting = row?.key ? SETTINGS_BY_KEY[row.key] : undefined;
+  if (setting && row?.value !== undefined) applyToCache(setting, row.value);
+};
 
-/**
- * Loads all shared settings from Supabase once and keeps them live via realtime.
- * Safe to call multiple times; only the first call starts the sync.
- */
-export function startSharedSettingsSync(): void {
-  if (syncStarted || typeof window === 'undefined') return;
-  syncStarted = true;
-
-  const applyRow = (row: { key?: string; value?: unknown } | null | undefined) => {
-    const setting = row?.key ? SETTINGS_BY_KEY[row.key] : undefined;
-    if (setting && row?.value !== undefined) applyToCache(setting, row.value);
-  };
-
-  db()
+/** Reads every setting this login may see, then keeps them live on the same client */
+function loadAndListen(channelName: string): void {
+  const client = db();
+  client
     .from('app_settings')
     .select('key, value')
     .then(({ data, error }) => {
@@ -151,10 +144,36 @@ export function startSharedSettingsSync(): void {
       data?.forEach(applyRow);
     });
 
-  db()
-    .channel('motocare_app_settings_sync')
+  client
+    .channel(channelName)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, (payload) => {
       applyRow(payload.new as { key?: string; value?: unknown });
     })
     .subscribe();
+}
+
+let syncStarted = false;
+
+/**
+ * Loads the shared settings from Supabase once and keeps them live via realtime.
+ * Signed-out visitors and riders only get the public ones (site content, services, bays).
+ * Safe to call multiple times; only the first call starts the sync.
+ */
+export function startSharedSettingsSync(): void {
+  if (syncStarted || typeof window === 'undefined') return;
+  syncStarted = true;
+  loadAndListen('motocare_app_settings_sync');
+}
+
+let workshopSyncStarted = false;
+
+/**
+ * Call once a staff/admin login is active in the console: loads the workshop-only settings
+ * (resolved chats, dismissed actions, mechanics, bay maintenance) with the staff login,
+ * which the app-wide sync may have missed if it started before signing in (migration 25).
+ */
+export function startWorkshopSettingsSync(): void {
+  if (workshopSyncStarted || typeof window === 'undefined') return;
+  workshopSyncStarted = true;
+  loadAndListen('motocare_app_settings_sync_workshop');
 }

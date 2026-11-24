@@ -48,6 +48,7 @@ import InternalFleetTab from './tabs/InternalFleetTab';
 import InternalHistoryTab from './tabs/InternalHistoryTab';
 import InternalSettingsTab from './tabs/InternalSettingsTab';
 import InternalServicesTab from './tabs/InternalServicesTab';
+import { startWorkshopSettingsSync } from '../lib/sharedSettings';
 
 /**
  * Every ticket with its motorcycle and the customer's name/phone.
@@ -172,6 +173,12 @@ export default function InternalConsole() {
 
   // Keep the shown name in sync with the live profile (e.g. after the admin renames a staff member)
   const sessionUserId = session?.userId;
+
+  // Workshop-only settings need the staff login to load (migration 25)
+  useEffect(() => {
+    if (sessionUserId) startWorkshopSettingsSync();
+  }, [sessionUserId]);
+
   useEffect(() => {
     if (!sessionUserId) return;
 

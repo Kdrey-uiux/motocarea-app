@@ -3,9 +3,9 @@ import { InternalStaffMember } from '../types/internal';
 import { db, supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from '../../lib/supabase';
 import { recordAuditLog } from './databaseAuditLogger';
 import { getCaptchaToken } from '../../lib/captcha';
+import { STAFF_CACHE_KEY as STAFF_STORAGE_KEY } from './internalAuth';
 
 const STAFF_REALTIME_CHANNEL = 'motocare_staff_realtime';
-const STAFF_STORAGE_KEY = 'motocare_internal_staff_registry';
 
 /**
  * Ephemeral non-persisting client used strictly for provisioning new staff accounts
@@ -29,7 +29,7 @@ const LEGACY_SEED_STAFF_IDS = ['staff-admin-01', 'staff-floor-01', 'staff-tech-0
  */
 export function getLocalStaffRegistry(): InternalStaffMember[] {
   try {
-    const raw = localStorage.getItem(STAFF_STORAGE_KEY);
+    const raw = sessionStorage.getItem(STAFF_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -62,7 +62,7 @@ export function getLocalStaffRegistry(): InternalStaffMember[] {
 
 function saveLocalStaffRegistry(list: InternalStaffMember[]): void {
   try {
-    localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(list));
+    sessionStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(list));
   } catch {
     // ignore
   }

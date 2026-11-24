@@ -5,6 +5,30 @@ const INTERNAL_AUTH_KEY = 'motocare_internal_auth_session';
 const INTERNAL_SUPABASE_TOKEN_KEY = WORKSHOP_TOKEN_STORAGE_KEY;
 const REMEMBERED_EMAIL_KEY = 'motocare_remembered_internal_email';
 
+/** Workshop data cached for this tab only (Activity Logs, staff list); cleared on sign-out */
+export const AUDIT_CACHE_KEY = 'motocare_internal_audit_logs';
+export const STAFF_CACHE_KEY = 'motocare_internal_staff_registry';
+
+function clearWorkshopCaches(): void {
+  for (const key of [AUDIT_CACHE_KEY, STAFF_CACHE_KEY]) {
+    try {
+      sessionStorage.removeItem(key);
+      // Older builds kept these in localStorage, where they outlived the sign-out
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// Remove copies older builds left behind on this computer
+try {
+  localStorage.removeItem(AUDIT_CACHE_KEY);
+  localStorage.removeItem(STAFF_CACHE_KEY);
+} catch {
+  // ignore
+}
+
 /** Tab-isolated staff/admin Supabase client (see lib/supabase). */
 const internalTabAuthClient = workshopSupabase;
 
@@ -93,6 +117,7 @@ export function clearInternalSession(): void {
   try {
     sessionStorage.removeItem(INTERNAL_AUTH_KEY);
     localStorage.removeItem(INTERNAL_AUTH_KEY);
+    clearWorkshopCaches();
     internalTabAuthClient.auth.signOut({ scope: 'local' }).catch(() => {});
   } catch {
     // ignore

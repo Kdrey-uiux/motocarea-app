@@ -43,9 +43,13 @@ interface TicketRow {
   motorcycles: { model: string | null; plate_number: string | null } | null;
 }
 
-const SHOP_ADDRESS = 'Cay Ban Ban St, Parada, Santa Maria, 3022 Bulacan';
-const SHOP_PHONE = '+63 985 245 5897';
-const SHOP_HOURS = 'Monday to Saturday, 8:00 AM to 6:00 PM';
+// Used until the owner saves Website content (app_settings 'site_content', migration 22)
+const DEFAULT_SHOP = {
+  address: 'Cay Ban Ban St, Parada, Santa Maria, 3022 Bulacan',
+  phone: '+63 985 245 5897',
+  hours: 'Monday – Saturday, 8:00 AM – 6:00 PM',
+};
+type ShopInfo = typeof DEFAULT_SHOP;
 const CLOSED_STATUSES = ['COMPLETED', 'CANCELLED', 'CANCELLED_BY_ADMIN', 'MISSED', 'NO_SHOW'];
 const TICKET_COLUMNS =
   'id, ticket_code, user_id, status, stage, notes, dropoff_date, service_type, motorcycles(model, plate_number)';
@@ -106,7 +110,27 @@ function isStillValid(kind: Kind, t: TicketRow): boolean {
   }
 }
 
-function buildEmail(kind: Kind, t: TicketRow, name: string): { subject: string; html: string } {
+/** Shop details the owner set in Website content, so the email matches the website */
+async function loadShopInfo(): Promise<ShopInfo> {
+  const { data } = await supabase.from('app_settings').select('value').eq('key', 'site_content').maybeSingle();
+  const site = (data?.value ?? {}) as Record<string, unknown>;
+  const text = (key: string) => (typeof site[key] === 'string' ? (site[key] as string).trim() : '');
+  const days = text('openDays');
+  const hours = text('openHours');
+  return {
+    address: text('address') || DEFAULT_SHOP.address,
+    phone: text('phone') || DEFAULT_SHOP.phone,
+    hours: days || hours ? [days, hours].filter(Boolean).join(', ') : DEFAULT_SHOP.hours,
+  };
+}
+
+/** The rider's sign-in email (verified by Supabase Auth); the profile copy is only a fallback */
+async function riderEmail(userId: string, profileEmail: string | null | undefined): Promise<string | null> {
+  const { data } = await supabase.auth.admin.getUserById(userId);
+  return data?.user?.email || profileEmail || null;
+}
+
+function buildEmail(kind: Kind, t: TicketRow, name: string, shop: ShopInfo): { subject: string; html: string } {
   const bike = [t.motorcycles?.model, t.motorcycles?.plate_number && `(${t.motorcycles.plate_number})`]
     .filter(Boolean)
     .join(' ') || 'your motorcycle';
@@ -155,7 +179,7 @@ function buildEmail(kind: Kind, t: TicketRow, name: string): { subject: string; 
       ${trackUrl ? `<a href="${trackUrl}" style="display:inline-block;margin-top:8px;background:#f97316;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 20px;border-radius:999px">Track your repair</a>` : ''}
     </div>
     <p style="margin:16px 0 0;font-size:12px;color:#64748b;line-height:1.6">
-      MotoCare Motorcycle Workshop<br>${SHOP_ADDRESS}<br>${SHOP_PHONE} · ${SHOP_HOURS}
+      MotoCare Motorcycle Workshop<br>${escapeHtml(shop.address)}<br>${escapeHtml(shop.phone)} · ${escapeHtml(shop.hours)}
     </p>
   </div>
 </body></html>`;
@@ -177,7 +201,7 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
 }
 
 /** Sends one email for one ticket. Returns what happened, for the response/logs. */
-async function notify(kind: Kind, t: TicketRow): Promise<string> {
+async function notify(kind: Kind, t: TicketRow, shop: ShopInfo): Promise<string> {
   if (!t.user_id) return 'skipped: walk-in (no account)';
   if (!isStillValid(kind, t)) return 'skipped: ticket is no longer in that state';
 
@@ -186,7 +210,8 @@ async function notify(kind: Kind, t: TicketRow): Promise<string> {
     .select('full_name, email')
     .eq('id', t.user_id)
     .maybeSingle();
-  if (!profile?.email) return 'skipped: no email on file';
+  const email = await riderEmail(t.user_id, profile?.email);
+  if (!email) return 'skipped: no email on file';
 
   // Claim the send first; the unique key stops a second email for the same event
   const ref = kind === 'reminder' ? t.dropoff_date || '' : '';
@@ -198,8 +223,8 @@ async function notify(kind: Kind, t: TicketRow): Promise<string> {
   if (!claimed || claimed.length === 0) return 'skipped: already sent';
 
   try {
-    const { subject, html } = buildEmail(kind, t, profile.full_name || 'Rider');
-    await sendEmail(profile.email, subject, html);
+    const { subject, html } = buildEmail(kind, t, profile?.full_name || 'Rider', shop);
+    await sendEmail(email, subject, html);
     return 'sent';
   } catch (err) {
     // Let a later call try again
@@ -243,7 +268,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
       if (error) throw error;
       if (!ticket) return json({ result: 'skipped: ticket not found' });
-      return json({ result: await notify(body.kind, ticket as unknown as TicketRow) });
+      return json({ result: await notify(body.kind, ticket as unknown as TicketRow, await loadShopInfo()) });
     }
 
     if (body.kind === 'reminders') {
@@ -257,9 +282,10 @@ Deno.serve(async (req) => {
       if (error) throw error;
 
       const results: Record<string, string> = {};
+      const shop = await loadShopInfo();
       for (const t of (tickets || []) as unknown as TicketRow[]) {
         try {
-          results[t.ticket_code] = await notify('reminder', t);
+          results[t.ticket_code] = await notify('reminder', t, shop);
         } catch (err) {
           results[t.ticket_code] = `failed: ${err instanceof Error ? err.message : String(err)}`;
         }
