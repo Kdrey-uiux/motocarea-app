@@ -351,6 +351,15 @@ html.dark:has(.loading-screen) body {
   border-radius: 2px;
   vertical-align: middle;
 }
+/* Same 11px box with a tick inside (the tick may reach the border, like a pen mark) */
+.print-doc__box--checked {
+  overflow: visible;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 8px;
+  text-align: center;
+  color: #0f172a;
+}
 .print-doc__text {
   font-size: 8.5pt;
   color: #334155;

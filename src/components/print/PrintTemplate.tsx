@@ -139,7 +139,19 @@ export function PrintFields({ fields, columns = 2 }: { fields: PrintField[]; col
 }
 
 /** Checklist with tick boxes to fill in by hand */
-export function PrintChecklist({ items, columns = ['OK', 'Needs work'] }: { items: string[]; columns?: string[] }) {
+/**
+ * Item table with tick boxes. `checked` prints every box already ticked, for items the
+ * system has confirmed (e.g. the release checklist staff must complete before release).
+ */
+export function PrintChecklist({
+  items,
+  columns = ['OK', 'Needs work'],
+  checked = false,
+}: {
+  items: string[];
+  columns?: string[];
+  checked?: boolean;
+}) {
   return (
     <table className="print-doc__table">
       <thead>
@@ -159,7 +171,13 @@ export function PrintChecklist({ items, columns = ['OK', 'Needs work'] }: { item
             <td>{item}</td>
             {columns.map((col) => (
               <td key={col} className="print-doc__center">
-                <span className="print-doc__box" />
+                {checked ? (
+                  <span className="print-doc__box print-doc__box--checked" aria-label="Done">
+                    ✓
+                  </span>
+                ) : (
+                  <span className="print-doc__box" />
+                )}
               </td>
             ))}
             <td />

@@ -224,9 +224,15 @@ export function GatePassDocument({ ticket }: { ticket: InternalTicket }) {
       </PrintSection>
 
       <PrintSection title="Handover checklist">
+        {/* Release needs all 3 ticked (Stage5BillingModal), so a released ticket prints them done */}
         <PrintChecklist
           columns={['Done']}
-          items={['Keys and documents returned', 'Personal items returned', 'Walk-around check with customer']}
+          checked={ticket.status === 'COMPLETED'}
+          items={[
+            'The work is finished and checked',
+            'Keys and belongings are with the rider',
+            'The rider looked over the motorcycle',
+          ]}
         />
       </PrintSection>
 
