@@ -20,6 +20,7 @@ import {
   X
 } from '../../components/icons';
 import { toast } from '../utils/toast';
+import { Skeleton } from '../../components/ui/Skeleton';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
 // Random 12-character starting password (no look-alike characters), shown once to the admin
@@ -412,10 +413,24 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
               </div>
             </li>
           ))}
-          {filteredStaff.length === 0 && (
-            <li className="px-5 py-10 text-center text-sm text-slate-500">
-              {loading ? 'Loading accounts…' : 'No accounts match your search.'}
-            </li>
+          {filteredStaff.length === 0 && loading &&
+            [0, 1, 2].map((i) => (
+              <li key={i} aria-hidden="true" className="px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-3 flex-1">
+                  <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-3.5 w-1/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-28 rounded-full" />
+                  <Skeleton className="h-9 w-32 rounded-full" />
+                </div>
+              </li>
+            ))}
+          {filteredStaff.length === 0 && !loading && (
+            <li className="px-5 py-10 text-center text-sm text-slate-500">No accounts match your search.</li>
           )}
         </ul>
       </div>

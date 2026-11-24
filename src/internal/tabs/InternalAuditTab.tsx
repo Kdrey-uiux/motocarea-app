@@ -5,6 +5,7 @@ import { fetchDatabaseAuditLogs } from '../utils/databaseAuditLogger';
 import { Check, ChevronDown, Download, Search, ShieldAlert, RefreshCw } from '../../components/icons';
 import { PrintDocument, PrintFields, PrintPreviewModal } from '../../components/print/PrintTemplate';
 import { toast } from '../utils/toast';
+import { Skeleton } from '../../components/ui/Skeleton';
 
 interface InternalAuditTabProps {
   currentRole: UserRole;
@@ -525,7 +526,30 @@ function AuditTrail() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {pageLogs.length === 0 ? (
+            {pageLogs.length === 0 && loading ? (
+              // Same columns as a log row: date, staff, activity, ticket
+              [0, 1, 2, 3, 4, 5].map((i) => (
+                <tr key={i} aria-hidden="true">
+                  <td className="pl-5 pr-3 py-4 space-y-2">
+                    <Skeleton className="h-3.5 w-16" />
+                    <Skeleton className="h-3 w-12" />
+                  </td>
+                  <td className="px-3 py-4">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="w-7 h-7 rounded-full shrink-0" />
+                      <Skeleton className="h-3.5 w-20" />
+                    </div>
+                  </td>
+                  <td className="px-3 py-4 space-y-2">
+                    <Skeleton className="h-3.5 w-1/3" />
+                    <Skeleton className="h-3 w-3/4" />
+                  </td>
+                  <td className="pl-3 pr-5 py-4">
+                    <Skeleton className="h-6 w-24 rounded-full" />
+                  </td>
+                </tr>
+              ))
+            ) : pageLogs.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-5 py-14 text-center text-slate-500">
                   {emptyMessage}
@@ -565,7 +589,18 @@ function AuditTrail() {
 
       {/* Phone: same information as a simple list */}
       <ul className="md:hidden divide-y divide-slate-100">
-        {pageLogs.length === 0 ? (
+        {pageLogs.length === 0 && loading ? (
+          [0, 1, 2, 3, 4].map((i) => (
+            <li key={i} aria-hidden="true" className="px-4 py-4 flex items-start gap-3">
+              <Skeleton className="w-8 h-8 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3.5 w-1/2" />
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-1/3" />
+              </div>
+            </li>
+          ))
+        ) : pageLogs.length === 0 ? (
           <li className="px-4 py-14 text-center text-sm text-slate-500">{emptyMessage}</li>
         ) : (
           pageLogs.map((log) => {

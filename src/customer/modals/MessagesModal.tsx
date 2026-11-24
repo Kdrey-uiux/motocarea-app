@@ -17,6 +17,7 @@ import {
 } from '../../components/icons';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 import { autoReplyText } from '../../utils/systemMessages';
+import { Skeleton, SkeletonGroup } from '../../components/ui/Skeleton';
 
 interface MessagesModalProps {
   isOpen: boolean;
@@ -379,10 +380,23 @@ export default function MessagesModal({
         {/* Message Feed Area */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-slate-50">
           {loading ? (
-            <div className="h-full flex items-center justify-center text-slate-400 text-xs gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-orange-500" />
-              <span>Connecting to workshop advisor...</span>
-            </div>
+            <SkeletonGroup label="Loading your messages" className="space-y-4 pt-1">
+              {/* Chat bubbles, shop on the left and rider on the right */}
+              {[
+                { me: false, w: 'w-3/5' },
+                { me: true, w: 'w-1/2' },
+                { me: false, w: 'w-2/3' },
+                { me: true, w: 'w-2/5' },
+              ].map((b, i) => (
+                <div key={i} className={`flex gap-2 ${b.me ? 'justify-end' : 'justify-start'}`}>
+                  {!b.me && <Skeleton className="w-7 h-7 rounded-full shrink-0" />}
+                  <div className={`flex flex-col gap-1.5 ${b.w} ${b.me ? 'items-end' : 'items-start'}`}>
+                    <Skeleton className="h-2.5 w-16" />
+                    <Skeleton className="h-10 w-full rounded-2xl" />
+                  </div>
+                </div>
+              ))}
+            </SkeletonGroup>
           ) : messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center border border-orange-100 shadow-xs">

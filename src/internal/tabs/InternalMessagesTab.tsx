@@ -17,6 +17,7 @@ import {
   Phone,
 } from '../../components/icons';
 import { toast } from '../utils/toast';
+import { SkeletonGroup, SkeletonRow } from '../../components/ui/Skeleton';
 import { findWaitingMessage, isSystemMessage, summarizeMessage } from '../../utils/systemMessages';
 
 interface InternalMessagesTabProps {
@@ -342,10 +343,11 @@ export default function InternalMessagesTab({
 
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
           {loading ? (
-            <div className="p-8 text-center text-slate-400 text-sm">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-orange-500" />
-              Loading conversations…
-            </div>
+            <SkeletonGroup label="Loading conversations">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <SkeletonRow key={i} />
+              ))}
+            </SkeletonGroup>
           ) : listedConversations.length === 0 ? (
             <div className="p-8 text-center">
               <MessageSquare className="w-6 h-6 text-slate-300 mx-auto" />

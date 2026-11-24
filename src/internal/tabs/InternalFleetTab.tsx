@@ -25,6 +25,7 @@ import {
   AlertCircle
 } from '../../components/icons';
 import VehicleHistoryModal from '../modals/VehicleHistoryModal';
+import { Skeleton, SkeletonGroup } from '../../components/ui/Skeleton';
 import { toast } from '../utils/toast';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
 
@@ -407,10 +408,26 @@ export default function InternalFleetTab({ tickets }: InternalFleetTabProps) {
           </div>
 
           {loadingBikes ? (
-            <div className="p-12 text-center">
-              <Loader2 className="w-7 h-7 text-orange-500 animate-spin mx-auto mb-2" />
-              <p className="text-sm text-slate-500">Loading motorcycles…</p>
-            </div>
+            <SkeletonGroup label="Loading motorcycles" className="divide-y divide-slate-100">
+              {/* Same columns as the list: motorcycle, owner, mileage, history */}
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-4 md:items-center px-4 sm:px-5 py-4">
+                  <div className="md:col-span-5 flex items-center gap-3">
+                    <Skeleton className="w-10 h-10 rounded-xl shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-3.5 w-3/5" />
+                      <Skeleton className="h-3 w-1/4" />
+                    </div>
+                  </div>
+                  <div className="md:col-span-3 space-y-2">
+                    <Skeleton className="h-3.5 w-2/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                  <Skeleton className="hidden md:block md:col-span-2 h-3.5 w-3/4" />
+                  <Skeleton className="hidden md:block md:col-span-2 h-8 w-20 rounded-full ml-auto" />
+                </div>
+              ))}
+            </SkeletonGroup>
           ) : filteredFleet.length === 0 ? (
             <div className="p-12 text-center">
               <span className="w-12 h-12 rounded-2xl bg-orange-50 text-orange-500 flex items-center justify-center mx-auto">

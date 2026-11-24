@@ -49,6 +49,7 @@ import InternalHistoryTab from './tabs/InternalHistoryTab';
 import InternalSettingsTab from './tabs/InternalSettingsTab';
 import InternalServicesTab from './tabs/InternalServicesTab';
 import { startWorkshopSettingsSync } from '../lib/sharedSettings';
+import ConsolePageSkeleton from './components/ConsolePageSkeleton';
 
 /**
  * Every ticket with its motorcycle and the customer's name/phone.
@@ -224,6 +225,9 @@ export default function InternalConsole() {
   const [tickets, setTickets] = useState<InternalTicket[]>([]);
   const [staffList, setStaffList] = useState<InternalStaffMember[]>([]);
   const [loading, setLoading] = useState(true);
+  // False until the first ticket load finishes; ticket pages show a skeleton until then
+  const [ticketsLoaded, setTicketsLoaded] = useState(false);
+  const showPageSkeleton = !ticketsLoaded && ['dashboard', 'queue', 'bays', 'history'].includes(activeTab);
   const [ticketsError, setTicketsError] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   // Sign out from the sidebar or the account menu asks first
@@ -319,7 +323,10 @@ export default function InternalConsole() {
         const message = err && typeof err === 'object' && 'message' in err ? String(err.message) : '';
         setTicketsError(message || 'Failed to load tickets from workshop database.');
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setTicketsLoaded(true);
+      });
   }, []);
   const refreshTickets = useCallback(() => {
     setLoading(true);
@@ -613,7 +620,9 @@ export default function InternalConsole() {
             />
           )}
 
-          {activeTab === 'dashboard' && canAccessTab(currentRole, 'dashboard') && (
+          {showPageSkeleton && <ConsolePageSkeleton label="Loading tickets" />}
+
+          {!showPageSkeleton && activeTab === 'dashboard' && canAccessTab(currentRole, 'dashboard') && (
             <InternalDashboardTab
               tickets={tickets}
               loading={loading}
@@ -628,7 +637,7 @@ export default function InternalConsole() {
             />
           )}
 
-          {activeTab === 'queue' && (
+          {!showPageSkeleton && activeTab === 'queue' && (
             <InternalQueueTab
               tickets={tickets}
               loading={loading}
@@ -647,7 +656,7 @@ export default function InternalConsole() {
             />
           )}
 
-          {activeTab === 'bays' && (
+          {!showPageSkeleton && activeTab === 'bays' && (
             <InternalBaysTab
               tickets={tickets}
               onOpenDispatch={handleOpenDispatch}
@@ -688,7 +697,7 @@ export default function InternalConsole() {
             />
           )}
 
-          {activeTab === 'history' && (
+          {!showPageSkeleton && activeTab === 'history' && (
             <InternalHistoryTab
               tickets={tickets}
               currentStaffName={currentUserName}
