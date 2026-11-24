@@ -26,26 +26,50 @@ export function autoReplyText(text?: string | null): string | null {
   }
 }
 
+// Same as migration 23/24: the same quick button pressed again within a minute gets no second reply
+const REPEAT_WINDOW_MS = 60 * 1000;
+
 /**
  * The rider message still waiting for the shop, or null. Pass the chat newest first.
- * A quick question the system fully answered does not count; an "[AUTO_RECEIVED]" one still does.
+ * A quick question the system fully answered does not count, and neither does the same
+ * question pressed again within a minute (the database skips that repeat).
+ * An "[AUTO_RECEIVED]" question still waits for staff.
  */
-export function findWaitingMessage<T extends { sender_role: string; message: string }>(newestFirst: T[]): T | null {
-  let answeredByAuto = false;
-  for (const msg of newestFirst) {
-    if ((msg.message || '').startsWith(AUTO_ANSWERED)) {
-      answeredByAuto = true;
-    } else if (isSystemMessage(msg.message)) {
+export function findWaitingMessage<T extends { sender_role: string; message: string; created_at?: string }>(
+  newestFirst: T[]
+): T | null {
+  // Rider messages with no reply yet, oldest first
+  let unanswered: T[] = [];
+  // The question the system just answered, and when that answer was written
+  let answered: { text: string; at: number } | null = null;
+
+  for (let i = newestFirst.length - 1; i >= 0; i--) {
+    const msg = newestFirst[i];
+    const text = (msg.message || '').trim();
+
+    if (text.startsWith(AUTO_ANSWERED)) {
+      // The automatic answer belongs to the question right before it
+      const question = unanswered.pop();
+      answered = question
+        ? { text: (question.message || '').trim(), at: new Date(msg.created_at || 0).getTime() }
+        : null;
+    } else if (isSystemMessage(text)) {
       continue;
     } else if (msg.sender_role !== 'customer') {
-      return null;
-    } else if (answeredByAuto) {
-      answeredByAuto = false;
+      unanswered = [];
+      answered = null;
     } else {
-      return msg;
+      const isRepeat =
+        answered !== null &&
+        text === answered.text &&
+        new Date(msg.created_at || 0).getTime() - answered.at < REPEAT_WINDOW_MS;
+      if (!isRepeat) {
+        unanswered.push(msg);
+        answered = null;
+      }
     }
   }
-  return null;
+  return unanswered[unanswered.length - 1] ?? null;
 }
 
 export function summarizeMessage(text?: string | null): string {

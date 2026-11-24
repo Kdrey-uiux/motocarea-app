@@ -27,7 +27,7 @@ interface MessagesModalProps {
 }
 
 // Short label on the chip; the full sentence goes into the message box.
-// The database answers these exact sentences: keep them the same as migration 23.
+// The database answers these exact sentences: keep them the same as migrations 23 and 24.
 const QUICK_MESSAGES = [
   { label: 'Repair status', text: 'Hi, may I know the status of my motorcycle?' },
   { label: 'Pickup time', text: 'Hi, what time can I pick up my motorcycle?' },

@@ -88,7 +88,9 @@ export function useActionCenterData(tickets: InternalTicket[], hardcopyRequests:
         const chatByUser = new Map<string, typeof data>();
         data.forEach((m) => {
           if (!m.user_id) return;
-          chatByUser.set(m.user_id, [...(chatByUser.get(m.user_id) ?? []), m]);
+          const chat = chatByUser.get(m.user_id);
+          if (chat) chat.push(m);
+          else chatByUser.set(m.user_id, [m]);
         });
 
         const waiting = Array.from(chatByUser.values()).flatMap((chat) => findWaitingMessage(chat) ?? []);
