@@ -670,6 +670,7 @@ export default function InternalConsole() {
             <InternalStaffTab
               currentRole={currentRole}
               currentStaffName={currentUserName}
+              tickets={tickets}
             />
           )}
 

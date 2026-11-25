@@ -7,6 +7,7 @@ import { InternalTicket, InternalStaffMember } from '../types/internal';
 import { readSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { parseTicketNotes } from '../../utils/ticketNotesParser';
 import MechanicPicker from '../components/MechanicPicker';
+import { cleanMechanicName } from '../../utils/workshopMechanics';
 import {
   X,
   AlertTriangle,
@@ -201,13 +202,13 @@ export default function DispatchTicketModal({
       const updates = isAssignMode
         ? {
             assigned_bay: assignedBay,
-            assigned_mechanic: assignedMechanic.trim() || null,
+            assigned_mechanic: cleanMechanicName(assignedMechanic) || null,
             stage: 2,
             status: 'IN_PROGRESS',
           }
         : {
             assigned_bay: assignedBay,
-            assigned_mechanic: assignedMechanic.trim() || null,
+            assigned_mechanic: cleanMechanicName(assignedMechanic) || null,
             stage: Number(stage),
             // Moving a ready unit back to Stage 2-4 puts it back in progress
             status: isMarkingReady ? 'READY_FOR_PICKUP' : status === 'READY_FOR_PICKUP' ? 'IN_PROGRESS' : status,
@@ -412,7 +413,7 @@ export default function DispatchTicketModal({
               <span className={sectionLabel}>
                 Mechanic {isAssignMode && <span className="font-medium text-slate-400">(optional)</span>}
               </span>
-              <MechanicPicker value={assignedMechanic} onChange={setAssignedMechanic} />
+              <MechanicPicker value={assignedMechanic} onChange={setAssignedMechanic} tickets={allTickets} />
             </section>
           </div>
 

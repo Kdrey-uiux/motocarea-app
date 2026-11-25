@@ -26,7 +26,6 @@ import {
   Check, 
   Trash2, 
   Plus, 
-  User,
   KeyRound,
   CheckCircle2,
   History,
@@ -46,6 +45,8 @@ import { parseTicketNotes, formatPhoneNumber } from '../../utils/ticketNotesPars
 import { InternalStaffMember } from '../types/internal';
 import { toast } from '../utils/toast';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
+import MechanicPicker from '../components/MechanicPicker';
+import { cleanMechanicName } from '../../utils/workshopMechanics';
 
 function MotorcycleIcon({ className = "w-6 h-6" }: { className?: string }) {
   return (
@@ -393,7 +394,7 @@ export function InternalQueueTab({
     if (!assigningMechanicTicket) return;
     setIsAssigningMechanic(true);
     try {
-      const mechName = selectedMechanicName.trim() || null;
+      const mechName = cleanMechanicName(selectedMechanicName) || null;
       const updates = {
         assigned_mechanic: mechName,
       };
@@ -1122,7 +1123,7 @@ export function InternalQueueTab({
               </p>
             </div>
 
-            {/* Mechanics don't have accounts: type the name */}
+            {/* Mechanics don't have accounts: pick one from the owner's list (Team page) */}
             <form
               id="assign-mechanic-form"
               onSubmit={(e) => {
@@ -1134,19 +1135,14 @@ export function InternalQueueTab({
               <label htmlFor="assign-mechanic-name" className="text-sm font-semibold text-slate-800 block">
                 Name
               </label>
-              <div className="relative">
-                <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                <input
-                  id="assign-mechanic-name"
-                  type="text"
-                  autoFocus
-                  value={selectedMechanicName}
-                  onChange={(e) => setSelectedMechanicName(e.target.value)}
-                  placeholder="e.g. Juan Dela Cruz"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl pl-9 pr-3.5 py-2.5 text-base sm:text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition"
-                />
-              </div>
-              <p className="text-xs text-slate-400">Leave it empty and save to remove the mechanic.</p>
+              <MechanicPicker
+                id="assign-mechanic-name"
+                autoFocus
+                value={selectedMechanicName}
+                onChange={setSelectedMechanicName}
+                tickets={tickets}
+              />
+              <p className="text-xs text-slate-400">Choose “Not assigned yet” and save to remove the mechanic.</p>
             </form>
 
             <div className="flex justify-end gap-2 pt-1">

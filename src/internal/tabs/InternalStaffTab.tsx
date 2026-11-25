@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { InternalStaffMember, UserRole } from '../types/internal';
+import { InternalStaffMember, InternalTicket, UserRole } from '../types/internal';
 import { canManageStaff } from '../utils/permissions';
 import { 
   fetchDatabaseStaffMembers, 
@@ -22,6 +22,7 @@ import {
 import { toast } from '../utils/toast';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
+import MechanicsCard from '../components/MechanicsCard';
 
 // Random 12-character starting password (no look-alike characters), shown once to the admin
 function generateStaffPassword(): string {
@@ -34,11 +35,14 @@ function generateStaffPassword(): string {
 interface InternalStaffTabProps {
   currentRole: UserRole;
   currentStaffName?: string;
+  /** Workshop tickets, for the mechanics' job counts */
+  tickets?: InternalTicket[];
 }
 
 export default function InternalStaffTab({
   currentRole,
   currentStaffName = 'Shop Owner',
+  tickets = [],
 }: InternalStaffTabProps) {
   // Permission Guard: Shop Owner Only
   if (!canManageStaff(currentRole)) {
@@ -55,10 +59,10 @@ export default function InternalStaffTab({
     );
   }
 
-  return <StaffManagement currentStaffName={currentStaffName} />;
+  return <StaffManagement currentStaffName={currentStaffName} tickets={tickets} />;
 }
 
-function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
+function StaffManagement({ currentStaffName, tickets }: { currentStaffName: string; tickets: InternalTicket[] }) {
   const [staffList, setStaffList] = useState<InternalStaffMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -434,6 +438,9 @@ function StaffManagement({ currentStaffName }: { currentStaffName: string }) {
           )}
         </ul>
       </div>
+
+      {/* Mechanics have no account: a separate list staff pick from */}
+      <MechanicsCard tickets={tickets} currentStaffName={currentStaffName} />
 
       {/* Provision Staff Modal */}
       {isCreateModalOpen && (
