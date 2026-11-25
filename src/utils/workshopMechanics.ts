@@ -24,9 +24,11 @@ export interface MechanicRoster {
   /** The day the "In today" marks below belong to (YYYY-MM-DD, this device's date) */
   presentDate: string | null;
   presentIds: string[];
+  /** Names typed on old tickets that the owner said are not mechanics (mechanicKey form) */
+  ignoredNames: string[];
 }
 
-const EMPTY_ROSTER: MechanicRoster = { mechanics: [], presentDate: null, presentIds: [] };
+const EMPTY_ROSTER: MechanicRoster = { mechanics: [], presentDate: null, presentIds: [], ignoredNames: [] };
 
 export const MECHANIC_NAME_MAX = 60;
 
@@ -86,6 +88,9 @@ function normalize(raw: unknown): MechanicRoster {
     mechanics,
     presentDate: typeof r.presentDate === 'string' ? r.presentDate : null,
     presentIds: Array.isArray(r.presentIds) ? r.presentIds.filter((id): id is string => typeof id === 'string') : [],
+    ignoredNames: Array.isArray(r.ignoredNames)
+      ? r.ignoredNames.filter((n): n is string => typeof n === 'string').map((n) => mechanicKey(n))
+      : [],
   };
 }
 
@@ -212,7 +217,7 @@ export function mechanicLoads(tickets: TicketLike[]): Map<string, MechanicLoad> 
 
 /** Names typed on tickets that are not on the list yet, most used first */
 export function namesNotOnRoster(tickets: TicketLike[], roster: MechanicRoster): { name: string; tickets: number }[] {
-  const onList = new Set(roster.mechanics.map((m) => mechanicKey(m.name)));
+  const onList = new Set([...roster.mechanics.map((m) => mechanicKey(m.name)), ...(roster.ignoredNames ?? [])]);
   const found = new Map<string, { name: string; tickets: number }>();
   for (const t of tickets) {
     if (isPlaceholderMechanic(t.assigned_mechanic)) continue;
@@ -223,6 +228,12 @@ export function namesNotOnRoster(tickets: TicketLike[], roster: MechanicRoster):
     found.set(key, entry);
   }
   return Array.from(found.values()).sort((a, b) => b.tickets - a.tickets || a.name.localeCompare(b.name));
+}
+
+/** Hides names typed on old tickets from the Team page (the tickets are not changed) */
+export function ignoreNames(roster: MechanicRoster, names: string[]): MechanicRoster {
+  const keys = names.map((n) => mechanicKey(n)).filter(Boolean);
+  return { ...roster, ignoredNames: Array.from(new Set([...(roster.ignoredNames ?? []), ...keys])) };
 }
 
 /**

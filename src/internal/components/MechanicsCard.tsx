@@ -7,6 +7,7 @@ import {
   addMechanicsToRoster,
   cleanMechanicName,
   hasAttendanceToday,
+  ignoreNames,
   isInToday,
   MECHANIC_NAME_MAX,
   mechanicKey,
@@ -155,6 +156,17 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
     save({ ...roster, presentDate: todayKey(), presentIds: active.map((m) => m.id) });
 
   const handleClearToday = () => save({ ...roster, presentDate: todayKey(), presentIds: [] });
+
+  // Names on old tickets that are not mechanics (tests, typos): hide them; tickets stay as they are
+  const handleIgnore = async (names: string[]) => {
+    const ok = await save(ignoreNames(roster, names));
+    if (ok) toast.success(names.length === 1 ? `${names[0]} is hidden.` : `${names.length} names are hidden.`);
+  };
+
+  const handleShowIgnored = async () => {
+    const ok = await save({ ...roster, ignoredNames: [] });
+    if (ok) toast.success('Hidden names are shown again.');
+  };
 
   const pastedNames = newNames.split(/\r?\n/).map(cleanMechanicName).filter(Boolean);
 
@@ -362,27 +374,68 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
       </ul>
 
       {foundNames.length > 0 && (
-        <div className="px-4 sm:px-5 py-4 border-t border-slate-100 bg-amber-50/50 space-y-2">
-          <p className="text-sm text-slate-700">
-            <span className="font-semibold">Typed on tickets, not on the list.</span> Add the ones that are real mechanics.
-            The tickets themselves are not changed.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {foundNames.slice(0, 12).map((f) => (
-              <button
-                key={f.name}
-                type="button"
-                disabled={busy}
-                onClick={() => handleAdd([f.name])}
-                className="h-9 px-3.5 rounded-full border border-amber-200 bg-white hover:bg-amber-50 text-sm font-medium text-slate-700 transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                title={`Used on ${f.tickets} ticket${f.tickets === 1 ? '' : 's'}`}
-              >
-                <Plus className="w-3.5 h-3.5 text-amber-600" />
-                {f.name}
-                <span className="text-xs text-slate-400">({f.tickets})</span>
-              </button>
-            ))}
+        <div className="px-4 sm:px-5 py-4 border-t border-slate-100 bg-amber-50/50 space-y-2.5">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+            <p className="text-sm text-slate-700">
+              <span className="font-semibold">Typed on tickets, not on the list.</span> Add the real mechanics and
+              ignore the rest. The tickets themselves are not changed.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => handleIgnore(foundNames.map((f) => f.name))}
+              className={`${BTN} self-start shrink-0`}
+            >
+              <X className="w-3.5 h-3.5" />
+              Ignore all
+            </button>
           </div>
+          <ul className="flex flex-wrap gap-2">
+            {foundNames.slice(0, 12).map((f) => (
+              <li
+                key={f.name}
+                className="h-9 pl-1 pr-1 rounded-full border border-amber-200 bg-white flex items-center text-sm text-slate-700"
+              >
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleAdd([f.name])}
+                  className="h-7 pl-2.5 pr-2 rounded-full hover:bg-amber-50 font-medium transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  title={`Add ${f.name} to the mechanic list (used on ${f.tickets} ticket${f.tickets === 1 ? '' : 's'})`}
+                >
+                  <Plus className="w-3.5 h-3.5 text-amber-600" />
+                  {f.name}
+                  <span className="text-xs text-slate-400">({f.tickets})</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => handleIgnore([f.name])}
+                  className="w-7 h-7 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition cursor-pointer flex items-center justify-center disabled:opacity-50"
+                  title={`Ignore ${f.name}: not a mechanic`}
+                  aria-label={`Ignore ${f.name}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {roster.ignoredNames.length > 0 && (
+        <div className="px-4 sm:px-5 py-2.5 border-t border-slate-100 text-xs text-slate-400 flex items-center gap-2">
+          <span>
+            {roster.ignoredNames.length} name{roster.ignoredNames.length === 1 ? '' : 's'} from old tickets hidden.
+          </span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={handleShowIgnored}
+            className="font-semibold text-orange-600 hover:text-orange-700 cursor-pointer disabled:opacity-50"
+          >
+            Show again
+          </button>
         </div>
       )}
     </div>
