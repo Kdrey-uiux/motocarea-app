@@ -7,7 +7,7 @@ import { InternalTicket, InternalStaffMember } from '../types/internal';
 import { readSharedSetting, SHARED_SETTINGS } from '../../lib/sharedSettings';
 import { parseTicketNotes } from '../../utils/ticketNotesParser';
 import MechanicPicker from '../components/MechanicPicker';
-import { cleanMechanicName } from '../../utils/workshopMechanics';
+import { cleanMechanicName, isPlaceholderMechanic, mechanicKey } from '../../utils/workshopMechanics';
 import {
   X,
   AlertTriangle,
@@ -33,6 +33,9 @@ interface DispatchTicketModalProps {
   currentStaffName?: string;
 }
 
+
+// Workmanship warranty printed on the gate pass
+const WARRANTY_DAYS = 7;
 
 // Stage 1 (intake) is set by check-in; dispatch moves the unit through 2-5.
 // Labels match what the customer sees (Inspect, Service, Test, Ready).
@@ -111,6 +114,24 @@ export default function DispatchTicketModal({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  // "Came back from an earlier job" (backjob), as the earlier ticket's id
+  const [backjobOf, setBackjobOf] = useState('');
+
+  // Released jobs of the same motorcycle (same record, or same plate for walk-ins), newest first
+  const earlierJobs = useMemo(() => {
+    if (!ticket) return [];
+    const plateKey = (p?: string) => (p || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+    const myPlate = plateKey(ticket.motorcycles?.plate_number);
+    return allTickets
+      .filter(
+        (t) =>
+          t.id !== ticket.id &&
+          t.status === 'COMPLETED' &&
+          ((ticket.motorcycles?.id && t.motorcycles?.id === ticket.motorcycles.id) ||
+            (myPlate && plateKey(t.motorcycles?.plate_number) === myPlate))
+      )
+      .sort((a, b) => (b.paid_at || b.created_at).localeCompare(a.paid_at || a.created_at));
+  }, [allTickets, ticket]);
 
   // Live occupancy for each bay to prevent double-booking
   const bayOccupancyMap = useMemo(() => {
@@ -166,6 +187,7 @@ export default function DispatchTicketModal({
       const savedReadyTime = ticket.estimated_pickup || '';
       setEstimatedPickup(NO_READY_TIME.includes(savedReadyTime) ? '' : savedReadyTime);
       setFindings(extractFindings(ticket.notes));
+      setBackjobOf(ticket.backjob_of_ticket_id || '');
       setErrorMsg(null);
     }
   }, [isOpen, ticket, bayOccupancyMap, BAYS]);
@@ -173,6 +195,10 @@ export default function DispatchTicketModal({
   const customerReport = useMemo(() => parseTicketNotes(ticket?.notes), [ticket]);
 
   if (!isOpen || !ticket) return null;
+
+  // Backjob marking needs migration 26 (the ticket list then carries the column, even when empty)
+  const canMarkBackjob = 'backjob_of_ticket_id' in ticket;
+  const backjobChanged = canMarkBackjob && backjobOf !== (ticket.backjob_of_ticket_id || '');
 
   // A motorcycle at intake only needs a bay and a mechanic. Everything else comes later.
   const isAssignMode = ticket.stage <= 1;
@@ -205,6 +231,7 @@ export default function DispatchTicketModal({
             assigned_mechanic: cleanMechanicName(assignedMechanic) || null,
             stage: 2,
             status: 'IN_PROGRESS',
+            ...(backjobChanged ? { backjob_of_ticket_id: backjobOf || null } : {}),
           }
         : {
             assigned_bay: assignedBay,
@@ -214,6 +241,7 @@ export default function DispatchTicketModal({
             status: isMarkingReady ? 'READY_FOR_PICKUP' : status === 'READY_FOR_PICKUP' ? 'IN_PROGRESS' : status,
             estimated_pickup: estimatedPickup.trim() || null,
             notes: withFindings(latestNotes, findings) || null,
+            ...(backjobChanged ? { backjob_of_ticket_id: backjobOf || null } : {}),
           };
 
       const { data, error } = await db()
@@ -249,6 +277,39 @@ export default function DispatchTicketModal({
           details: `Motorcycle dispatched to ${assignedBay}${assignedMechanic ? ` (${assignedMechanic})` : ''}`,
           previousValue: ticket.assigned_bay || 'Unassigned',
           newValue: assignedBay,
+        });
+      }
+
+      // Every change of mechanic is kept, so a mechanic's service history shows who did the work
+      const previousMechanic = isPlaceholderMechanic(ticket.assigned_mechanic) ? '' : cleanMechanicName(ticket.assigned_mechanic || '');
+      const newMechanic = cleanMechanicName(assignedMechanic);
+      if (mechanicKey(previousMechanic) !== mechanicKey(newMechanic)) {
+        await recordAuditLog({
+          ticketCode: ticket.ticket_code,
+          action: 'MECHANIC_ASSIGNED',
+          actor: currentStaffName,
+          details: newMechanic
+            ? previousMechanic
+              ? `Mechanic changed from ${previousMechanic} to ${newMechanic}.`
+              : `Assigned mechanic: ${newMechanic}`
+            : 'Cleared mechanic assignment.',
+          previousValue: previousMechanic || 'None',
+          newValue: newMechanic || 'None',
+        });
+      }
+
+      if (backjobChanged) {
+        const earlier = earlierJobs.find((t) => t.id === backjobOf);
+        const before = allTickets.find((t) => t.id === ticket.backjob_of_ticket_id);
+        await recordAuditLog({
+          ticketCode: ticket.ticket_code,
+          action: backjobOf ? 'BACKJOB_LINKED' : 'BACKJOB_REMOVED',
+          actor: currentStaffName,
+          details: backjobOf
+            ? `Came back from ${earlier?.ticket_code || 'an earlier job'}${earlier?.assigned_mechanic ? ` (mechanic ${earlier.assigned_mechanic})` : ''}.`
+            : `No longer marked as a backjob of ${before?.ticket_code || 'the earlier job'}.`,
+          previousValue: before?.ticket_code || 'None',
+          newValue: earlier?.ticket_code || 'None',
         });
       }
 
@@ -416,6 +477,38 @@ export default function DispatchTicketModal({
               <MechanicPicker value={assignedMechanic} onChange={setAssignedMechanic} tickets={allTickets} />
             </section>
           </div>
+
+          {/* Backjob: the motorcycle came back after an earlier released job */}
+          {canMarkBackjob && (earlierJobs.length > 0 || backjobOf) && (
+            <section className="space-y-1.5">
+              <label htmlFor="dispatch-backjob" className={sectionLabel}>
+                Came back from an earlier job? <span className="font-medium text-slate-400">(backjob)</span>
+              </label>
+              <select
+                id="dispatch-backjob"
+                value={backjobOf}
+                onChange={(e) => setBackjobOf(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-3.5 py-2.5 text-base sm:text-sm text-slate-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 transition cursor-pointer"
+              >
+                <option value="">No, this is a new job</option>
+                {earlierJobs.map((t) => {
+                  const releasedOn = t.paid_at || t.updated_at || t.created_at;
+                  const days = Math.floor((new Date(ticket.created_at).getTime() - new Date(releasedOn).getTime()) / 86_400_000);
+                  const dateText = new Date(releasedOn).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
+                  return (
+                    <option key={t.id} value={t.id}>
+                      {t.ticket_code} · {t.service_type} · released {dateText}
+                      {t.assigned_mechanic ? ` · ${t.assigned_mechanic}` : ''}
+                      {days >= 0 && days <= WARRANTY_DAYS ? ' · within warranty' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className="text-xs text-slate-400">
+                Counts as a backjob of that job&apos;s mechanic. Workmanship warranty is {WARRANTY_DAYS} days.
+              </p>
+            </section>
+          )}
 
           {!isAssignMode && (
             <>

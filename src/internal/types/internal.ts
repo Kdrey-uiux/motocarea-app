@@ -61,6 +61,8 @@ export interface InternalTicket {
   cancellation_reason?: string;
   cancelled_by?: string;
   cancelled_at?: string;
+  /** This job is a motorcycle that came back from this earlier released job (migration 26) */
+  backjob_of_ticket_id?: string | null;
   // Related Models
   motorcycles?: {
     id: string;

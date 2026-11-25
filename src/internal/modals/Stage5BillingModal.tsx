@@ -5,6 +5,7 @@ import { InternalTicket } from '../types/internal';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { X, CheckCircle2, Printer, AlertTriangle, Loader2 } from '../../components/icons';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
+import { isPlaceholderMechanic } from '../../utils/workshopMechanics';
 
 interface Stage5BillingModalProps {
   ticket: InternalTicket | null;
@@ -99,7 +100,12 @@ export default function Stage5BillingModal({
         ticketCode: ticket.ticket_code,
         action: 'VEHICLE_RELEASED',
         actor: currentStaffName,
-        details: `Vehicle keys handed over and unit cleared for release by ${currentStaffName}.`,
+        // The mechanic is part of the record, so the mechanic's service history has proof of who did the job
+        details: `Vehicle keys handed over and unit cleared for release by ${currentStaffName}.${
+          ticket.assigned_mechanic && !isPlaceholderMechanic(ticket.assigned_mechanic)
+            ? ` Mechanic: ${ticket.assigned_mechanic}.`
+            : ''
+        }`,
         previousValue: `Stage ${ticket.stage} (${ticket.status})`,
         newValue: 'COMPLETED (RELEASED)',
       });

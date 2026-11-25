@@ -450,3 +450,101 @@ export function WalkInTicketDocument({ slip, trackingUrl }: { slip: WalkInTicket
     </PrintDocument>
   );
 }
+
+/* -------------------------------------------------------------------------
+   Mechanic Service Record — jobs one mechanic did, signed by the mechanic and the owner
+   ------------------------------------------------------------------------- */
+export interface MechanicRecordRow {
+  ticket_code: string;
+  releasedAt: string;
+  customer: string;
+  motorcycle: string;
+  service: string;
+  /** Ticket code of the later job when this motorcycle came back (backjob) */
+  cameBack?: string | null;
+}
+
+export function MechanicServiceRecordDocument({
+  mechanicName,
+  periodLabel,
+  rows,
+  cameBackCount,
+  referenceNo,
+}: {
+  mechanicName: string;
+  periodLabel: string;
+  rows: MechanicRecordRow[];
+  cameBackCount: number;
+  referenceNo: string;
+}) {
+  return (
+    <PrintDocument
+      title="Mechanic Service Record"
+      numberLabel="Reference no."
+      number={referenceNo}
+      footnote="Internal shop record. It lists the released jobs this mechanic handled in the MotoCare workshop system and contains customer details: keep it confidential."
+    >
+      <PrintSection title="Mechanic">
+        <PrintFields
+          columns={3}
+          fields={[
+            { label: 'Name', value: mechanicName },
+            { label: 'Period', value: periodLabel },
+            { label: 'Released jobs', value: `${rows.length}${cameBackCount > 0 ? ` (${cameBackCount} came back)` : ''}` },
+          ]}
+        />
+      </PrintSection>
+
+      <PrintSection title={`Released jobs (${rows.length})`}>
+        <table className="print-doc__table">
+          <thead>
+            <tr>
+              <th style={{ width: '5%' }}>#</th>
+              <th style={{ width: '13%' }}>Released</th>
+              <th style={{ width: '14%' }}>Ticket</th>
+              <th style={{ width: '18%' }}>Customer</th>
+              <th style={{ width: '22%' }}>Motorcycle</th>
+              <th>Service</th>
+              <th style={{ width: '12%' }}>Came back</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="print-doc__center">
+                  No released jobs in this period.
+                </td>
+              </tr>
+            ) : (
+              rows.map((r, i) => (
+                <tr key={r.ticket_code}>
+                  <td>{i + 1}</td>
+                  <td>{shortDate(new Date(r.releasedAt))}</td>
+                  <td className="print-doc__mono">{code(r.ticket_code)}</td>
+                  <td>{clean(r.customer) || '—'}</td>
+                  <td>{r.motorcycle}</td>
+                  <td>{r.service}</td>
+                  <td className="print-doc__mono">{r.cameBack ? code(r.cameBack) : '—'}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </PrintSection>
+
+      <PrintSection title="Certification">
+        <div className="print-doc__statement">
+          The jobs above were handled by {mechanicName} at the MotoCare workshop, as recorded in the workshop system.
+        </div>
+      </PrintSection>
+
+      <PrintSignatures
+        signers={[
+          { role: 'Mechanic', name: mechanicName },
+          { role: 'Shop owner' },
+          { role: 'Date signed' },
+        ]}
+      />
+    </PrintDocument>
+  );
+}

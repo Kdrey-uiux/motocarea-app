@@ -55,13 +55,16 @@ import ConsolePageSkeleton from './components/ConsolePageSkeleton';
  * Every ticket with its motorcycle and the customer's name/phone.
  * Also kicks off the (throttled) missed-booking scan.
  */
+// Postgres error code for a column that does not exist yet
+const COLUMN_NOT_FOUND = '42703';
+
 async function queryWorkshopTickets(): Promise<InternalTicket[]> {
   runMissedBookingScanInBackground();
 
-  const { data: ticketData, error } = await db()
-    .from('service_tickets')
-    .select(`
-      id,
+  // backjob_of_ticket_id arrives with migration 26; without it the console still loads
+  const selectTickets = (withBackjob: boolean) => {
+    const columns: string = `
+      id,${withBackjob ? ' backjob_of_ticket_id,' : ''}
       ticket_code,
       service_type,
       stage,
@@ -97,12 +100,19 @@ async function queryWorkshopTickets(): Promise<InternalTicket[]> {
         year_model,
         odometer
       )
-    `)
-    .order('created_at', { ascending: false });
+    `;
+    return db().from('service_tickets').select(columns).order('created_at', { ascending: false });
+  };
+
+  let { data: ticketData, error } = await selectTickets(true);
+  if (error?.code === COLUMN_NOT_FOUND) {
+    ({ data: ticketData, error } = await selectTickets(false));
+  }
 
   if (error) throw error;
 
-  const rawTickets = ticketData || [];
+  // The column list is built at run time, so Supabase can't type the rows; they are workshop tickets
+  const rawTickets = (ticketData || []) as unknown as InternalTicket[];
 
   // Resolve profile names using staff client if available (to bypass RLS restriction on profiles)
   const userIds = Array.from(new Set(rawTickets.map((t) => t.user_id).filter(Boolean)));

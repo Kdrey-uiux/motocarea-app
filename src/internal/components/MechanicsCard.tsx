@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { Check, Edit3, Plus, Power, Wrench, X } from '../../components/icons';
 import { toast } from '../utils/toast';
+import { InternalTicket } from '../types/internal';
+import MechanicHistoryModal from '../modals/MechanicHistoryModal';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import {
@@ -24,7 +26,7 @@ import {
 } from '../../utils/workshopMechanics';
 
 interface MechanicsCardProps {
-  tickets: { status: string; stage?: number | null; assigned_mechanic?: string | null }[];
+  tickets: InternalTicket[];
   currentStaffName: string;
 }
 
@@ -48,6 +50,7 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
+  const [historyOf, setHistoryOf] = useState<WorkshopMechanic | null>(null);
 
   const loads = useMemo(() => mechanicLoads(tickets), [tickets]);
   const foundNames = useMemo(() => namesNotOnRoster(tickets, roster), [tickets, roster]);
@@ -231,9 +234,16 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
             ) : (
               <>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className={`text-[15px] font-semibold truncate ${m.active ? 'text-slate-900' : 'text-slate-500'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOf(m)}
+                    className={`text-[15px] font-semibold truncate underline decoration-slate-300 underline-offset-4 hover:decoration-orange-500 hover:text-orange-700 cursor-pointer text-left ${
+                      m.active ? 'text-slate-900' : 'text-slate-500'
+                    }`}
+                    title={`Open ${m.name}'s service history`}
+                  >
                     {m.name}
-                  </span>
+                  </button>
                   {m.active && attendanceTaken && (
                     <span className={`inline-flex items-center gap-1 text-[11px] font-semibold ${here ? 'text-emerald-600' : 'text-slate-400'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${here ? 'bg-emerald-500' : 'bg-slate-300'}`} />
@@ -242,7 +252,16 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
                   )}
                   {!m.active && <span className="text-[11px] font-semibold text-rose-600">Turned off</span>}
                 </div>
-                <p className="mt-0.5 text-sm text-slate-500">{jobsLine(load.active, load.done)}</p>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  {jobsLine(load.active, load.done)} ·{' '}
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOf(m)}
+                    className="font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+                  >
+                    Service history
+                  </button>
+                </p>
               </>
             )}
           </div>
@@ -426,6 +445,15 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
             ))}
           </ul>
         </div>
+      )}
+
+      {historyOf && (
+        <MechanicHistoryModal
+          mechanic={historyOf}
+          tickets={tickets}
+          currentStaffName={currentStaffName}
+          onClose={() => setHistoryOf(null)}
+        />
       )}
 
       {hiddenCount > 0 && (
