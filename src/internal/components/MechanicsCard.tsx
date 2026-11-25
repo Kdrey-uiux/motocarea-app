@@ -1,5 +1,12 @@
-import { useMemo, useState } from 'react';
-import { AlertTriangle, Check, ChevronDown, Edit3, Plus, UserCheck, UserX, Wrench, X } from '../../components/icons';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Check, ChevronDown, Edit3, Loader2, Plus, Trash2, User, UserCheck, UserX, Wrench, X } from '../../components/icons';
+import MechanicAvatar from '../../components/MechanicAvatar';
+import {
+  deleteMechanicPhoto,
+  prepareMechanicPhoto,
+  uploadMechanicPhoto,
+  useMechanicPhotoUrl,
+} from '../../lib/mechanicPhotos';
 import { toast } from '../utils/toast';
 import { InternalTicket } from '../types/internal';
 import MechanicHistoryModal from '../modals/MechanicHistoryModal';
@@ -39,6 +46,139 @@ const BTN =
 const PRIMARY =
   'h-10 px-4 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 shadow-md shadow-orange-500/25 disabled:opacity-50 disabled:cursor-not-allowed';
 
+/** Roster row picture: the stored photo (signed link) or the initial */
+function RosterAvatar({ mechanic }: { mechanic: WorkshopMechanic }) {
+  const url = useMechanicPhotoUrl(mechanic.photoPath);
+  return <MechanicAvatar name={mechanic.name} photoUrl={url} size={44} muted={!mechanic.active} />;
+}
+
+const photoErrorText = (e: unknown) => {
+  const msg = e instanceof Error ? e.message : String(e);
+  return /bucket not found/i.test(msg) ? 'Photos are not set up yet. Run migration 28 in Supabase first.' : msg;
+};
+
+/** Owner: pick, preview and save a mechanic's photo, with the mechanic's consent */
+function PhotoPanel({
+  mechanic,
+  busy,
+  onSave,
+  onRemove,
+  onClose,
+}: {
+  mechanic: WorkshopMechanic;
+  busy: boolean;
+  onSave: (photo: Blob) => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const currentUrl = useMechanicPhotoUrl(mechanic.photoPath);
+  const [photo, setPhoto] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Free the preview when it changes or the panel closes
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  const pick = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    setPreparing(true);
+    try {
+      const prepared = await prepareMechanicPhoto(file);
+      setPhoto(prepared);
+      setPreviewUrl(URL.createObjectURL(prepared));
+    } catch (e) {
+      setError(photoErrorText(e));
+    } finally {
+      setPreparing(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  };
+
+  const inputId = `mech-photo-${mechanic.id}`;
+  const consentId = `mech-photo-consent-${mechanic.id}`;
+
+  return (
+    <div
+      role="group"
+      aria-label={`Photo of ${mechanic.name}`}
+      className="w-full md:max-w-md md:ml-auto rounded-2xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-3"
+    >
+      <div className="flex items-center gap-3">
+        <MechanicAvatar name={mechanic.name} photoUrl={previewUrl ?? currentUrl} size={64} />
+        <div className="min-w-0 space-y-1.5">
+          <p className="text-sm font-semibold text-slate-900">Photo of {mechanic.name}</p>
+          <label htmlFor={inputId} className={`${BTN} w-fit ${preparing || busy ? 'opacity-50 pointer-events-none' : ''}`}>
+            {preparing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <User className="w-3.5 h-3.5" />}
+            {preparing ? 'Preparing…' : photo || mechanic.photoPath ? 'Pick another photo' : 'Pick a photo'}
+          </label>
+          <input
+            ref={fileRef}
+            id={inputId}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(e) => pick(e.target.files?.[0])}
+          />
+        </div>
+      </div>
+
+      <p className="text-xs text-slate-500">
+        Riders see this photo only on their own jobs with {mechanic.name}. It is made square and small, and hidden
+        details like the location are removed before upload.
+      </p>
+
+      {photo && (
+        <label htmlFor={consentId} className="flex items-start gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            id={consentId}
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer"
+          />
+          <span>{mechanic.name} agreed that riders can see this photo.</span>
+        </label>
+      )}
+
+      {error && <p className="text-xs text-rose-600">{error}</p>}
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {mechanic.photoPath && !photo && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onRemove}
+            className="mr-auto h-9 px-3.5 rounded-full border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-medium transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Remove photo
+          </button>
+        )}
+        <button type="button" disabled={busy} onClick={onClose} className={BTN}>
+          Cancel
+        </button>
+        {photo && (
+          <button
+            type="button"
+            disabled={busy || !consent}
+            onClick={() => onSave(photo)}
+            className="h-9 px-3.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Save photo
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const jobsLine = (active: number, done: number) =>
   `${active === 0 ? 'No job now' : `${active} job${active === 1 ? '' : 's'} now`} · ${done} done`;
 
@@ -58,6 +198,8 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
   // The mechanic whose "Resigned" confirmation is open
   const [resigningId, setResigningId] = useState<string | null>(null);
   const [showFormer, setShowFormer] = useState(false);
+  // The mechanic whose photo panel is open
+  const [photoFor, setPhotoFor] = useState<string | null>(null);
 
   const loads = useMemo(() => mechanicLoads(tickets), [tickets]);
   const foundNames = useMemo(() => namesNotOnRoster(tickets, roster), [tickets, roster]);
@@ -172,6 +314,52 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
     }
   };
 
+  // New or changed photo: upload first, then record it on the list, then remove the old file
+  const handleSavePhoto = async (m: WorkshopMechanic, photo: Blob) => {
+    setBusy(true);
+    let path: string;
+    try {
+      path = await uploadMechanicPhoto(m.id, photo);
+    } catch (e) {
+      setBusy(false);
+      toast.error(`The photo could not be uploaded. ${photoErrorText(e)}`);
+      return;
+    }
+    const next = {
+      ...roster,
+      mechanics: roster.mechanics.map((x) =>
+        x.id === m.id ? { ...x, photoPath: path, photoConsentAt: new Date().toISOString() } : x
+      ),
+    };
+    const changed = !!m.photoPath;
+    const ok = await save(next, {
+      action: changed ? 'MECHANIC_PHOTO_CHANGED' : 'MECHANIC_PHOTO_ADDED',
+      details: `${changed ? 'Changed' : 'Added'} the photo of ${m.name}. The owner confirmed ${m.name} agreed that riders can see it on their own jobs.`,
+    });
+    if (!ok) {
+      await deleteMechanicPhoto(path);
+      return;
+    }
+    await deleteMechanicPhoto(m.photoPath);
+    setPhotoFor(null);
+    toast.success(`Saved the photo of ${m.name}.`);
+  };
+
+  const handleRemovePhoto = async (m: WorkshopMechanic) => {
+    const next = {
+      ...roster,
+      mechanics: roster.mechanics.map((x) => (x.id === m.id ? { ...x, photoPath: null, photoConsentAt: null } : x)),
+    };
+    const ok = await save(next, {
+      action: 'MECHANIC_PHOTO_REMOVED',
+      details: `Removed the photo of ${m.name}. Riders see the name only.`,
+    });
+    if (!ok) return;
+    await deleteMechanicPhoto(m.photoPath);
+    setPhotoFor(null);
+    toast.success(`Removed the photo of ${m.name}.`);
+  };
+
   const handleBringBack = async (m: WorkshopMechanic) => {
     const next = { ...roster, mechanics: roster.mechanics.map((x) => (x.id === m.id ? { ...x, active: true } : x)) };
     const ok = await save(next, {
@@ -206,18 +394,12 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
     const here = isInToday(roster, m.id);
     const isEditing = editingId === m.id;
     const isResigning = resigningId === m.id;
+    const isPhoto = photoFor === m.id;
     const openJobs = isResigning ? openJobsOf(m) : [];
     return (
       <li key={m.id} className={`px-4 sm:px-5 py-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 ${m.active ? '' : 'bg-slate-50/60'}`}>
         <div className="flex items-start gap-3 min-w-0 flex-1">
-          <div
-            className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-base shrink-0 ${
-              m.active ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-500'
-            }`}
-            aria-hidden="true"
-          >
-            {m.name.charAt(0).toUpperCase()}
-          </div>
+          <RosterAvatar mechanic={m} />
           <div className="min-w-0 flex-1">
             {isEditing ? (
               <form
@@ -298,7 +480,7 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
           </div>
         </div>
 
-        {!isEditing && !isResigning && (
+        {!isEditing && !isResigning && !isPhoto && (
           <div className="flex flex-wrap gap-2 md:justify-end md:shrink-0 pl-14 md:pl-0">
             {m.active && (
               <button
@@ -320,12 +502,26 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
               <Edit3 className="w-3.5 h-3.5" />
               Rename
             </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setEditingId(null);
+                setResigningId(null);
+                setPhotoFor(m.id);
+              }}
+              className={BTN}
+            >
+              <User className="w-3.5 h-3.5" />
+              {m.photoPath ? 'Photo' : 'Add photo'}
+            </button>
             {m.active ? (
               <button
                 type="button"
                 disabled={busy}
                 onClick={() => {
                   setEditingId(null);
+                  setPhotoFor(null);
                   setResigningId(m.id);
                 }}
                 className="h-9 px-3.5 rounded-full border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-medium transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
@@ -345,6 +541,16 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
               </button>
             )}
           </div>
+        )}
+
+        {isPhoto && (
+          <PhotoPanel
+            mechanic={m}
+            busy={busy}
+            onSave={(photo) => handleSavePhoto(m, photo)}
+            onRemove={() => handleRemovePhoto(m)}
+            onClose={() => setPhotoFor(null)}
+          />
         )}
 
         {isResigning && (

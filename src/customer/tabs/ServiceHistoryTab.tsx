@@ -28,6 +28,8 @@ import { printDocument } from '../../utils/printDocument';
 import { PrintPortal } from '../../components/print/PrintTemplate';
 import { ServiceHistoryDocument, ServiceRecordDocument } from '../../components/print/MotoCareDocuments';
 import { ScrollLock } from '../../hooks/useLockBodyScroll';
+import MechanicAvatar from '../../components/MechanicAvatar';
+import { mechanicPhotoKey, useMyMechanicPhotos } from '../../lib/mechanicPhotos';
 
 interface ServiceHistoryTabProps {
   serviceHistory: ServiceTicket[];
@@ -54,6 +56,8 @@ export default function ServiceHistoryTab({
 }: ServiceHistoryTabProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTicket, setSelectedTicket] = useState<ServiceTicket | null>(null);
+  // Photos of the mechanics on the rider's own tickets (only those the owner added with consent)
+  const mechanicPhotos = useMyMechanicPhotos(mechanicPhotoKey(serviceHistory));
   const [selectedBikePlate, setSelectedBikePlate] = useState<string>('all');
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
 
@@ -691,7 +695,12 @@ export default function ServiceHistoryTab({
                           {item.service_type}
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap text-slate-700">
-                          <span className="font-medium">{item.assigned_mechanic}</span>
+                          <span className="font-medium inline-flex items-center gap-2">
+                            {item.assigned_mechanic && mechanicPhotos.get(item.id) && (
+                              <MechanicAvatar name={item.assigned_mechanic} photoUrl={mechanicPhotos.get(item.id)} size={24} />
+                            )}
+                            {item.assigned_mechanic}
+                          </span>
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap text-center">
                           {item.status === 'MISSED' || item.status === 'NO_SHOW' ? (
@@ -866,7 +875,16 @@ export default function ServiceHistoryTab({
                 </div>
                 <div>
                   <span className="text-slate-400 block text-[10px]">LEAD MECHANIC</span>
-                  <span className="font-semibold text-orange-600">{selectedTicket.assigned_mechanic || '—'}</span>
+                  <span className="font-semibold text-orange-600 flex items-center gap-2 min-w-0">
+                    {selectedTicket.assigned_mechanic && mechanicPhotos.get(selectedTicket.id) && (
+                      <MechanicAvatar
+                        name={selectedTicket.assigned_mechanic}
+                        photoUrl={mechanicPhotos.get(selectedTicket.id)}
+                        size={36}
+                      />
+                    )}
+                    <span className="truncate">{selectedTicket.assigned_mechanic || '—'}</span>
+                  </span>
                 </div>
               </div>
 

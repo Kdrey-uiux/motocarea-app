@@ -22,6 +22,10 @@ export interface WorkshopMechanic {
    * released under, so the history and job counts look for these names too.
    */
   previousNames: string[];
+  /** Photo in the private 'mechanic-photos' bucket ("<id>/<time>.webp"), owner uploads only (migration 28) */
+  photoPath?: string | null;
+  /** When the owner confirmed the mechanic agreed to show the photo to riders */
+  photoConsentAt?: string | null;
 }
 
 export interface MechanicRoster {
@@ -124,6 +128,8 @@ function normalize(raw: unknown): MechanicRoster {
       previousNames: Array.isArray(m.previousNames)
         ? m.previousNames.filter((n): n is string => typeof n === 'string' && !!cleanMechanicName(n)).map(cleanMechanicName)
         : [],
+      photoPath: typeof m.photoPath === 'string' && m.photoPath ? m.photoPath : null,
+      photoConsentAt: typeof m.photoConsentAt === 'string' && m.photoConsentAt ? m.photoConsentAt : null,
     }));
   return {
     mechanics,

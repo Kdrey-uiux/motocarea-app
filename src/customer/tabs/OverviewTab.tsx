@@ -20,6 +20,8 @@ import {
   Phone,
 } from '../../components/icons';
 import { useShopInfo } from '../../utils/shopInfo';
+import MechanicAvatar from '../../components/MechanicAvatar';
+import { mechanicPhotoKey, useMyMechanicPhotos } from '../../lib/mechanicPhotos';
 import { getTicketDisplayDate } from '../../utils/ticketDates';
 import {
   getNextService,
@@ -64,6 +66,10 @@ export default function OverviewTab({
   const activeTicket =
     activeTickets.find((t) => t.id === selectedTicketId) ||
     (activeTickets.length > 0 ? activeTickets[0] : null);
+
+  // Photo of the mechanic on the rider's own ticket (only when the owner added one with consent)
+  const mechanicPhotos = useMyMechanicPhotos(mechanicPhotoKey(activeTickets));
+  const activeMechanicPhoto = activeTicket ? mechanicPhotos.get(activeTicket.id) ?? null : null;
 
   const primaryBike = motorcycles.length > 0 ? motorcycles[0] : null;
 
@@ -553,8 +559,13 @@ export default function OverviewTab({
               <span className="text-slate-400">
                 {activeTicket ? 'Lead Mechanic' : 'Vehicle Condition'}
               </span>
-              <span className="font-bold text-slate-800">
-                {activeTicket ? (activeTicket.assigned_mechanic || 'Pending Assignment') : (primaryBike?.status || '—')}
+              <span className="font-bold text-slate-800 flex items-center gap-2 min-w-0">
+                {activeTicket?.assigned_mechanic && activeMechanicPhoto && (
+                  <MechanicAvatar name={activeTicket.assigned_mechanic} photoUrl={activeMechanicPhoto} size={28} />
+                )}
+                <span className="truncate">
+                  {activeTicket ? (activeTicket.assigned_mechanic || 'Pending Assignment') : (primaryBike?.status || '—')}
+                </span>
               </span>
             </div>
 
@@ -716,7 +727,12 @@ export default function OverviewTab({
                 </div>
                 <div>
                   <span className="text-slate-400 text-[10px] block">Lead Mechanic</span>
-                  <span className="font-bold text-slate-800 truncate block">{activeTicket.assigned_mechanic || 'To be assigned'}</span>
+                  <span className="font-bold text-slate-800 flex items-center gap-1.5 min-w-0">
+                    {activeTicket.assigned_mechanic && activeMechanicPhoto && (
+                      <MechanicAvatar name={activeTicket.assigned_mechanic} photoUrl={activeMechanicPhoto} size={24} />
+                    )}
+                    <span className="truncate">{activeTicket.assigned_mechanic || 'To be assigned'}</span>
+                  </span>
                 </div>
               </div>
 
