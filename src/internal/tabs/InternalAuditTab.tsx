@@ -54,6 +54,7 @@ const ACTION_LABELS: Record<string, string> = {
   MECHANIC_RENAMED: 'Renamed a mechanic',
   MECHANIC_TURNED_OFF: 'Turned off a mechanic',
   MECHANIC_TURNED_ON: 'Turned on a mechanic',
+  TEST_DATA_DELETED: 'Deleted test data',
   PASSWORD_RESET_DISPATCHED: 'Sent a password reset',
   PASSWORD_RESET_SUCCESS: 'Password was reset',
   PASSWORD_CHANGED: 'Changed their own password',

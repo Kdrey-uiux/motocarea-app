@@ -51,6 +51,11 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
 
   const loads = useMemo(() => mechanicLoads(tickets), [tickets]);
   const foundNames = useMemo(() => namesNotOnRoster(tickets, roster), [tickets, roster]);
+  // Hidden names still written on some ticket (once those tickets are gone, there is nothing to show again)
+  const hiddenCount = useMemo(() => {
+    const onTickets = new Set(tickets.map((t) => mechanicKey(t.assigned_mechanic)));
+    return roster.ignoredNames.filter((n) => onTickets.has(n)).length;
+  }, [tickets, roster]);
   const active = roster.mechanics.filter((m) => m.active);
   const turnedOff = roster.mechanics.filter((m) => !m.active);
   const attendanceTaken = hasAttendanceToday(roster);
@@ -423,10 +428,10 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
         </div>
       )}
 
-      {roster.ignoredNames.length > 0 && (
+      {hiddenCount > 0 && (
         <div className="px-4 sm:px-5 py-2.5 border-t border-slate-100 text-xs text-slate-400 flex items-center gap-2">
           <span>
-            {roster.ignoredNames.length} name{roster.ignoredNames.length === 1 ? '' : 's'} from old tickets hidden.
+            {hiddenCount} name{hiddenCount === 1 ? '' : 's'} from old tickets hidden.
           </span>
           <button
             type="button"
