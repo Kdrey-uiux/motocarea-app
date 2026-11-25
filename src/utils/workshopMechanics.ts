@@ -15,8 +15,13 @@ export interface WorkshopMechanic {
   /** Stable id, ready for a real mechanics table later */
   id: string;
   name: string;
-  /** False when the mechanic no longer works at the shop (never deleted, so history stays) */
+  /** False when the mechanic resigned or left the shop (never deleted, so history stays) */
   active: boolean;
+  /**
+   * Names this mechanic had before a rename. Released jobs keep the name they were
+   * released under, so the history and job counts look for these names too.
+   */
+  previousNames: string[];
 }
 
 export interface MechanicRoster {
@@ -53,6 +58,35 @@ export function isPlaceholderMechanic(name?: string | null): boolean {
   return !key || PLACEHOLDER_NAMES.has(key);
 }
 
+/** Every name that means this mechanic (current name first, then names before a rename), as mechanicKey */
+export function mechanicKeys(m: Pick<WorkshopMechanic, 'name' | 'previousNames'>): Set<string> {
+  return new Set([m.name, ...(m.previousNames ?? [])].map((n) => mechanicKey(n)).filter(Boolean));
+}
+
+/** True when a name on a ticket belongs to this mechanic (current or earlier name) */
+export function isMechanicName(m: Pick<WorkshopMechanic, 'name' | 'previousNames'>, name?: string | null): boolean {
+  return !isPlaceholderMechanic(name) && mechanicKeys(m).has(mechanicKey(name));
+}
+
+/**
+ * The list after a rename: the old name is kept in previousNames (unless only the capital
+ * letters changed), so released jobs under the old name still count for this mechanic.
+ */
+export function renameInRoster(roster: MechanicRoster, id: string, newName: string): MechanicRoster {
+  const name = cleanMechanicName(newName);
+  return {
+    ...roster,
+    mechanics: roster.mechanics.map((m) => {
+      if (m.id !== id) return m;
+      const newKey = mechanicKey(name);
+      const previousNames = [m.name, ...m.previousNames].filter(
+        (n, i, all) => mechanicKey(n) !== newKey && all.findIndex((x) => mechanicKey(x) === mechanicKey(n)) === i
+      );
+      return { ...m, name, previousNames };
+    }),
+  };
+}
+
 /** Today's date on this device, YYYY-MM-DD */
 export function todayKey(now: Date = new Date()): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -75,7 +109,7 @@ function normalize(raw: unknown): MechanicRoster {
   if (Array.isArray(raw)) {
     const mechanics = raw
       .filter((n): n is string => typeof n === 'string' && !isPlaceholderMechanic(n))
-      .map((n) => ({ id: legacyId(n), name: cleanMechanicName(n), active: true }));
+      .map((n) => ({ id: legacyId(n), name: cleanMechanicName(n), active: true, previousNames: [] }));
     return { ...EMPTY_ROSTER, mechanics };
   }
   if (!raw || typeof raw !== 'object') return EMPTY_ROSTER;
@@ -83,7 +117,14 @@ function normalize(raw: unknown): MechanicRoster {
   const mechanics = (Array.isArray(r.mechanics) ? r.mechanics : [])
     .filter((m): m is Record<string, unknown> => !!m && typeof m === 'object')
     .filter((m) => typeof m.id === 'string' && typeof m.name === 'string' && cleanMechanicName(m.name as string))
-    .map((m) => ({ id: m.id as string, name: cleanMechanicName(m.name as string), active: m.active !== false }));
+    .map((m) => ({
+      id: m.id as string,
+      name: cleanMechanicName(m.name as string),
+      active: m.active !== false,
+      previousNames: Array.isArray(m.previousNames)
+        ? m.previousNames.filter((n): n is string => typeof n === 'string' && !!cleanMechanicName(n)).map(cleanMechanicName)
+        : [],
+    }));
   return {
     mechanics,
     presentDate: typeof r.presentDate === 'string' ? r.presentDate : null,
@@ -138,6 +179,11 @@ export function mechanicNameError(name: string, roster: MechanicRoster, ignoreId
   if (roster.mechanics.some((m) => m.id !== ignoreId && mechanicKey(m.name) === key)) {
     return `${clean} is already on the list.`;
   }
+  // An earlier name of someone else would mix two people's service history
+  const earlierOf = roster.mechanics.find((m) => m.id !== ignoreId && m.previousNames.some((n) => mechanicKey(n) === key));
+  if (earlierOf) {
+    return `${clean} was an earlier name of ${earlierOf.name}. Add a surname or initial so the two are told apart.`;
+  }
   return null;
 }
 
@@ -178,7 +224,7 @@ export function addMechanicsToRoster(
       skipped.push({ name, reason: error });
       continue;
     }
-    next = { ...next, mechanics: [...next.mechanics, { id: newMechanicId(), name, active: true }] };
+    next = { ...next, mechanics: [...next.mechanics, { id: newMechanicId(), name, active: true, previousNames: [] }] };
     added.push(name);
   }
   return { next, added, skipped };
@@ -201,6 +247,11 @@ export interface MechanicLoad {
 
 type TicketLike = { status: string; stage?: number | null; assigned_mechanic?: string | null };
 
+/** A job still being worked on (in the shop, not yet Ready): it keeps its mechanic busy */
+export function isOnTheFloor(t: TicketLike): boolean {
+  return !CLOSED_STATUSES.has(t.status) && t.status !== 'READY_FOR_PICKUP' && (t.stage ?? 1) < 5;
+}
+
 /** Job counts per mechanic name (keyed by mechanicKey) */
 export function mechanicLoads(tickets: TicketLike[]): Map<string, MechanicLoad> {
   const loads = new Map<string, MechanicLoad>();
@@ -209,15 +260,27 @@ export function mechanicLoads(tickets: TicketLike[]): Map<string, MechanicLoad> 
     const key = mechanicKey(t.assigned_mechanic);
     const load = loads.get(key) ?? { active: 0, done: 0 };
     if (t.status === 'COMPLETED') load.done += 1;
-    else if (!CLOSED_STATUSES.has(t.status) && t.status !== 'READY_FOR_PICKUP' && (t.stage ?? 1) < 5) load.active += 1;
+    else if (isOnTheFloor(t)) load.active += 1;
     loads.set(key, load);
   }
   return loads;
 }
 
+/** One mechanic's job counts, adding up the jobs under the names before a rename */
+export function loadOf(loads: Map<string, MechanicLoad>, m: Pick<WorkshopMechanic, 'name' | 'previousNames'>): MechanicLoad {
+  const total: MechanicLoad = { active: 0, done: 0 };
+  for (const key of mechanicKeys(m)) {
+    const load = loads.get(key);
+    if (!load) continue;
+    total.active += load.active;
+    total.done += load.done;
+  }
+  return total;
+}
+
 /** Names typed on tickets that are not on the list yet, most used first */
 export function namesNotOnRoster(tickets: TicketLike[], roster: MechanicRoster): { name: string; tickets: number }[] {
-  const onList = new Set([...roster.mechanics.map((m) => mechanicKey(m.name)), ...(roster.ignoredNames ?? [])]);
+  const onList = new Set([...roster.mechanics.flatMap((m) => [...mechanicKeys(m)]), ...(roster.ignoredNames ?? [])]);
   const found = new Map<string, { name: string; tickets: number }>();
   for (const t of tickets) {
     if (isPlaceholderMechanic(t.assigned_mechanic)) continue;

@@ -7,7 +7,7 @@ import { db } from '../../lib/supabase';
 import { broadcastTicketSync } from '../../lib/realtimeSync';
 import { stageName } from '../../utils/serviceStages';
 import { parseTicketNotes } from '../../utils/ticketNotesParser';
-import { mechanicKey, useMechanicRoster, WorkshopMechanic } from '../../utils/workshopMechanics';
+import { mechanicKey, mechanicKeys, useMechanicRoster, WorkshopMechanic } from '../../utils/workshopMechanics';
 import { actionLabel } from '../utils/auditLabels';
 import { recordAuditLog } from '../utils/databaseAuditLogger';
 import { toast } from '../utils/toast';
@@ -113,7 +113,10 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
   const [correctReason, setCorrectReason] = useState('');
   const [correcting, setCorrecting] = useState(false);
 
-  const key = mechanicKey(mechanic.name);
+  // Every name this mechanic had: released jobs keep the name they were released under,
+  // so jobs from before a rename still belong here
+  const names = useMemo(() => mechanicKeys(mechanic), [mechanic]);
+  const isMine = (name?: string | null) => names.has(mechanicKey(name));
 
   // Later jobs that point back at an earlier one (backjobs), by the earlier job's id
   const cameBack = useMemo(() => {
@@ -127,8 +130,8 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
   const byId = useMemo(() => new Map(tickets.map((t) => [t.id, t])), [tickets]);
 
   const myJobs = useMemo(
-    () => tickets.filter((t) => mechanicKey(t.assigned_mechanic) === key && !NOT_WORKED.has(t.status)),
-    [tickets, key]
+    () => tickets.filter((t) => names.has(mechanicKey(t.assigned_mechanic)) && !NOT_WORKED.has(t.status)),
+    [tickets, names]
   );
   const inShop = myJobs.filter((t) => t.status !== 'COMPLETED').sort((a, b) => b.created_at.localeCompare(a.created_at));
   const released = useMemo(
@@ -174,10 +177,10 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
         const seen = new Set<string>();
         const list: MovedAway[] = [];
         for (const row of data as { ticket_code: string; timestamp: string; previous_value: string | null; new_value: string | null }[]) {
-          if (mechanicKey(row.previous_value) !== key || seen.has(row.ticket_code)) continue;
+          if (!names.has(mechanicKey(row.previous_value)) || seen.has(row.ticket_code)) continue;
           const ticket = byCode.get(row.ticket_code);
           // Only jobs that are not his any more
-          if (!ticket || mechanicKey(ticket.assigned_mechanic) === key || NOT_WORKED.has(ticket.status)) continue;
+          if (!ticket || names.has(mechanicKey(ticket.assigned_mechanic)) || NOT_WORKED.has(ticket.status)) continue;
           seen.add(row.ticket_code);
           list.push({ ticket_code: row.ticket_code, timestamp: row.timestamp, to: ticket.assigned_mechanic || 'no one' });
         }
@@ -186,7 +189,7 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
     return () => {
       alive = false;
     };
-  }, [key, tickets]);
+  }, [names, tickets]);
 
   const toggleJob = (t: InternalTicket) => {
     const next = openId === t.id ? null : t.id;
@@ -225,8 +228,8 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
       ticketCode: t.ticket_code,
       action: 'MECHANIC_CORRECTED',
       actor: currentStaffName,
-      details: `Released job's mechanic corrected from ${mechanic.name} to ${correctTo}. Reason: ${reason}`,
-      previousValue: mechanic.name,
+      details: `Released job's mechanic corrected from ${t.assigned_mechanic || mechanic.name} to ${correctTo}. Reason: ${reason}`,
+      previousValue: t.assigned_mechanic || mechanic.name,
       newValue: correctTo,
     });
     broadcastTicketSync({ id: t.id, action: 'mechanic_corrected' });
@@ -308,11 +311,11 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
               >
                 <option value="">Who really did this job?</option>
                 {roster.mechanics
-                  .filter((m) => mechanicKey(m.name) !== key)
+                  .filter((m) => m.id !== mechanic.id && !isMine(m.name))
                   .map((m) => (
                     <option key={m.id} value={m.name}>
                       {m.name}
-                      {m.active ? '' : ' (turned off)'}
+                      {m.active ? '' : ' (resigned)'}
                     </option>
                   ))}
               </select>
@@ -418,6 +421,13 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
             <h2 id="mechanic-history-title" className="font-display text-xl font-bold tracking-tight text-slate-900 truncate">
               {mechanic.name}
             </h2>
+            {(mechanic.previousNames.length > 0 || !mechanic.active) && (
+              <p className="text-xs text-slate-500">
+                {!mechanic.active && <span className="font-semibold">Resigned</span>}
+                {!mechanic.active && mechanic.previousNames.length > 0 && ' · '}
+                {mechanic.previousNames.length > 0 && `Earlier name: ${mechanic.previousNames.join(', ')}`}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -563,7 +573,11 @@ export default function MechanicHistoryModal({ mechanic, tickets, currentStaffNa
           onClose={() => setPrinting(false)}
         >
           <MechanicServiceRecordDocument
-            mechanicName={mechanic.name}
+            mechanicName={
+              mechanic.previousNames.length > 0
+                ? `${mechanic.name} (earlier name: ${mechanic.previousNames.join(', ')})`
+                : mechanic.name
+            }
             periodLabel={periodLabel}
             referenceNo={referenceNo}
             cameBackCount={shown.filter((t) => cameBack.has(t.id)).length}

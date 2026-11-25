@@ -4,6 +4,8 @@ import {
   cleanMechanicName,
   hasAttendanceToday,
   isInToday,
+  isMechanicName,
+  loadOf,
   MECHANIC_NAME_MAX,
   mechanicKey,
   mechanicLoads,
@@ -38,19 +40,20 @@ export default function MechanicPicker({ value, onChange, tickets, id, autoFocus
   const active = roster.mechanics.filter((m) => m.active);
   const attendanceTaken = hasAttendanceToday(roster);
 
-  const byLoad = (a: { name: string }, b: { name: string }) =>
-    (loads.get(mechanicKey(a.name))?.active ?? 0) - (loads.get(mechanicKey(b.name))?.active ?? 0) ||
-    a.name.localeCompare(b.name);
+  // Open jobs per mechanic, counting jobs under a name from before a rename
+  const jobsOf = (m: { name: string; previousNames: string[] }) => loadOf(loads, m).active;
+  const byLoad = (a: (typeof active)[number], b: (typeof active)[number]) =>
+    jobsOf(a) - jobsOf(b) || a.name.localeCompare(b.name);
   const inToday = active.filter((m) => !attendanceTaken || isInToday(roster, m.id)).sort(byLoad);
   const dayOff = attendanceTaken ? active.filter((m) => !isInToday(roster, m.id)).sort(byLoad) : [];
 
   // The current name, matched to the list without caring about capital letters
   const listed = active.find((m) => mechanicKey(m.name) === mechanicKey(value));
   const offList = cleanMechanicName(value) && !listed ? cleanMechanicName(value) : null;
-  const turnedOff = offList ? roster.mechanics.some((m) => !m.active && mechanicKey(m.name) === mechanicKey(offList)) : false;
+  const turnedOff = offList ? roster.mechanics.some((m) => !m.active && isMechanicName(m, offList)) : false;
 
   // "Least busy" only when one mechanic clearly has fewer jobs than everyone else in today
-  const counts = inToday.map((m) => loads.get(mechanicKey(m.name))?.active ?? 0);
+  const counts = inToday.map(jobsOf);
   const leastBusyId = inToday.length > 1 && counts[0] < counts[1] ? inToday[0].id : null;
 
   // No list yet (or staff chose "Other"): a plain name box, as before
@@ -108,13 +111,13 @@ export default function MechanicPicker({ value, onChange, tickets, id, autoFocus
         <option value="">Not assigned yet</option>
         {offList && (
           <option value={offList}>
-            {offList} {turnedOff ? '(turned off)' : '(not on the list)'}
+            {offList} {turnedOff ? '(resigned)' : '(not on the list)'}
           </option>
         )}
         <optgroup label={attendanceTaken ? 'In today' : 'Mechanics'}>
           {inToday.map((m) => (
             <option key={m.id} value={m.name}>
-              {m.name} · {jobsText(loads.get(mechanicKey(m.name))?.active ?? 0)}
+              {m.name} · {jobsText(jobsOf(m))}
               {m.id === leastBusyId ? ' · least busy' : ''}
             </option>
           ))}

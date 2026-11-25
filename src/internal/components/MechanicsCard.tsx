@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Check, Edit3, Plus, Power, Wrench, X } from '../../components/icons';
+import { AlertTriangle, Check, ChevronDown, Edit3, Plus, UserCheck, UserX, Wrench, X } from '../../components/icons';
 import { toast } from '../utils/toast';
 import { InternalTicket } from '../types/internal';
 import MechanicHistoryModal from '../modals/MechanicHistoryModal';
@@ -11,12 +11,16 @@ import {
   hasAttendanceToday,
   ignoreNames,
   isInToday,
+  isMechanicName,
+  isOnTheFloor,
+  loadOf,
   MECHANIC_NAME_MAX,
   mechanicKey,
   mechanicLoads,
   mechanicNameError,
   MechanicRoster,
   namesNotOnRoster,
+  renameInRoster,
   renameMechanicOnOpenTickets,
   saveMechanicRoster,
   setInToday,
@@ -51,6 +55,9 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
   const [editName, setEditName] = useState('');
   const [editError, setEditError] = useState<string | null>(null);
   const [historyOf, setHistoryOf] = useState<WorkshopMechanic | null>(null);
+  // The mechanic whose "Resigned" confirmation is open
+  const [resigningId, setResigningId] = useState<string | null>(null);
+  const [showFormer, setShowFormer] = useState(false);
 
   const loads = useMemo(() => mechanicLoads(tickets), [tickets]);
   const foundNames = useMemo(() => namesNotOnRoster(tickets, roster), [tickets, roster]);
@@ -115,7 +122,8 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
       setEditError(error);
       return;
     }
-    const next = { ...roster, mechanics: roster.mechanics.map((x) => (x.id === m.id ? { ...x, name } : x)) };
+    // The old name is kept so released jobs under it stay in this mechanic's history
+    const next = renameInRoster(roster, m.id, name);
     const ok = await save(next, {
       action: 'MECHANIC_RENAMED',
       details: `Renamed mechanic ${m.name} to ${name}.`,
@@ -139,23 +147,38 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
     );
   };
 
-  const handleToggleActive = async (m: WorkshopMechanic) => {
+  // Open jobs (not yet Ready) still under this mechanic, so the owner can reassign them
+  const openJobsOf = (m: WorkshopMechanic) =>
+    tickets.filter((t) => isOnTheFloor(t) && isMechanicName(m, t.assigned_mechanic));
+
+  // Resigned or left the shop: off the pick list, service history kept (never deleted)
+  const handleResign = async (m: WorkshopMechanic) => {
     const next = {
       ...roster,
-      mechanics: roster.mechanics.map((x) => (x.id === m.id ? { ...x, active: !m.active } : x)),
-      presentIds: m.active ? roster.presentIds.filter((id) => id !== m.id) : roster.presentIds,
+      mechanics: roster.mechanics.map((x) => (x.id === m.id ? { ...x, active: false } : x)),
+      presentIds: roster.presentIds.filter((id) => id !== m.id),
     };
     const ok = await save(next, {
-      action: m.active ? 'MECHANIC_TURNED_OFF' : 'MECHANIC_TURNED_ON',
-      details: m.active
-        ? `${m.name} was taken off the mechanic list. Their past jobs keep the name.`
-        : `${m.name} is back on the mechanic list.`,
+      action: 'MECHANIC_TURNED_OFF',
+      details: `${m.name} resigned and was taken off the mechanic list. Their service history is kept.`,
     });
     if (!ok) return;
-    const jobs = loads.get(mechanicKey(m.name))?.active ?? 0;
-    if (m.active && jobs > 0) {
-      toast.info(`${m.name} still has ${jobs} open job${jobs === 1 ? '' : 's'}. Reassign them in the Queue if needed.`);
+    setResigningId(null);
+    const jobs = openJobsOf(m).length;
+    if (jobs > 0) {
+      toast.info(`${m.name} still has ${jobs} open job${jobs === 1 ? '' : 's'}. Reassign them in the Queue.`);
+    } else {
+      toast.success(`${m.name} is now under Former mechanics.`);
     }
+  };
+
+  const handleBringBack = async (m: WorkshopMechanic) => {
+    const next = { ...roster, mechanics: roster.mechanics.map((x) => (x.id === m.id ? { ...x, active: true } : x)) };
+    const ok = await save(next, {
+      action: 'MECHANIC_TURNED_ON',
+      details: `${m.name} is back on the mechanic list.`,
+    });
+    if (ok) toast.success(`${m.name} is back on the mechanic list.`);
   };
 
   const handleToggleToday = (m: WorkshopMechanic) => save(setInToday(roster, m.id, !isInToday(roster, m.id)));
@@ -179,9 +202,11 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
   const pastedNames = newNames.split(/\r?\n/).map(cleanMechanicName).filter(Boolean);
 
   const renderRow = (m: WorkshopMechanic) => {
-    const load = loads.get(mechanicKey(m.name)) ?? { active: 0, done: 0 };
+    const load = loadOf(loads, m);
     const here = isInToday(roster, m.id);
     const isEditing = editingId === m.id;
+    const isResigning = resigningId === m.id;
+    const openJobs = isResigning ? openJobsOf(m) : [];
     return (
       <li key={m.id} className={`px-4 sm:px-5 py-4 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 ${m.active ? '' : 'bg-slate-50/60'}`}>
         <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -228,7 +253,10 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
                 {editError ? (
                   <p className="text-xs text-rose-600">{editError}</p>
                 ) : (
-                  <p className="text-xs text-slate-400">Open jobs will show the new name. Released jobs keep the old one.</p>
+                  <p className="text-xs text-slate-400">
+                    Only to fix the name of the same person. For a new mechanic, use Add mechanics. Past jobs stay in
+                    the service history.
+                  </p>
                 )}
               </form>
             ) : (
@@ -250,8 +278,11 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
                       {here ? 'In today' : 'Day off'}
                     </span>
                   )}
-                  {!m.active && <span className="text-[11px] font-semibold text-rose-600">Turned off</span>}
+                  {!m.active && <span className="text-[11px] font-semibold text-slate-500">Resigned</span>}
                 </div>
+                {m.previousNames.length > 0 && (
+                  <p className="text-xs text-slate-400">Earlier name: {m.previousNames.join(', ')}</p>
+                )}
                 <p className="mt-0.5 text-sm text-slate-500">
                   {jobsLine(load.active, load.done)} ·{' '}
                   <button
@@ -267,7 +298,7 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
           </div>
         </div>
 
-        {!isEditing && (
+        {!isEditing && !isResigning && (
           <div className="flex flex-wrap gap-2 md:justify-end md:shrink-0 pl-14 md:pl-0">
             {m.active && (
               <button
@@ -289,19 +320,68 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
               <Edit3 className="w-3.5 h-3.5" />
               Rename
             </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => handleToggleActive(m)}
-              className={`h-9 px-3.5 rounded-full border text-sm font-medium transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 ${
-                m.active
-                  ? 'border-rose-200 bg-white hover:bg-rose-50 text-rose-600'
-                  : 'border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700'
-              }`}
-            >
-              <Power className="w-3.5 h-3.5" />
-              {m.active ? 'Turn off' : 'Turn on'}
-            </button>
+            {m.active ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setEditingId(null);
+                  setResigningId(m.id);
+                }}
+                className="h-9 px-3.5 rounded-full border border-rose-200 bg-white hover:bg-rose-50 text-rose-600 text-sm font-medium transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                Resigned
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleBringBack(m)}
+                className="h-9 px-3.5 rounded-full border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 text-sm font-medium transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <UserCheck className="w-3.5 h-3.5" />
+                Bring back
+              </button>
+            )}
+          </div>
+        )}
+
+        {isResigning && (
+          <div
+            role="group"
+            aria-label={`Mark ${m.name} as resigned`}
+            className="w-full md:max-w-md md:ml-auto rounded-2xl border border-rose-200 bg-rose-50/60 p-3.5 space-y-2"
+          >
+            <p className="text-sm font-semibold text-slate-900">Mark {m.name} as resigned?</p>
+            <p className="text-sm text-slate-600">
+              Staff won&apos;t see {m.name} when assigning jobs. The service history stays, and you can bring them
+              back any time.
+            </p>
+            {openJobs.length > 0 && (
+              <p className="text-sm text-amber-800 flex gap-1.5">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Still has {openJobs.length} open job{openJobs.length === 1 ? '' : 's'}:{' '}
+                  <span className="font-mono">{openJobs.map((t) => `#${t.ticket_code}`).join(', ')}</span>. Reassign
+                  them in the Queue after this.
+                </span>
+              </p>
+            )}
+            <div className="flex flex-wrap justify-end gap-2 pt-1">
+              <button type="button" disabled={busy} onClick={() => setResigningId(null)} className={BTN}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => handleResign(m)}
+                className="h-9 px-3.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                Yes, mark as resigned
+              </button>
+            </div>
           </div>
         )}
       </li>
@@ -389,13 +469,37 @@ export default function MechanicsCard({ tickets, currentStaffName }: MechanicsCa
 
       <ul className="divide-y divide-slate-100">
         {active.map(renderRow)}
-        {turnedOff.map(renderRow)}
-        {roster.mechanics.length === 0 && (
+        {active.length === 0 && (
           <li className="px-5 py-10 text-center text-sm text-slate-500">
-            No mechanics yet. Add them so staff can pick a name instead of typing it.
+            {turnedOff.length === 0
+              ? 'No mechanics yet. Add them so staff can pick a name instead of typing it.'
+              : 'No current mechanics. Add new ones, or bring someone back from Former mechanics.'}
           </li>
         )}
       </ul>
+
+      {/* Resigned mechanics: off the pick list, service history kept */}
+      {turnedOff.length > 0 && (
+        <div className="border-t border-slate-100">
+          <button
+            type="button"
+            onClick={() => setShowFormer((v) => !v)}
+            aria-expanded={showFormer}
+            aria-controls="former-mechanics"
+            className="w-full px-4 sm:px-5 py-3 flex items-center justify-between gap-2 text-left hover:bg-slate-50 transition cursor-pointer"
+          >
+            <span className="text-sm font-semibold text-slate-700">
+              Former mechanics <span className="font-medium text-slate-400">({turnedOff.length})</span>
+            </span>
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showFormer ? 'rotate-180' : ''}`} />
+          </button>
+          {showFormer && (
+            <ul id="former-mechanics" className="divide-y divide-slate-100 border-t border-slate-100">
+              {turnedOff.map(renderRow)}
+            </ul>
+          )}
+        </div>
+      )}
 
       {foundNames.length > 0 && (
         <div className="px-4 sm:px-5 py-4 border-t border-slate-100 bg-amber-50/50 space-y-2.5">
