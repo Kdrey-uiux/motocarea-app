@@ -20,8 +20,9 @@ import {
 import { motion } from 'motion/react';
 import LegalTermsModal from '../components/legal/LegalTermsModal';
 import MotoCareLogo from '../components/brand/MotoCareLogo';
-import { CAPTCHA_ENABLED } from '../lib/captcha';
+import { CAPTCHA_ENABLED, getCaptchaToken } from '../lib/captcha';
 import TurnstileWidget, { type TurnstileHandle } from '../components/auth/TurnstileWidget';
+import GoogleSignInButton from '../components/auth/GoogleSignInButton';
 import { validateFirstName, validateLastName } from '../utils/validators';
 import { TERMS_VERSION } from '../utils/riderProfile';
 
@@ -355,6 +356,41 @@ export default function Login() {
       setGoogleLoading(false);
       setErrorMessage(`Google sign-in failed: ${error.message}`);
     }
+  };
+
+  // Google button on this page (no redirect): Google gives an ID token, Supabase signs in with it.
+  // New Google users get a customer account the same way (profile trigger in 01_profiles.sql).
+  const handleGoogleCredential = async (idToken: string, rawNonce: string) => {
+    if (googleLoading || loading) return;
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setGoogleLoading(true);
+    try {
+      // CAPTCHA is on in Supabase, and this request counts as a sign-in
+      const captcha = await getCaptchaToken('google');
+      const { error } = await withAuthTimeout(
+        supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+          nonce: rawNonce,
+          options: captcha ? { captchaToken: captcha } : undefined,
+        })
+      );
+      if (error) throw error;
+
+      const result = await verifyCustomerSession();
+      if (result.status === 'customer') {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      // Admin/staff email (already signed out again) or a login that didn't stick
+      setErrorMessage(GOOGLE_SIGN_IN_FAILED_MESSAGE);
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      const message = err instanceof Error ? err.message : '';
+      setErrorMessage(message ? `Google sign-in failed: ${message}` : GOOGLE_SIGN_IN_FAILED_MESSAGE);
+    }
+    setGoogleLoading(false);
   };
 
   const checkUserRoleAndRedirect = async (userId: string) => {
@@ -1158,15 +1194,21 @@ export default function Login() {
                   or
                   <span className="h-px flex-1 bg-slate-200" />
                 </div>
-                <button
-                  type="button"
-                  onClick={handleGoogleSignIn}
-                  disabled={googleLoading || loading}
-                  className="w-full bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-semibold py-3 rounded-full transition flex items-center justify-center gap-2.5 active:scale-[0.98] cursor-pointer"
-                >
-                  {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-5 h-5" />}
-                  Continue with Google
-                </button>
+                <GoogleSignInButton
+                  onCredential={handleGoogleCredential}
+                  busy={googleLoading || loading}
+                  fallback={
+                    <button
+                      type="button"
+                      onClick={handleGoogleSignIn}
+                      disabled={googleLoading || loading}
+                      className="w-full bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed text-slate-800 font-semibold py-3 rounded-full transition flex items-center justify-center gap-2.5 active:scale-[0.98] cursor-pointer"
+                    >
+                      {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-5 h-5" />}
+                      Continue with Google
+                    </button>
+                  }
+                />
                 {mode === 'register' && (
                   <p className="text-[11px] text-slate-400 text-center leading-relaxed">
                     By continuing with Google, you agree to the{' '}
